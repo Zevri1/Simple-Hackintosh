@@ -1,0 +1,12 @@
+# Private/local configuration data
+EFI/
+*.efi
+*.aml
+*.kext/
+*.dmg
+*.chunklist
+*.log
+*.ioreg
+*.plist.local
+hardware-report-private.md
+private-logs/
