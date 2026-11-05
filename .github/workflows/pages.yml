@@ -34,9 +34,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p _site/docs
+          mkdir -p _site/docs _site/templates
           cp site/index.html site/styles.css site/app.js site/favicon.svg _site/
           cp docs/*.md _site/docs/
+          cp templates/*.md _site/templates/
           cp social-preview.jpg _site/
           touch _site/.nojekyll
 
