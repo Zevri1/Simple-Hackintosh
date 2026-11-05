@@ -263,3 +263,53 @@ button { color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+
+/* Site refinement: accessibility, reading tools, and responsive details */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.reading-progress { position: fixed; inset: 0 0 auto; height: 3px; z-index: 1001; pointer-events: none; background: transparent; }
+.reading-progress span { display: block; width: 100%; height: 100%; background: var(--accent); transform: scaleX(0); transform-origin: left center; will-change: transform; box-shadow: 0 0 12px rgba(183,243,107,.34); }
+.sr-only { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0,0,0,0) !important; white-space: nowrap !important; border: 0 !important; }
+.noscript-note { position: relative; z-index: 200; padding: 12px 20px; text-align: center; background: var(--accent-dark); color: var(--text); font-size: 13px; }
+.noscript-note a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+.article-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 22px; padding: 9px 0 12px; border-bottom: 1px solid var(--line); color: var(--muted-2); font-size: 9px; font-weight: 800; letter-spacing: .14em; }
+.doc-article h2, .doc-article h3 { scroll-margin-top: 104px; }
+.doc-article h2 .heading-anchor, .doc-article h3 .heading-anchor { display: inline-grid; place-items: center; vertical-align: middle; width: 27px; height: 27px; margin-left: 7px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); color: var(--muted-2); font: 700 13px/1 inherit; cursor: pointer; opacity: 0; transition: opacity .18s ease, color .18s ease, border-color .18s ease; }
+.doc-article h2:hover .heading-anchor, .doc-article h2 .heading-anchor:focus-visible, .doc-article h3:hover .heading-anchor, .doc-article h3 .heading-anchor:focus-visible { opacity: 1; }
+.doc-article h2 .heading-anchor:hover, .doc-article h3 .heading-anchor:hover { color: var(--accent); border-color: var(--accent); }
+.doc-article pre.code-block { position: relative; padding-top: 46px; }
+.copy-code { position: absolute; top: 9px; right: 10px; min-height: 28px; padding: 4px 9px; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--panel-2); color: var(--muted); font-size: 10px; font-weight: 700; cursor: pointer; transition: color .18s ease, border-color .18s ease, background .18s ease; }
+.copy-code:hover { color: var(--accent); border-color: var(--accent); }
+.doc-toc #toc-links a.active { color: var(--accent); border-left-color: var(--accent); background: var(--accent-dark); }
+.search-result small { line-height: 1.5; overflow-wrap: anywhere; }
+.chapter-link:focus-visible, .top-link:focus-visible, .button:focus-visible, .stage-card:focus-visible, .quick-grid a:focus-visible { outline-offset: 2px; }
+@media (hover: none) {
+  .doc-article h2 .heading-anchor, .doc-article h3 .heading-anchor { opacity: .8; }
+}
+@media (max-width: 760px) {
+  .reading-progress { height: 2px; }
+  .article-meta { margin-bottom: 17px; font-size: 8px; letter-spacing: .1em; }
+  .doc-article h2 .heading-anchor, .doc-article h3 .heading-anchor { opacity: .75; }
+  .doc-article pre.code-block { margin-left: 0; margin-right: 0; }
+}
+@media (max-width: 420px) {
+  .article-meta { flex-wrap: wrap; justify-content: flex-start; }
+  .copy-code { min-height: 32px; font-size: 11px; }
+}
+@media print {
+  :root, :root[data-theme="light"] {
+    color-scheme: light; --bg: #fff; --bg-soft: #fff; --panel: #fff; --panel-2: #f5f5f5;
+    --line: rgba(0,0,0,.18); --line-strong: rgba(0,0,0,.28); --text: #111; --muted: #444;
+    --muted-2: #666; --accent: #315d19; --accent-2: #28684d; --accent-dark: #edf4e8;
+  }
+  .topbar, .sidebar, .doc-toc, .chapter-pagination, .hero-actions, .reading-progress,
+  .copy-code, .heading-anchor, .site-footer { display: none !important; }
+  .app-shell, .main-content, .doc-layout, .doc-article {
+    display: block !important; width: 100% !important; max-width: none !important;
+    margin: 0 !important; padding: 0 !important; border: 0 !important; box-shadow: none !important;
+  }
+  body { background: #fff !important; color: #111 !important; }
+  a { color: #111 !important; text-decoration: underline !important; }
+  .doc-article pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .doc-article table { page-break-inside: avoid; }
+}
