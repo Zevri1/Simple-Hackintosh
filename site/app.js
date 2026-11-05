@@ -255,7 +255,7 @@ function enhanceArticle() {
     button.setAttribute("aria-label", "Copy link to " + heading.textContent);
     button.title = "Copy link to this section";
     button.addEventListener("click", async function () {
-      const link = window.location.href.split("#")[0] + "#" + heading.id;
+      const link = window.location.origin + window.location.pathname + "#chapter/" + activeChapter + "/" + encodeURIComponent(heading.id);
       const copied = await copyText(link);
       announcer.textContent = copied ? "Section link copied." : "Could not copy the section link.";
     });
@@ -311,10 +311,12 @@ function renderPagination(index) {
     pagination.appendChild(a);
   }
 }
-async function openChapter(id) {
+async function openChapter(id, anchorId) {
   const chapter = chapters.find(function (item) { return item.id === id; });
   if (!chapter) { showHome(); return; }
   const requestId = ++loadSequence;
+  searchInput.value = "";
+  runSearch("");
   activeChapter = id;
   homeView.hidden = true;
   guideView.hidden = false;
@@ -349,6 +351,14 @@ async function openChapter(id) {
     updateReadingProgress();
     document.title = chapter.title + " — Simple Hackintosh";
     window.scrollTo({top:0,behavior:"smooth"});
+    if (anchorId) {
+      let targetId = anchorId;
+      try { targetId = decodeURIComponent(anchorId); } catch (error) {}
+      window.setTimeout(function () {
+        const target = document.getElementById(targetId);
+        if (target && article.contains(target)) target.scrollIntoView({behavior:"smooth", block:"start"});
+      }, 80);
+    }
   } catch (error) {
     if (requestId !== loadSequence) return;
     article.innerHTML = '<div class="error-state"><h2>Chapter could not be loaded</h2><p>' + escapeHTML(error.message) + '</p><p>Open the source file directly on <a href="https://github.com/kiwewe09-aa/Simple-Hackintosh/blob/main/docs/' + id + '.md" target="_blank" rel="noopener noreferrer">GitHub ↗</a>.</p></div>';
@@ -368,7 +378,10 @@ function showHome() {
 function route() {
   const hash = window.location.hash || "#home";
   if (hash.startsWith("#chapter/")) {
-    openChapter(hash.slice("#chapter/".length).split("/")[0]);
+    const parts = hash.slice("#chapter/".length).split("/");
+    const chapterId = parts.shift();
+    const anchorId = parts.length ? parts.join("/") : null;
+    openChapter(chapterId, anchorId);
   } else if (hash === "#guide") {
     openChapter("00-read-first");
   } else if (activeChapter && hash.length > 1) {
