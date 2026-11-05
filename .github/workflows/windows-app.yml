@@ -1,0 +1,46 @@
+name: Build Windows desktop app
+
+on:
+  push:
+    branches:
+      - main
+      - chatgpt/windows-desktop-app-v1
+    paths:
+      - "app/windows/**"
+      - ".github/workflows/windows-app.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "app/windows/**"
+      - ".github/workflows/windows-app.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore app/windows/SimpleHackintosh.App.csproj
+
+      - name: Publish self-contained Windows x64 app
+        run: dotnet publish app/windows/SimpleHackintosh.App.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o artifacts/windows-x64
+
+      - name: Upload portable app
+        uses: actions/upload-artifact@v4
+        with:
+          name: Simple-Hackintosh-Windows-x64
+          path: artifacts/windows-x64/
+          if-no-files-found: error
+          retention-days: 14

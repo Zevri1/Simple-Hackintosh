@@ -17,6 +17,15 @@
 > [!IMPORTANT]
 > This is an educational guide, not a one-click installer and not a guarantee that macOS will work on a particular computer. Compatibility depends on the exact CPU, graphics processor, firmware, wireless card, storage controller, and macOS release. Never copy another computer's EFI folder without understanding and adapting every component.
 
+## Desktop companion app
+
+A native Windows utility is being developed alongside this guide. The first release includes an EFI folder/ZIP checker, an XML config.plist structure review, and a local hardware report generator.
+
+- [Windows desktop app source and build instructions](app/windows/README.md)
+- [Windows x64 build workflow](https://github.com/kiwewe09-aa/Simple-Hackintosh/actions/workflows/windows-app.yml)
+
+The desktop utilities process selected files locally. Their structural checks do not replace OpenCore's official validation tools or a hardware-specific compatibility assessment.
+
 ## What this project is
 
 Simple Hackintosh teaches the concepts and workflow behind installing and maintaining macOS on non-Apple x86-64 hardware with OpenCore. The goal is to explain *why* each part of an EFI exists, how to check whether hardware is supported, and how to validate a configuration before relying on it.
