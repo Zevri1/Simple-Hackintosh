@@ -1,11 +1,18 @@
 # Changelog
 
-All notable changes to this documentation project are recorded here.
+All notable documentation changes are recorded here.
 
-## [Unreleased]
+## 2026-11-05
 
-- Added modular OpenCore learning chapters.
-- Added Windows Recovery USB workflow for Tahoe 26 with an official reference link.
-- Added hardware and problem report templates.
-- Added a repository workflow illustration.
-- Added version-specific Tahoe 26 caveats and clearer backup warnings.
+- Replaced the incomplete repository introduction with a working chapter index.
+- Added the missing numbered documentation chapters and report templates.
+- Added an illustrated walkthrough with source attribution.
+- Added clearer hardware-compatibility, privacy, backup, and legal guidance.
+- Added macOS 26 / Tahoe caveats and stronger OpenCore version-matching guidance.
+- Fixed links that previously pointed to files not present in the repository.
+
+## Earlier starter-pack notes
+
+- Established the Simple Hackintosh documentation project.
+- Added contribution, support, source, and publishing notes.
+- Added repository Social Preview artwork.
