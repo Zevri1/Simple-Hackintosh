@@ -40,6 +40,7 @@
       <a class="top-link active" href="#home" data-home-link>Overview</a>
       <a class="top-link" href="#chapters">Learning path</a>
       <a class="top-link" href="#guide" data-guide-link>Documentation</a>
+      <a class="top-link" href="#tools" data-tools-link>Tool Center</a>
       <a class="top-link" href="https://github.com/kiwewe09-aa/Simple-Hackintosh" target="_blank" rel="noopener noreferrer">GitHub <span>↗</span></a>
     </nav>
 
@@ -109,6 +110,18 @@
         </div>
       </section>
 
+      <section class="section tool-preview-section">
+        <div class="section-heading">
+          <div><span class="section-kicker">02 / LOCAL TOOL CENTER</span><h2>Useful tools.<br><em>Private by design.</em></h2></div>
+          <p>Build a hardware report, inspect an EFI folder, or find the right troubleshooting chapter. Your files stay in this browser.</p>
+        </div>
+        <div class="tool-preview-grid">
+          <a class="tool-preview-card" href="#tools/hardware"><span class="tool-preview-icon">⌗</span><span class="tool-preview-meta">HARDWARE / REPORT BUILDER</span><b>Hardware Report</b><p>Turn your component details into a clear, shareable Markdown report.</p><span class="tool-preview-link">Build a report ↗</span></a>
+          <a class="tool-preview-card" href="#tools/efi"><span class="tool-preview-icon">{ }</span><span class="tool-preview-meta">EFI / LOCAL INSPECTION</span><b>EFI Inspector</b><p>Check expected files and references inside an EFI folder without uploading it.</p><span class="tool-preview-link">Inspect an EFI ↗</span></a>
+          <a class="tool-preview-card" href="#tools/troubleshoot"><span class="tool-preview-icon">⌁</span><span class="tool-preview-meta">DIAGNOSTICS / NEXT STEPS</span><b>Troubleshooting Guide</b><p>Match a boot symptom or log message with relevant chapters and checks.</p><span class="tool-preview-link">Find a direction ↗</span></a>
+        </div>
+      </section>
+
       <section class="section library-section" id="library">
         <div class="section-heading library-heading">
           <div><span class="section-kicker">02 / DOCUMENTATION LIBRARY</span><h2>The complete <em>field manual.</em></h2></div>
@@ -147,6 +160,94 @@
         <a class="brand footer-brand" href="#home"><span class="brand-symbol"><svg viewBox="0 0 42 42" fill="none"><path d="M29.5 9H17.2a7.2 7.2 0 0 0 0 14.4h7.6a7.2 7.2 0 0 1 0 14.4H11" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/></svg></span><span class="brand-copy"><b>SIMPLE HACKINTOSH</b><small>OPENCORE FIELD GUIDE</small></span></a>
         <div class="footer-right"><div class="footer-links"><a href="https://github.com/kiwewe09-aa/Simple-Hackintosh" target="_blank" rel="noopener noreferrer">Repository ↗</a><a href="https://dortania.github.io/OpenCore-Install-Guide/" target="_blank" rel="noopener noreferrer">Dortania Guide ↗</a><a href="#chapter/14-troubleshooting">Troubleshooting</a></div><p>Independent educational project. Apple, macOS, OpenCore, and third-party tools remain subject to their respective names, licenses, and terms.</p></div>
       </footer>
+    </section>
+
+
+    <section class="tools-view" id="tools-view" hidden>
+      <div class="tools-page-head">
+        <div class="tools-breadcrumb"><a href="#home">Home</a><span>/</span><b>Tool Center</b></div>
+        <div class="tools-heading-row">
+          <div><span class="section-kicker">SIMPLE HACKINTOSH / UTILITIES</span><h1>Tool <em>Center.</em></h1><p>Practical helpers for research and diagnostics. No account, no upload, no mystery automation.</p></div>
+          <div class="tools-version"><span class="live-indicator"><i></i> RUNNING LOCALLY</span><small>IN YOUR BROWSER</small></div>
+        </div>
+        <div class="privacy-banner"><span class="privacy-lock">⌑</span><div><b>Your files stay on your device.</b><p>The EFI Inspector reads selected files locally in this browser. Nothing is sent to a server. It performs structural checks, not the official OpenCore validation.</p></div></div>
+      </div>
+
+      <div class="tools-workspace">
+        <aside class="tools-sidebar">
+          <span class="section-kicker">AVAILABLE TOOLS</span>
+          <nav id="tools-nav" aria-label="Tool selection">
+            <button type="button" class="tool-nav-item active" data-tool-select="hardware" aria-pressed="true"><span>⌗</span><span><b>Hardware Report</b><small>Inventory & export</small></span><i>→</i></button>
+            <button type="button" class="tool-nav-item" data-tool-select="efi" aria-pressed="false"><span>{ }</span><span><b>EFI Inspector</b><small>Folder & config checks</small></span><i>→</i></button>
+            <button type="button" class="tool-nav-item" data-tool-select="troubleshoot" aria-pressed="false"><span>⌁</span><span><b>Troubleshooting</b><small>Symptoms & next steps</small></span><i>→</i></button>
+          </nav>
+          <div class="tools-sidebar-note"><b>Important</b><p>These tools help organize evidence. They cannot guarantee hardware compatibility or replace official OpenCore tools and guides.</p><a href="#chapter/00-read-first">Read the safety notes ↗</a></div>
+        </aside>
+
+        <div class="tools-main">
+          <section class="tool-panel active" id="tool-hardware" data-tool-panel="hardware">
+            <div class="tool-panel-heading"><div><span class="tool-panel-index">TOOL 01 / INVENTORY</span><h2>Hardware Report</h2><p>Describe the exact components in the target computer. Unknown is better than guessing.</p></div><span class="tool-status">REPORT BUILDER</span></div>
+            <form id="hardware-report-form" class="hardware-form">
+              <div class="form-section-title"><b>01</b><span>COMPUTER & FIRMWARE</span></div>
+              <div class="form-grid">
+                <label>Computer / board model<input name="model" placeholder="Exact model or motherboard" autocomplete="off"></label>
+                <label>CPU<input name="cpu" placeholder="Full processor name" autocomplete="off"></label>
+                <label>Firmware mode<select name="firmware"><option value="">Select if known</option><option>UEFI</option><option>Legacy BIOS</option><option>Not sure</option></select></label>
+                <label>Memory<input name="memory" placeholder="Capacity and type, if known"></label>
+              </div>
+              <div class="form-section-title"><b>02</b><span>GRAPHICS & CONNECTIVITY</span></div>
+              <div class="form-grid">
+                <label>Integrated graphics<input name="igpu" placeholder="Exact iGPU name"></label>
+                <label>Dedicated graphics<input name="dgpu" placeholder="Exact dGPU name or None"></label>
+                <label>Wi-Fi / Bluetooth<input name="wireless" placeholder="Chipset or model"></label>
+                <label>Ethernet<input name="ethernet" placeholder="Controller name"></label>
+                <label class="field-wide">Storage controller / drive<input name="storage" placeholder="NVMe / SATA controller and drive model"></label>
+              </div>
+              <div class="form-section-title"><b>03</b><span>PROJECT TARGET</span></div>
+              <div class="form-grid">
+                <label>Target macOS version<select name="macos"><option value="">Not decided</option><option>macOS Tahoe 26</option><option>macOS Sequoia 15</option><option>macOS Sonoma 14</option><option>macOS Ventura 13</option><option>Other / researching</option></select></label>
+                <label>Current operating system<input name="currentOs" placeholder="e.g. Windows 11"></label>
+                <label class="field-wide">PCI IDs / additional notes<textarea name="notes" rows="3" placeholder="Add hardware IDs, BIOS version, known issues, or write what is still unknown. Do not include serial numbers or private identifiers."></textarea></label>
+              </div>
+              <div class="form-actions"><button class="button button-primary" type="submit">Generate report <span>↗</span></button><button class="button button-secondary" type="reset" id="hardware-reset">Clear fields</button></div>
+            </form>
+            <div class="report-output" id="report-output" hidden>
+              <div class="report-output-head"><div><span class="tool-panel-index">GENERATED LOCALLY</span><b>Hardware inventory</b></div><span class="tool-status">MARKDOWN</span></div>
+              <pre id="hardware-report-preview"></pre>
+              <div class="form-actions"><button type="button" class="button button-primary" id="copy-hardware-report">Copy report</button><button type="button" class="button button-secondary" id="download-hardware-report">Download .md</button></div>
+            </div>
+            <p class="tool-footnote">This form does not scan your computer. It records the hardware details you provide; confirm component names and PCI IDs using a trusted system-information utility.</p>
+          </section>
+
+          <section class="tool-panel" id="tool-efi" data-tool-panel="efi" hidden>
+            <div class="tool-panel-heading"><div><span class="tool-panel-index">TOOL 02 / STRUCTURE CHECK</span><h2>EFI Inspector</h2><p>Select an EFI folder to check its expected structure and the file paths referenced by config.plist.</p></div><span class="tool-status">LOCAL FILE CHECK</span></div>
+            <div class="efi-dropzone" id="efi-dropzone">
+              <div class="efi-folder-icon">⌑</div><b>Select your EFI folder</b><p>Choose the EFI folder itself. The browser reads its file list and config.plist on this device only.</p>
+              <label class="button button-primary efi-select-button" for="efi-folder-input">Choose EFI folder</label>
+              <input id="efi-folder-input" type="file" webkitdirectory directory multiple>
+              <small>Nothing is uploaded. Binary config.plist files are detected but not parsed; use an XML export for reference checks.</small>
+            </div>
+            <div class="efi-selected" id="efi-selected" hidden><span id="efi-file-count"></span><button id="efi-clear" type="button" class="text-button">Clear selection</button></div>
+            <div class="form-actions"><button type="button" class="button button-primary" id="run-efi-check" disabled>Inspect EFI</button></div>
+            <div class="efi-results" id="efi-results" aria-live="polite" hidden></div>
+            <p class="tool-footnote">Scope: expected boot files, OpenCore folder layout, XML plist syntax, required top-level sections, and referenced ACPI / Kext / driver / tool paths. This is not equivalent to <code>ocvalidate</code> and does not certify that an EFI will boot.</p>
+          </section>
+
+          <section class="tool-panel" id="tool-troubleshoot" data-tool-panel="troubleshoot" hidden>
+            <div class="tool-panel-heading"><div><span class="tool-panel-index">TOOL 03 / DIAGNOSTICS</span><h2>Troubleshooting Guide</h2><p>Choose where the problem happens and add the exact message or symptom. The helper points to relevant documentation.</p></div><span class="tool-status">RULE-BASED HELPER</span></div>
+            <form id="troubleshoot-form" class="hardware-form">
+              <div class="form-grid">
+                <label>Where does it happen?<select name="stage" id="troubleshoot-stage"><option value="unknown">Not sure</option><option value="firmware">Before OpenCore appears</option><option value="opencore">OpenCore picker / loading</option><option value="installer">macOS Recovery / installer</option><option value="firstboot">First boot after installation</option><option value="postinstall">After installation</option><option value="hardware">A device does not work</option></select></label>
+                <label class="field-wide">Exact error, log line, or symptom<textarea id="troubleshoot-text" name="details" rows="5" placeholder="Paste a short, redacted error message or describe what you see. Remove serial numbers, UUIDs, and other private identifiers."></textarea></label>
+              </div>
+              <div class="form-actions"><button class="button button-primary" type="submit">Find relevant checks <span>↗</span></button><button class="button button-secondary" type="reset">Clear</button></div>
+            </form>
+            <div class="troubleshoot-results" id="troubleshoot-results" aria-live="polite" hidden></div>
+            <p class="tool-footnote">This assistant uses local keyword and stage matching. It does not send logs to an AI service or diagnose hardware automatically.</p>
+          </section>
+        </div>
+      </div>
+      <footer class="docs-footer"><span>SIMPLE HACKINTOSH / TOOL CENTER</span><a href="https://github.com/kiwewe09-aa/Simple-Hackintosh" target="_blank" rel="noopener noreferrer">View source on GitHub ↗</a></footer>
     </section>
 
     <section class="docs-view" id="docs-view" hidden>
