@@ -2,101 +2,109 @@
 
 # Simple Hackintosh
 
-### A practical, step-by-step OpenCore learning guide
+### A practical, illustrated guide to understanding OpenCore
 
-![Simple Hackintosh workflow](images/installation-flow.jpg)
+![Simple Hackintosh repository artwork](social-preview.jpg)
 
-**Identify hardware · Check compatibility · Prepare the installer · Build EFI · Install · Troubleshoot**
+**Identify hardware → Check compatibility → Prepare Recovery → Build EFI → Install → Validate**
 
 </div>
 
 ---
 
-> **Read first:** This repository is an educational documentation project, not a one-click installer and not a guarantee that macOS will work on a particular PC. Hardware support varies by exact component and macOS release. Do not copy another computer's EFI folder blindly.
+> [!IMPORTANT]
+> This is an educational guide, not a one-click installer and not a guarantee that macOS will work on a particular computer. Compatibility depends on the exact CPU, graphics processor, firmware, wireless card, storage controller, and macOS release. Never copy another computer's EFI folder without understanding and adapting every component.
 
-## What this guide covers
+## What this project is
 
-Simple Hackintosh explains the workflow from the first hardware inventory to a tested OpenCore setup. It emphasizes understanding each file and configuration entry rather than downloading a ready-made EFI and hoping it works.
+Simple Hackintosh teaches the concepts and workflow behind installing and maintaining macOS on non-Apple x86-64 hardware with OpenCore. The goal is to explain *why* each part of an EFI exists, how to check whether hardware is supported, and how to validate a configuration before relying on it.
 
-This project does **not** distribute macOS installers, Apple firmware, third-party Kext binaries, device-specific EFI folders, serial numbers, or other private identifiers. Obtain software only from its official project source and follow its license terms.
+This repository does **not** distribute macOS installers, Apple firmware, third-party binary packages, prebuilt device-specific EFI folders, or personal SMBIOS identifiers. Obtain tools and Kexts from their official project sources and respect their licenses.
 
-## Follow the guide in order
+## The learning path
 
-| Step | What you will do | Guide |
+| Stage | Goal | Chapter |
 |---|---|---|
-| 1 | Record exact hardware models and PCI IDs | [Hardware inventory](docs/01-hardware-inventory.md) |
-| 2 | Decide whether the hardware and macOS version are suitable | [Compatibility check](docs/02-compatibility.md) |
-| 3 | Prepare a macOS Recovery USB in Windows | [USB installer — Windows](docs/03-usb-installer-windows.md) |
-| 4 | Understand and assemble the EFI directory | [EFI structure](docs/04-efi-structure.md) |
-| 5 | Select ACPI files, Kexts, and UEFI drivers | [ACPI, Kexts, and drivers](docs/05-acpi-kexts-drivers.md) |
-| 6 | Build and review `config.plist` | [Configuration](docs/06-config-plist.md) |
+| 0 | Understand risks, requirements, and legal notes | [Read first](docs/00-read-first.md) |
+| 1 | Collect exact hardware names and PCI IDs | [Hardware inventory](docs/01-hardware-inventory.md) |
+| 2 | Check every important component for compatibility | [Compatibility](docs/02-compatibility.md) |
+| 3 | Prepare a macOS Recovery USB from Windows | [Windows USB installer](docs/03-usb-installer-windows.md) |
+| 4 | Understand the EFI folder and its required structure | [EFI structure](docs/04-efi-structure.md) |
+| 5 | Select ACPI tables, Kexts, and UEFI drivers | [ACPI, Kexts, and drivers](docs/05-acpi-kexts-drivers.md) |
+| 6 | Configure OpenCore for the actual hardware | [config.plist](docs/06-config-plist.md) |
 | 7 | Validate the EFI and collect useful logs | [Validation and debugging](docs/07-validation-debugging.md) |
-| 8 | Boot Recovery and install macOS safely | [Installation](docs/08-installation.md) |
-| 9 | Test hardware and complete post-install tasks | [Post-installation](docs/09-post-installation.md) |
-| 10 | Map USB ports and understand Tahoe-specific notes | [USB mapping](docs/10-usb-mapping.md) · [Tahoe 26](docs/11-macos-tahoe-26.md) |
-| 11 | Plan dual boot, backups, and future updates | [Dual boot](docs/12-dual-boot.md) · [Maintenance](docs/13-maintenance.md) |
-| 12 | Diagnose common boot and hardware issues | [Troubleshooting](docs/14-troubleshooting.md) |
+| 8 | Boot Recovery and install macOS carefully | [Installation](docs/08-installation.md) |
+| 9 | Test hardware after the first boot | [Post-installation](docs/09-post-installation.md) |
+| 10 | Map USB ports correctly | [USB mapping](docs/10-usb-mapping.md) |
+| 11 | Review macOS 26-specific caveats | [Tahoe 26](docs/11-macos-tahoe-26.md) |
+| 12 | Protect existing systems and boot files | [Dual boot](docs/12-dual-boot.md) |
+| 13 | Maintain OpenCore and prepare updates | [Maintenance](docs/13-maintenance.md) |
+| 14 | Diagnose common startup and hardware problems | [Troubleshooting](docs/14-troubleshooting.md) |
+| 15 | Learn the terminology | [Glossary](docs/15-glossary.md) |
+| 16 | See annotated screenshots of key stages | [Visual walkthrough](docs/16-visual-walkthrough.md) |
 
-## Start here
+## Before starting
 
-1. Read [Important safety and legal notes](docs/00-read-first.md).
-2. Complete the [hardware report template](templates/hardware-report.md).
-3. Check the exact CPU, GPU, Wi-Fi, audio, and storage devices against the official guides.
-4. Choose a macOS version only after checking support for the **whole computer**, not just the CPU.
-5. Keep a separate, verified backup of the original EFI and important personal files.
+1. Read [Read first](docs/00-read-first.md), including backup and legal notes.
+2. Fill in the [hardware report template](templates/hardware-report.md).
+3. Check the exact CPU, GPU, Wi-Fi/Bluetooth, Ethernet, audio codec, and storage controller. A product-family name alone is not enough.
+4. Choose a macOS version only after checking the whole computer against current documentation.
+5. Keep a verified backup of personal files and any existing boot configuration before changing firmware or disk partitions.
 
-## Important official references
+## How OpenCore fits together
+
+OpenCore is a boot loader. It prepares the environment macOS expects by loading selected ACPI tables, drivers, and Kexts, and by applying settings from config.plist. It does not make unsupported hardware magically compatible. Each file must have a reason to exist and must match the computer and the OpenCore version in use.
+
+A typical EFI contains:
+
+- BOOT: the UEFI fallback boot file.
+- OC: the OpenCore folder.
+- ACPI: selected ACPI tables.
+- Drivers: required UEFI drivers.
+- Kexts: kernel extensions and their dependencies.
+- Resources: optional picker assets.
+- Tools: optional boot-time utilities.
+- config.plist: the configuration that connects these parts.
+
+See [EFI structure](docs/04-efi-structure.md) before assembling files.
+
+## Visual learning
+
+The [visual walkthrough](docs/16-visual-walkthrough.md) includes reference screenshots for USB preparation, Recovery files, EFI layout, and ProperTree. Those screenshots are illustrative; they are not a ready-made configuration. Always follow the current official documentation.
+
+## Official references
 
 - [Dortania OpenCore Install Guide](https://dortania.github.io/OpenCore-Install-Guide/)
-- [OpenCorePkg — official releases and source](https://github.com/acidanthera/OpenCorePkg)
-- [OpenCore reference documentation](https://dortania.github.io/docs/)
+- [OpenCorePkg releases](https://github.com/acidanthera/OpenCorePkg/releases)
+- [OpenCorePkg documentation](https://github.com/acidanthera/OpenCorePkg/tree/master/Docs)
 - [OpenCore Post-Install Guide](https://dortania.github.io/OpenCore-Post-Install/)
 - [Getting Started with ACPI](https://dortania.github.io/Getting-Started-With-ACPI/)
 - [Dortania macOS 26 / Tahoe notes](https://dortania.github.io/OpenCore-Install-Guide/extras/tahoe.html)
+- [GPU Buyers Guide](https://dortania.github.io/GPU-Buyers-Guide/)
+- [Wireless Buyers Guide](https://dortania.github.io/Wireless-Buyers-Guide/)
 
-The Dortania guide and the OpenCore reference manual may not always display the same release number. Always use the documentation and `ocvalidate` that match the exact OpenCore package you downloaded. Never mix EFI binaries, drivers, tools, and configuration examples from unrelated releases.
+**Version rule:** Download one OpenCore release and use its matching EFI binaries, Sample.plist, tools, and ocvalidate. The generated Dortania guide may display a different supported-version banner from the newest GitHub release. Do not mix files from different releases; check both the guide and documentation shipped with the exact package.
 
-## Repository structure
+## Repository layout
 
-```text
-Simple-Hackintosh/
-├── README.md
-├── LICENSE
-├── CONTRIBUTING.md
-├── SUPPORT.md
-├── CHANGELOG.md
-├── docs/
-│   ├── 00-read-first.md
-│   ├── 01-hardware-inventory.md
-│   ├── 02-compatibility.md
-│   ├── 03-usb-installer-windows.md
-│   ├── 04-efi-structure.md
-│   ├── 05-acpi-kexts-drivers.md
-│   ├── 06-config-plist.md
-│   ├── 07-validation-debugging.md
-│   ├── 08-installation.md
-│   ├── 09-post-installation.md
-│   ├── 10-usb-mapping.md
-│   ├── 11-macos-tahoe-26.md
-│   ├── 12-dual-boot.md
-│   ├── 13-maintenance.md
-│   ├── 14-troubleshooting.md
-│   └── 15-glossary.md
-├── images/
-│   └── installation-flow.jpg
-└── templates/
-    ├── hardware-report.md
-    └── problem-report.md
-```
+- docs/: the numbered learning chapters.
+- templates/: blank hardware and troubleshooting report forms.
+- social-preview.jpg: repository sharing artwork.
+- social-preview-640.jpg: smaller preview image.
+- SOURCES.md: primary technical references.
+- CONTRIBUTING.md: documentation contribution rules.
+- SUPPORT.md: how to prepare a useful, redacted support report.
 
-## Publishing to GitHub
+## Safety, privacy, and licensing
 
-See [PUBLISHING.md](PUBLISHING.md) for uploading the files and setting the repository Social Preview image.
+Disk formatting and partition changes can erase data. Firmware changes can prevent a computer from starting until settings are restored. Back up first, verify the target disk by model and capacity, and do not change settings you do not understand.
+
+Do not publish serial numbers, MLB, SystemUUID, ROM, MAC addresses, passwords, account details, or an unredacted EFI. Do not upload macOS installers, Apple firmware, or third-party binaries unless redistribution is explicitly permitted.
+
+Apple's software license and local law may restrict installing or running macOS on non-Apple hardware. Read the applicable terms yourself; this project is not legal advice.
+
+The original documentation is released under the MIT License. External software, screenshots, trademarks, and third-party documentation remain subject to their own licenses and terms. See [LICENSE](LICENSE).
 
 ## Project status
 
-Documentation is being expanded and should be treated as a learning reference. Before following any command, confirm that it still matches the current OpenCore release, macOS version, and hardware platform.
-
-## License
-
-The original documentation in this repository is released under the MIT License. Third-party software, Apple software, trademarks, and external documentation remain subject to their own licenses and terms. See [LICENSE](LICENSE).
+This is a learning reference. Hardware-specific instructions should state the exact scope and should be checked against current upstream documentation before use.
