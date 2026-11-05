@@ -70,11 +70,11 @@ function inlineMarkdown(input) {
     return token;
   });
   text = text.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, function (_, alt, url) {
-    return '<img loading="lazy" alt="' + alt + '" src="' + safeHref(url) + '">';
+    return '<img loading="lazy" alt="' + alt + '" src="' + safeHref(url, true) + '">';
   });
   text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function (_, label, url) {
     const href = safeHref(url);
-    const external = /^https?:/i.test(url);
+    const external = /^https?:\/\//i.test(url);
     return '<a href="' + href + '"' + (external ? ' target="_blank" rel="noopener noreferrer"' : "") + ">" + label + "</a>";
   });
   text = text.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
