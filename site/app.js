@@ -457,7 +457,7 @@ async function openChapter(id, anchorId) {
   article.innerHTML = '<div class="loading-state"><span class="loading-dot"></span><p>Loading chapter…</p></div>';
   tocLinks.replaceChildren();
   pagination.replaceChildren();
-  window.scrollTo({top:0,behavior:"instant"});
+  window.scrollTo({top:0,behavior:"auto"});
   try {
     const response = await fetch("docs/" + id + ".md", {cache:"no-cache"});
     if (!response.ok) throw new Error("Chapter request failed (HTTP " + response.status + ").");
@@ -611,6 +611,9 @@ document.getElementById("chapter-filters").addEventListener("click", function (e
 
 document.getElementById("search-open").addEventListener("click", openSearch);
 document.getElementById("search-close").addEventListener("click", closeSearch);
+globalResults.addEventListener("click", function (event) {
+  if (event.target.closest("a")) closeSearch();
+});
 searchDialog.addEventListener("click", function (event) {
   if (event.target === searchDialog) closeSearch();
 });
