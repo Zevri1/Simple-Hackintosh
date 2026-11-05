@@ -131,14 +131,14 @@ function validateConfigObject(config, fileEntries) {
     };
     const refs = [];
     const acpi = config.ACPI && Array.isArray(config.ACPI.Add) ? config.ACPI.Add : [];
-    acpi.filter(item=>item && item.Enabled && item.Path).forEach(item=>refs.push({type:"ACPI",path:item.Path}));
+    acpi.filter(item=>item && item.Enabled && item.Path).forEach(item=>refs.push({type:"ACPI",path:"ACPI/"+item.Path,display:item.Path}));
     const kexts = config.Kernel && Array.isArray(config.Kernel.Add) ? config.Kernel.Add : [];
-    kexts.filter(item=>item && item.Enabled && item.BundlePath).forEach(item=>refs.push({type:"Kext",path:item.BundlePath}));
+    kexts.filter(item=>item && item.Enabled && item.BundlePath).forEach(item=>refs.push({type:"Kext",path:"Kexts/"+item.BundlePath,display:item.BundlePath}));
     const drivers = config.UEFI && Array.isArray(config.UEFI.Drivers) ? config.UEFI.Drivers : [];
-    drivers.filter(item=>item && item.Enabled && item.Path && item.Path.toLowerCase()!=="builtin").forEach(item=>refs.push({type:"Driver",path:item.Path}));
+    drivers.filter(item=>item && item.Enabled && item.Path && item.Path.toLowerCase()!=="builtin").forEach(item=>refs.push({type:"Driver",path:"Drivers/"+item.Path,display:item.Path}));
     refs.forEach(ref => {
       const found = exists(ref.path);
-      checks.push({kind:found?"ok":"fail",title:ref.type + " path: " + ref.path,detail:found?"Referenced item exists in the selected EFI package.":"Enabled entry points to a file or bundle not found in the selected package."});
+      checks.push({kind:found?"ok":"fail",title:ref.type + " path: " + ref.display,detail:found?"Referenced item exists in the selected EFI package.":"Enabled entry points to a file or bundle not found in the selected package."});
     });
     if (!refs.length) checks.push({kind:"warn",title:"Path reference check",detail:"No enabled ACPI, Kext, or UEFI driver paths were available to compare."});
   }
