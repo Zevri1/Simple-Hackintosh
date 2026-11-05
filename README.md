@@ -8,6 +8,8 @@
 
 **Identify hardware → Check compatibility → Prepare Recovery → Build EFI → Install → Validate**
 
+[**Open the live field guide ↗**](https://kiwewe09-aa.github.io/Simple-Hackintosh/)
+
 </div>
 
 ---
