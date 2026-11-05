@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b0f14">
+<meta name="description" content="Local Hackintosh utilities: inspect EFI folders, validate XML config.plist files, and build hardware reports privately in your browser.">
+<title>Tools Center — Simple Hackintosh</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="tools.css"><script defer src="tools.js"></script>
+</head>
+<body>
+<header class="topbar">
+<a class="brand" href="index.html"><span class="brand-mark">SH<span>_</span></span><span class="brand-name">SIMPLE<span>HACKINTOSH</span></span></a>
+<nav class="top-links" aria-label="Main navigation"><a href="index.html">Overview</a><a href="index.html#guide">Documentation</a><a class="active" href="tools.html" aria-current="page">Tools</a><a href="https://github.com/kiwewe09-aa/Simple-Hackintosh" target="_blank" rel="noopener noreferrer">GitHub ↗</a></nav>
+<div class="top-status"><span class="status-dot"></span> BROWSER-BASED UTILITIES</div>
+</header>
+<main class="page">
+<section class="intro">
+<div class="eyebrow"><span class="eyebrow-line"></span> SIMPLE HACKINTOSH / TOOLKIT 01</div>
+<div class="intro-grid"><div><h1>Tools that do<br><em>the checking.</em></h1><p class="intro-copy">Inspect an EFI package, review an OpenCore configuration, or turn system information into a clean hardware report. The work happens locally in your browser.</p></div>
+<div class="privacy-card"><div class="privacy-icon">⌑</div><div><strong>Your files stay on your device.</strong><p>No account. No upload. No server-side file processing.</p></div><span class="privacy-lock">LOCAL</span></div></div>
+<div class="intro-meta"><span>03 UTILITIES</span><span>NO INSTALLATION REQUIRED</span><span>DESKTOP + MOBILE</span></div>
+</section>
+<section class="workbench" aria-label="Tools workspace">
+<aside class="tool-rail">
+<div class="rail-heading">WORKSPACE <span>01 / 03</span></div>
+<button class="tool-tab active" type="button" data-tool-target="efi" aria-selected="true"><span class="tool-icon">01</span><span class="tool-tab-copy"><strong>EFI Checker</strong><small>Folder & ZIP inspection</small></span><span class="tab-arrow">↗</span></button>
+<button class="tool-tab" type="button" data-tool-target="config" aria-selected="false"><span class="tool-icon">02</span><span class="tool-tab-copy"><strong>Config Validator</strong><small>XML plist structure</small></span><span class="tab-arrow">↗</span></button>
+<button class="tool-tab" type="button" data-tool-target="hardware" aria-selected="false"><span class="tool-icon">03</span><span class="tool-tab-copy"><strong>Hardware Inspector</strong><small>System report builder</small></span><span class="tab-arrow">↗</span></button>
+<div class="rail-note"><span class="rail-note-mark">i</span><p>These utilities perform practical structural checks. They do not replace OpenCore's official validation tools or a hardware-specific compatibility review.</p></div>
+</aside>
+<div class="tool-stage">
+<section class="tool-panel active" id="tool-efi" data-tool-panel="efi">
+<div class="panel-heading"><div><div class="panel-kicker">UTILITY / 01</div><h2>EFI Checker</h2><p>Check the expected OpenCore layout and the paths referenced by your config.plist.</p></div><span class="panel-tag">ZIP · FOLDER</span></div>
+<div class="dropzone" id="efi-dropzone"><div class="drop-icon">↥</div><strong>Choose an EFI ZIP or folder</strong><p>ZIP archives and extracted EFI folders are supported. Nothing is uploaded.</p>
+<div class="file-actions"><label class="action-button primary">Choose ZIP<input id="efi-zip" type="file" accept=".zip,application/zip"></label><label class="action-button secondary">Choose folder<input id="efi-folder" type="file" webkitdirectory directory multiple></label></div>
+<div class="selected-file" id="efi-selection">No EFI package selected</div></div>
+<div class="panel-options"><span><i class="tiny-dot green"></i> Checks EFI/BOOT and EFI/OC layout</span><span><i class="tiny-dot blue"></i> Reads XML config.plist references</span><span><i class="tiny-dot"></i> ZIP64/encrypted ZIPs are not supported</span></div>
+<div class="panel-actions"><button class="action-button primary run-button" id="efi-run" type="button" disabled>Analyze EFI <span>→</span></button><button class="text-button" id="efi-reset" type="button">Clear selection</button></div>
+<div class="results" id="efi-results" aria-live="polite" hidden></div>
+</section>
+<section class="tool-panel" id="tool-config" data-tool-panel="config" hidden>
+<div class="panel-heading"><div><div class="panel-kicker">UTILITY / 02</div><h2>Config Validator</h2><p>Inspect an XML config.plist for common OpenCore structure and reference issues.</p></div><span class="panel-tag">XML PLIST</span></div>
+<div class="upload-row"><label class="file-picker">Select config.plist<input id="config-file" type="file" accept=".plist,.xml,application/xml,text/xml"></label><span id="config-selection">No file selected</span></div>
+<div class="or-divider"><span>OR PASTE XML</span></div>
+<textarea class="code-input" id="config-text" spellcheck="false" placeholder="<?xml version=&quot;1.0&quot;?>&#10;&lt;plist version=&quot;1.0&quot;&gt;&#10;  ...&#10;&lt;/plist&gt;"></textarea>
+<div class="hint">This checker accepts XML plist files. Binary plist files must be exported or converted to XML first.</div>
+<div class="panel-actions"><button class="action-button primary run-button" id="config-run" type="button">Validate configuration <span>→</span></button><button class="text-button" id="config-reset" type="button">Clear</button></div>
+<div class="results" id="config-results" aria-live="polite" hidden></div>
+</section>
+<section class="tool-panel" id="tool-hardware" data-tool-panel="hardware" hidden>
+<div class="panel-heading"><div><div class="panel-kicker">UTILITY / 03</div><h2>Hardware Inspector</h2><p>Collect component names and PCI IDs into a shareable report for compatibility research.</p></div><span class="panel-tag">REPORT BUILDER</span></div>
+<div class="hardware-grid">
+<label>CPU <input id="hw-cpu" type="text" placeholder="e.g. Intel Core i5-10210U"></label>
+<label>GPU <input id="hw-gpu" type="text" placeholder="e.g. Intel UHD Graphics 630"></label>
+<label>Motherboard / Model <input id="hw-board" type="text" placeholder="Exact system or board model"></label>
+<label>Wi-Fi / Bluetooth <input id="hw-wireless" type="text" placeholder="e.g. Intel AX200"></label>
+<label>Storage <input id="hw-storage" type="text" placeholder="NVMe / SATA model"></label>
+<label>Ethernet / Audio <input id="hw-other" type="text" placeholder="Controller names if known"></label></div>
+<label class="report-label" for="hw-raw">Paste a system report (optional)</label>
+<textarea class="code-input report-input" id="hw-raw" spellcheck="false" placeholder="Windows: paste a text report exported with msinfo32 /report ...&#10;Linux: paste output from lspci -nn or inxi -Fxxx ..."></textarea>
+<div class="hint">The browser cannot silently enumerate PCI devices. Add the details manually or paste a report you generated yourself.</div>
+<div class="panel-actions"><button class="action-button primary run-button" id="hardware-run" type="button">Build hardware report <span>→</span></button><button class="text-button" id="hardware-reset" type="button">Clear</button></div>
+<div class="results" id="hardware-results" aria-live="polite" hidden></div>
+</section>
+</div></section>
+<section class="bottom-note"><div><span class="bottom-number">01</span><strong>Evidence before changes.</strong><p>Run checks and save the report before editing an EFI. Keep a known-good backup.</p></div><div><span class="bottom-number">02</span><strong>Hardware-specific matters.</strong><p>A structurally valid EFI is not automatically compatible with your machine.</p></div><div><span class="bottom-number">03</span><strong>OpenCore documentation.</strong><p>Use the <a href="https://dortania.github.io/OpenCore-Install-Guide/" target="_blank" rel="noopener noreferrer">Dortania guide ↗</a> as the authoritative setup reference.</p></div></section>
+<footer class="footer"><a class="footer-brand" href="index.html">SIMPLE HACKINTOSH</a><span>LOCAL UTILITIES · OPEN SOURCE GUIDE</span><a href="https://github.com/kiwewe09-aa/Simple-Hackintosh" target="_blank" rel="noopener noreferrer">SOURCE ↗</a></footer>
+</main><div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body></html>
