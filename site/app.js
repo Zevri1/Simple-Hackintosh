@@ -1,210 +1,312 @@
 const chapters = [
-  {id:"00-read-first",title:"Read this first",group:"START HERE"},
-  {id:"01-hardware-inventory",title:"Hardware inventory",group:"START HERE"},
-  {id:"02-compatibility",title:"Compatibility check",group:"START HERE"},
-  {id:"03-usb-installer-windows",title:"Windows USB installer",group:"BUILD YOUR EFI"},
-  {id:"04-efi-structure",title:"EFI structure",group:"BUILD YOUR EFI"},
-  {id:"05-acpi-kexts-drivers",title:"ACPI, Kexts & drivers",group:"BUILD YOUR EFI"},
-  {id:"06-config-plist",title:"Configure config.plist",group:"BUILD YOUR EFI"},
-  {id:"07-validation-debugging",title:"Validation & debugging",group:"BUILD YOUR EFI"},
-  {id:"08-installation",title:"Install macOS",group:"INSTALL & VERIFY"},
-  {id:"09-post-installation",title:"Post-installation",group:"INSTALL & VERIFY"},
-  {id:"10-usb-mapping",title:"USB mapping",group:"INSTALL & VERIFY"},
-  {id:"11-macos-tahoe-26",title:"macOS Tahoe 26",group:"INSTALL & VERIFY"},
-  {id:"12-dual-boot",title:"Dual boot safety",group:"MAINTAIN & LEARN"},
-  {id:"13-maintenance",title:"Maintenance & updates",group:"MAINTAIN & LEARN"},
-  {id:"14-troubleshooting",title:"Troubleshooting",group:"MAINTAIN & LEARN"},
-  {id:"15-glossary",title:"Glossary",group:"MAINTAIN & LEARN"},
-  {id:"16-visual-walkthrough",title:"Visual walkthrough",group:"MAINTAIN & LEARN"}
+  {id:"00-read-first",title:"Read this first",group:"START HERE",filter:"start",description:"Scope, prerequisites, risks, and the right way to approach the project."},
+  {id:"01-hardware-inventory",title:"Hardware inventory",group:"START HERE",filter:"start",description:"Collect exact component names, IDs, firmware details, and system information."},
+  {id:"02-compatibility",title:"Compatibility check",group:"START HERE",filter:"start",description:"Assess the parts that matter before choosing an installation path."},
+  {id:"03-usb-installer-windows",title:"Windows USB installer",group:"BUILD YOUR EFI",filter:"build",description:"Understand the Recovery installer workflow from a Windows environment."},
+  {id:"04-efi-structure",title:"EFI structure",group:"BUILD YOUR EFI",filter:"build",description:"Learn what belongs in EFI, OC, ACPI, Drivers, Kexts, and Tools."},
+  {id:"05-acpi-kexts-drivers",title:"ACPI, Kexts & drivers",group:"BUILD YOUR EFI",filter:"build",description:"Understand the role of each supporting component and its dependencies."},
+  {id:"06-config-plist",title:"Configure config.plist",group:"BUILD YOUR EFI",filter:"build",description:"Build a configuration for the hardware you actually have."},
+  {id:"07-validation-debugging",title:"Validation & debugging",group:"BUILD YOUR EFI",filter:"build",description:"Validate structure, catch mistakes, and read useful diagnostic output."},
+  {id:"08-installation",title:"Install macOS",group:"INSTALL & VERIFY",filter:"install",description:"Prepare carefully, boot Recovery, and understand the installation stages."},
+  {id:"09-post-installation",title:"Post-installation",group:"INSTALL & VERIFY",filter:"install",description:"Check hardware, services, stability, and expected functionality after boot."},
+  {id:"10-usb-mapping",title:"USB mapping",group:"INSTALL & VERIFY",filter:"install",description:"Understand physical port mapping and the limits of USB configuration."},
+  {id:"11-macos-tahoe-26",title:"macOS Tahoe 26",group:"INSTALL & VERIFY",filter:"install",description:"Review release-specific notes and compatibility considerations."},
+  {id:"12-dual-boot",title:"Dual boot safety",group:"MAINTAIN & LEARN",filter:"maintain",description:"Protect existing installations, boot entries, and important files."},
+  {id:"13-maintenance",title:"Maintenance & updates",group:"MAINTAIN & LEARN",filter:"maintain",description:"Keep a known-good EFI and update one component at a time."},
+  {id:"14-troubleshooting",title:"Troubleshooting",group:"MAINTAIN & LEARN",filter:"maintain",description:"Narrow failures to a stage and gather evidence before changing settings."},
+  {id:"15-glossary",title:"Glossary",group:"MAINTAIN & LEARN",filter:"maintain",description:"A reference for OpenCore, firmware, ACPI, storage, and macOS terms."},
+  {id:"16-visual-walkthrough",title:"Visual walkthrough",group:"MAINTAIN & LEARN",filter:"maintain",description:"Follow the illustrated structure and connect the main concepts."}
 ];
 
 const homeView = document.getElementById("home-view");
-const guideView = document.getElementById("guide-view");
+const docsView = document.getElementById("docs-view");
 const article = document.getElementById("doc-article");
+const chapterGrid = document.getElementById("chapter-grid");
+const chapterNav = document.getElementById("chapter-nav");
 const tocLinks = document.getElementById("toc-links");
 const pagination = document.getElementById("chapter-pagination");
-const sidebar = document.getElementById("sidebar");
-const searchInput = document.getElementById("doc-search");
-const searchResults = document.getElementById("search-results");
-const chapterNav = document.getElementById("chapter-nav");
+const progressFill = document.getElementById("chapter-progress");
+const progressLabel = document.getElementById("progress-label");
+const completedCount = document.getElementById("completed-count");
+const searchDialog = document.getElementById("search-dialog");
+const globalSearch = document.getElementById("global-search");
+const globalResults = document.getElementById("global-results");
+const docsSearch = document.getElementById("docs-search");
+const readingProgress = document.getElementById("reading-progress");
+const announcer = document.getElementById("site-announcer");
+const topNav = document.getElementById("top-nav");
 const menuButton = document.getElementById("mobile-menu");
-let searchIndex = [];
-let searchLoaded = false;
+const sidebarToggle = document.getElementById("sidebar-toggle");
+const docsSidebar = document.getElementById("docs-sidebar");
+const breadcrumbTitle = document.getElementById("breadcrumb-title");
+const themeButton = document.getElementById("theme-toggle");
+
 let activeChapter = null;
 let loadSequence = 0;
+let searchIndex = null;
+let searchPromise = null;
 let headingObserver = null;
 let progressFrame = null;
-const progressElement = document.getElementById("reading-progress");
-const announcer = document.getElementById("site-announcer");
+let completed = loadCompleted();
+
+function loadCompleted() {
+  try {
+    const saved = JSON.parse(localStorage.getItem("simple-hackintosh-completed") || "[]");
+    return new Set(Array.isArray(saved) ? saved.filter(id => chapters.some(chapter => chapter.id === id)) : []);
+  } catch (error) {
+    return new Set();
+  }
+}
+
+function saveCompleted() {
+  try { localStorage.setItem("simple-hackintosh-completed", JSON.stringify(Array.from(completed))); }
+  catch (error) { announcer.textContent = "Progress could not be saved in this browser."; }
+}
 
 function escapeHTML(value) {
-  return String(value).replace(/[&<>"']/g, function (ch) {
-    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch];
+  return String(value).replace(/[&<>"']/g, function (character) {
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[character];
   });
 }
+
 function safeHref(value, forImage) {
   const raw = String(value).replace(/&amp;/g, "&").trim();
   if (!raw || /[\u0000-\u001f\u007f]/.test(raw)) return "#";
   if (/^https?:\/\//i.test(raw)) return escapeHTML(raw);
   if (!forImage && /^mailto:/i.test(raw)) return escapeHTML(raw);
-  if (/^(#|\/(?!\/)|\.{1,2}\/)/.test(raw)) return escapeHTML(raw);
+  if (/^(#|\/(?!\/)|\.{1,2}\/|[a-z0-9_-]+\.md(?:#.*)?)$/i.test(raw)) return escapeHTML(raw);
   return "#";
 }
+
 function slugify(value) {
   return value.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-") || "section";
 }
+
 function uniqueSlug(value, used) {
   const base = slugify(value);
-  let candidate = base;
-  let suffix = 2;
-  while (used.has(candidate)) candidate = base + "-" + suffix++;
-  used.add(candidate);
-  return candidate;
+  let id = base;
+  let number = 2;
+  while (used.has(id)) id = base + "-" + number++;
+  used.add(id);
+  return id;
 }
+
 function inlineMarkdown(input) {
   let text = escapeHTML(input);
   const codeTokens = [];
-  text = text.replace(/`([^`]+)`/g, function (_, code) {
-    const token = "%%CODE" + codeTokens.length + "%%";
+  text = text.replace(/\x60([^\x60]+)\x60/g, function (_, code) {
+    const key = "%%INLINECODE" + codeTokens.length + "%%";
     codeTokens.push("<code>" + code + "</code>");
-    return token;
+    return key;
   });
   text = text.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, function (_, alt, url) {
     return '<img loading="lazy" alt="' + alt + '" src="' + safeHref(url, true) + '">';
   });
   text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function (_, label, url) {
-    const href = safeHref(url);
+    const href = safeHref(url, false);
     const external = /^https?:\/\//i.test(url);
     return '<a href="' + href + '"' + (external ? ' target="_blank" rel="noopener noreferrer"' : "") + ">" + label + "</a>";
   });
   text = text.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
   text = text.replace(/\*([^*]+)\*/g, "<em>$1</em>");
   text = text.replace(/~~(.+?)~~/g, "<del>$1</del>");
-  codeTokens.forEach(function (html, i) {
-    text = text.replace("%%CODE" + i + "%%", html);
-  });
+  codeTokens.forEach(function (html, index) { text = text.replace("%%INLINECODE" + index + "%%", html); });
   return text;
 }
+
 function parseTableRow(line) {
-  return line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map(function (cell) { return cell.trim(); });
+  return line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map(cell => cell.trim());
 }
+
 function renderMarkdown(markdown) {
   const lines = markdown.replace(/\r/g, "").split("\n");
-  const headingIds = new Set();
+  const usedHeadingIds = new Set();
   let html = "";
   let paragraph = [];
-  let listType = null;
-  let inCode = false;
-  let codeLines = [];
-  let inQuote = false;
+  let listType = "";
   let quoteLines = [];
-  let i = 0;
-  function flushParagraph() {
+  let codeLines = [];
+  let inCode = false;
+
+  const flushParagraph = () => {
     if (paragraph.length) {
       html += "<p>" + inlineMarkdown(paragraph.join(" ")) + "</p>";
       paragraph = [];
     }
-  }
-  function closeList() {
-    if (listType) { html += "</" + listType + ">"; listType = null; }
-  }
-  function flushQuote() {
-    if (inQuote) {
-      html += "<blockquote>" + quoteLines.map(function (line) { return "<p>" + inlineMarkdown(line.replace(/^> ?/, "")) + "</p>"; }).join("") + "</blockquote>";
+  };
+  const closeList = () => {
+    if (listType) { html += "</" + listType + ">"; listType = ""; }
+  };
+  const flushQuote = () => {
+    if (quoteLines.length) {
+      html += "<blockquote>" + quoteLines.map(line => "<p>" + inlineMarkdown(line.replace(/^>\s?/, "")) + "</p>").join("") + "</blockquote>";
       quoteLines = [];
-      inQuote = false;
     }
-  }
-  while (i < lines.length) {
-    const line = lines[i];
+  };
+
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index];
     if (line.trim().startsWith("```")) {
       flushParagraph(); closeList(); flushQuote();
       if (!inCode) { inCode = true; codeLines = []; }
       else { html += "<pre><code>" + escapeHTML(codeLines.join("\n")) + "</code></pre>"; inCode = false; }
-      i++; continue;
+      continue;
     }
-    if (inCode) { codeLines.push(line); i++; continue; }
+    if (inCode) { codeLines.push(line); continue; }
     if (/^>/.test(line)) {
-      flushParagraph(); closeList(); inQuote = true; quoteLines.push(line); i++; continue;
-    } else if (inQuote) { flushQuote(); }
-    if (!line.trim()) { flushParagraph(); closeList(); i++; continue; }
-    if (/^\s*---+\s*$/.test(line)) { flushParagraph(); closeList(); html += "<hr>"; i++; continue; }
+      flushParagraph(); closeList(); quoteLines.push(line); continue;
+    } else flushQuote();
+    if (!line.trim()) { flushParagraph(); closeList(); continue; }
+    if (/^\s*---+\s*$/.test(line)) { flushParagraph(); closeList(); html += "<hr>"; continue; }
+
     const heading = line.match(/^(#{1,4})\s+(.+)$/);
     if (heading) {
       flushParagraph(); closeList();
       const level = heading[1].length;
       const title = heading[2].replace(/\s+#+\s*$/, "");
-      const id = uniqueSlug(title, headingIds);
+      const id = uniqueSlug(title, usedHeadingIds);
       html += "<h" + level + ' id="' + id + '">' + inlineMarkdown(title) + "</h" + level + ">";
-      i++; continue;
-    }
-    if (i + 1 < lines.length && /^\s*\|?\s*:?-{3,}/.test(lines[i+1])) {
-      flushParagraph(); closeList();
-      const headers = parseTableRow(line);
-      i += 2;
-      let rows = "";
-      while (i < lines.length && /^\s*\|/.test(lines[i])) {
-        const cells = parseTableRow(lines[i]);
-        rows += "<tr>" + headers.map(function (_, idx) {
-          return "<td>" + inlineMarkdown(cells[idx] || "") + "</td>";
-        }).join("") + "</tr>";
-        i++;
-      }
-      html += "<table><thead><tr>" + headers.map(function (cell) { return "<th>" + inlineMarkdown(cell) + "</th>"; }).join("") + "</tr></thead><tbody>" + rows + "</tbody></table>";
       continue;
     }
+
+    if (/^\s*\|/.test(line) && index + 1 < lines.length && /^\s*\|?\s*:?-{3,}/.test(lines[index + 1])) {
+      flushParagraph(); closeList();
+      const headers = parseTableRow(line);
+      index += 2;
+      let rows = "";
+      while (index < lines.length && /^\s*\|/.test(lines[index])) {
+        const cells = parseTableRow(lines[index]);
+        rows += "<tr>" + headers.map((_, cellIndex) => "<td>" + inlineMarkdown(cells[cellIndex] || "") + "</td>").join("") + "</tr>";
+        index++;
+      }
+      index--;
+      html += "<div class=\"table-wrap\"><table><thead><tr>" + headers.map(cell => "<th>" + inlineMarkdown(cell) + "</th>").join("") + "</tr></thead><tbody>" + rows + "</tbody></table></div>";
+      continue;
+    }
+
     const unordered = line.match(/^\s*[-*+]\s+(.+)$/);
     const ordered = line.match(/^\s*\d+\.\s+(.+)$/);
     if (unordered || ordered) {
       flushParagraph();
-      const needed = unordered ? "ul" : "ol";
-      if (listType !== needed) { closeList(); listType = needed; html += "<" + listType + ">"; }
+      const type = unordered ? "ul" : "ol";
+      if (listType !== type) { closeList(); listType = type; html += "<" + type + ">"; }
       let item = (unordered || ordered)[1];
       item = item.replace(/^\[ \]\s+/, "☐ ").replace(/^\[x\]\s+/i, "☑ ");
       html += "<li>" + inlineMarkdown(item) + "</li>";
-      i++; continue;
+      continue;
     }
     closeList();
     paragraph.push(line.trim());
-    i++;
   }
+
   flushParagraph(); closeList(); flushQuote();
   if (inCode) html += "<pre><code>" + escapeHTML(codeLines.join("\n")) + "</code></pre>";
   return html;
 }
-function extractHeadings(markdown) {
-  const used = new Set();
-  const headings = [];
-  markdown.split("\n").forEach(function (line) {
-    const match = line.match(/^(#{1,4})\s+(.+)$/);
-    if (!match) return;
-    const title = match[2].replace(/\s+#+\s*$/, "");
-    const id = uniqueSlug(title, used);
-    const level = match[1].length;
-    if (level === 2 || level === 3) headings.push({title:title, id:id, level:level});
-  });
-  return headings;
+
+function updateProgress() {
+  const total = chapters.length;
+  const done = completed.size;
+  const percent = Math.round((done / total) * 100);
+  progressFill.style.width = percent + "%";
+  progressLabel.textContent = done + " / " + total;
+  completedCount.textContent = String(done).padStart(2, "0");
 }
-function setActiveNavigation(id) {
-  document.querySelectorAll(".chapter-link").forEach(function (link) {
-    const active = link.getAttribute("data-chapter") === id;
-    link.classList.toggle("active", active);
-    if (active) link.setAttribute("aria-current", "page");
-    else link.removeAttribute("aria-current");
+
+function renderChapterNavigation(filterText) {
+  const filter = (filterText || "").trim().toLowerCase();
+  chapterNav.replaceChildren();
+  const groups = ["START HERE", "BUILD YOUR EFI", "INSTALL & VERIFY", "MAINTAIN & LEARN"];
+  groups.forEach(function (group) {
+    const items = chapters.filter(chapter => chapter.group === group && (!filter || (chapter.title + " " + chapter.description).toLowerCase().includes(filter)));
+    if (!items.length) return;
+    const section = document.createElement("div");
+    section.className = "nav-group";
+    const label = document.createElement("span");
+    label.className = "nav-label";
+    label.textContent = group;
+    section.appendChild(label);
+    items.forEach(function (chapter) {
+      const link = document.createElement("a");
+      link.className = "chapter-link";
+      link.href = "#chapter/" + chapter.id;
+      link.dataset.chapter = chapter.id;
+      const number = document.createElement("span");
+      number.className = "chapter-number";
+      number.textContent = chapter.id.slice(0, 2);
+      const title = document.createElement("span");
+      title.textContent = chapter.title;
+      link.append(number, title);
+      if (completed.has(chapter.id)) link.classList.add("is-complete");
+      if (activeChapter === chapter.id) link.classList.add("active");
+      section.appendChild(link);
+    });
+    chapterNav.appendChild(section);
+  });
+  if (!chapterNav.children.length) {
+    const empty = document.createElement("p");
+    empty.className = "nav-empty";
+    empty.textContent = "No matching chapters.";
+    chapterNav.appendChild(empty);
+  }
+}
+
+function renderChapterCards(filter) {
+  const selected = filter || "all";
+  const visible = chapters.filter(chapter => selected === "all" || chapter.filter === selected);
+  chapterGrid.replaceChildren();
+  visible.forEach(function (chapter) {
+    const card = document.createElement("a");
+    card.className = "chapter-card" + (completed.has(chapter.id) ? " is-complete" : "");
+    card.href = "#chapter/" + chapter.id;
+    const top = document.createElement("div");
+    top.className = "chapter-card-top";
+    const number = document.createElement("span");
+    number.className = "chapter-card-number";
+    number.textContent = chapter.id.slice(0, 2);
+    const group = document.createElement("span");
+    group.className = "chapter-card-group";
+    group.textContent = chapter.group;
+    top.append(number, group);
+    const title = document.createElement("h3");
+    title.textContent = chapter.title;
+    const description = document.createElement("p");
+    description.textContent = chapter.description;
+    const bottom = document.createElement("div");
+    bottom.className = "chapter-card-bottom";
+    const status = document.createElement("span");
+    status.textContent = completed.has(chapter.id) ? "COMPLETED" : "OPEN CHAPTER";
+    const arrow = document.createElement("b");
+    arrow.textContent = "↗";
+    bottom.append(status, arrow);
+    card.append(top, title, description, bottom);
+    chapterGrid.appendChild(card);
   });
 }
-function setTopLinks(isHome) {
+
+function setTopNavigation(isHome) {
   document.querySelector("[data-home-link]").classList.toggle("active", isHome);
   document.querySelector("[data-guide-link]").classList.toggle("active", !isHome);
 }
-function renderToc(headings) {
-  tocLinks.replaceChildren();
-  headings.forEach(function (item) {
-    const link = document.createElement("a");
-    link.className = item.level === 3 ? "toc-sub" : "";
-    link.href = "#" + item.id;
-    link.textContent = item.title;
-    tocLinks.appendChild(link);
+
+function setMobileMenu(open) {
+  document.body.classList.toggle("nav-open", open);
+  menuButton.setAttribute("aria-expanded", String(open));
+  menuButton.setAttribute("aria-label", open ? "Close navigation" : "Open navigation");
+}
+
+function setDocsMenu(open) {
+  document.body.classList.toggle("docs-menu-open", open);
+  sidebarToggle.setAttribute("aria-expanded", String(open));
+  sidebarToggle.textContent = open ? "× Close chapters" : "☷ Chapters";
+}
+
+function setActiveChapter(id) {
+  document.querySelectorAll(".chapter-link").forEach(function (link) {
+    const active = link.dataset.chapter === id;
+    link.classList.toggle("active", active);
+    if (active) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
   });
 }
 
@@ -228,279 +330,341 @@ async function copyText(value) {
   return copied;
 }
 
-function enhanceArticle() {
+function addCopyControls() {
   article.querySelectorAll("pre").forEach(function (pre) {
-    if (pre.querySelector(".copy-code")) return;
-    pre.classList.add("code-block");
     const button = document.createElement("button");
     button.type = "button";
     button.className = "copy-code";
     button.textContent = "Copy code";
     button.addEventListener("click", async function () {
       const code = pre.querySelector("code");
-      const copied = await copyText(code ? code.textContent : pre.textContent);
-      button.textContent = copied ? "Copied" : "Copy unavailable";
-      announcer.textContent = copied ? "Code copied to clipboard." : "Could not copy the code. Select it manually.";
-      window.setTimeout(function () { button.textContent = "Copy code"; }, 1800);
+      const ok = await copyText(code ? code.textContent : pre.textContent);
+      button.textContent = ok ? "Copied" : "Select manually";
+      announcer.textContent = ok ? "Code copied." : "Clipboard access was unavailable.";
+      window.setTimeout(() => { button.textContent = "Copy code"; }, 1800);
     });
     pre.appendChild(button);
   });
-
   article.querySelectorAll("h2[id], h3[id]").forEach(function (heading) {
-    if (heading.querySelector(".heading-anchor")) return;
     const button = document.createElement("button");
     button.type = "button";
     button.className = "heading-anchor";
     button.textContent = "#";
+    button.title = "Copy a link to this section";
     button.setAttribute("aria-label", "Copy link to " + heading.textContent);
-    button.title = "Copy link to this section";
     button.addEventListener("click", async function () {
-      const link = window.location.origin + window.location.pathname + "#chapter/" + activeChapter + "/" + encodeURIComponent(heading.id);
-      const copied = await copyText(link);
-      announcer.textContent = copied ? "Section link copied." : "Could not copy the section link.";
+      const url = window.location.origin + window.location.pathname + "#chapter/" + activeChapter + "/" + encodeURIComponent(heading.id);
+      const ok = await copyText(url);
+      announcer.textContent = ok ? "Section link copied." : "Could not copy the section link.";
     });
     heading.appendChild(button);
   });
-
-  observeHeadings();
 }
 
-function observeHeadings() {
-  if (headingObserver) headingObserver.disconnect();
-  if (!("IntersectionObserver" in window)) return;
-  headingObserver = new IntersectionObserver(function (entries) {
-    const visible = entries.filter(function (entry) { return entry.isIntersecting; }).sort(function (a, b) {
-      return a.boundingClientRect.top - b.boundingClientRect.top;
-    });
-    if (!visible.length) return;
-    const activeId = visible[0].target.id;
-    tocLinks.querySelectorAll("a").forEach(function (link) {
-      const active = link.getAttribute("href") === "#" + activeId;
-      link.classList.toggle("active", active);
-      if (active) link.setAttribute("aria-current", "location");
-      else link.removeAttribute("aria-current");
-    });
-  }, {rootMargin:"-18% 0px -68% 0px", threshold:0});
-  article.querySelectorAll("h2[id], h3[id]").forEach(function (heading) {
-    headingObserver.observe(heading);
+function renderToc() {
+  tocLinks.replaceChildren();
+  const headings = article.querySelectorAll("h2[id], h3[id]");
+  headings.forEach(function (heading) {
+    const link = document.createElement("a");
+    link.className = heading.tagName === "H3" ? "toc-sub" : "";
+    link.href = "#" + heading.id;
+    link.textContent = heading.textContent.replace("#", "").trim();
+    tocLinks.appendChild(link);
   });
+  if (headingObserver) headingObserver.disconnect();
+  if ("IntersectionObserver" in window) {
+    headingObserver = new IntersectionObserver(function (entries) {
+      const visible = entries.filter(entry => entry.isIntersecting).sort((a,b) => a.boundingClientRect.top - b.boundingClientRect.top);
+      if (!visible.length) return;
+      const id = visible[0].target.id;
+      tocLinks.querySelectorAll("a").forEach(link => {
+        const active = link.getAttribute("href") === "#" + id;
+        link.classList.toggle("active", active);
+        if (active) link.setAttribute("aria-current", "location");
+        else link.removeAttribute("aria-current");
+      });
+    }, {rootMargin:"-16% 0px -70% 0px",threshold:0});
+    headings.forEach(heading => headingObserver.observe(heading));
+  }
+}
+
+function renderPagination(index) {
+  pagination.replaceChildren();
+  const previous = chapters[index - 1];
+  const next = chapters[index + 1];
+  if (previous) {
+    const link = document.createElement("a");
+    link.className = "page-nav";
+    link.href = "#chapter/" + previous.id;
+    link.innerHTML = "<small>← PREVIOUS CHAPTER</small><b></b>";
+    link.querySelector("b").textContent = previous.title;
+    pagination.appendChild(link);
+  }
+  if (next) {
+    const link = document.createElement("a");
+    link.className = "page-nav next";
+    link.href = "#chapter/" + next.id;
+    link.innerHTML = "<small>NEXT CHAPTER →</small><b></b>";
+    link.querySelector("b").textContent = next.title;
+    pagination.appendChild(link);
+  }
 }
 
 function updateReadingProgress() {
   const scrollable = document.documentElement.scrollHeight - window.innerHeight;
-  const percent = scrollable > 0 ? Math.min(100, Math.max(0, Math.round((window.scrollY / scrollable) * 100))) : 100;
-  progressElement.querySelector("span").style.transform = "scaleX(" + (percent / 100) + ")";
-  progressElement.setAttribute("aria-valuenow", String(percent));
+  const value = scrollable > 0 ? Math.max(0, Math.min(100, window.scrollY / scrollable * 100)) : 0;
+  readingProgress.querySelector("span").style.transform = "scaleX(" + (value / 100) + ")";
 }
-function renderPagination(index) {
-  const previous = chapters[index - 1];
-  const next = chapters[index + 1];
-  pagination.innerHTML = "";
-  if (previous) {
-    const a = document.createElement("a");
-    a.className = "page-nav";
-    a.href = "#chapter/" + previous.id;
-    a.innerHTML = "<small>← PREVIOUS CHAPTER</small><b>" + escapeHTML(previous.title) + "</b>";
-    pagination.appendChild(a);
-  }
-  if (next) {
-    const a = document.createElement("a");
-    a.className = "page-nav next";
-    a.href = "#chapter/" + next.id;
-    a.innerHTML = "<small>NEXT CHAPTER →</small><b>" + escapeHTML(next.title) + "</b>";
-    pagination.appendChild(a);
+
+function setChapterCompletion(id, done) {
+  if (done) completed.add(id);
+  else completed.delete(id);
+  saveCompleted();
+  updateProgress();
+  renderChapterCards(document.querySelector(".filter-pill.active")?.dataset.filter || "all");
+  renderChapterNavigation(docsSearch.value);
+  const button = article.querySelector("[data-complete-chapter]");
+  if (button) {
+    button.textContent = done ? "✓ Completed — mark unread" : "Mark chapter as complete";
+    button.setAttribute("aria-pressed", String(done));
   }
 }
+
+function showHome() {
+  loadSequence++;
+  activeChapter = null;
+  homeView.hidden = false;
+  docsView.hidden = true;
+  setTopNavigation(true);
+  setDocsMenu(false);
+  document.title = "Simple Hackintosh — OpenCore Field Guide";
+  document.body.classList.remove("nav-open");
+  menuButton.setAttribute("aria-expanded", "false");
+}
+
 async function openChapter(id, anchorId) {
-  const chapter = chapters.find(function (item) { return item.id === id; });
+  const chapter = chapters.find(item => item.id === id);
   if (!chapter) { showHome(); return; }
   const requestId = ++loadSequence;
-  searchInput.value = "";
-  runSearch("");
   activeChapter = id;
   homeView.hidden = true;
-  guideView.hidden = false;
-  setTopLinks(false);
-  setActiveNavigation(id);
-  document.body.classList.remove("menu-open");
-  menuButton.setAttribute("aria-expanded", "false");
-  article.innerHTML = '<div class="loading-state"><div class="loading-spinner"></div><p>Loading chapter…</p></div>';
-  tocLinks.innerHTML = "";
-  pagination.innerHTML = "";
+  docsView.hidden = false;
+  setTopNavigation(false);
+  setMobileMenu(false);
+  setDocsMenu(false);
+  renderChapterNavigation(docsSearch.value);
+  breadcrumbTitle.textContent = chapter.title;
+  article.innerHTML = '<div class="loading-state"><span class="loading-dot"></span><p>Loading chapter…</p></div>';
+  tocLinks.replaceChildren();
+  pagination.replaceChildren();
+  window.scrollTo({top:0,behavior:"instant"});
   try {
     const response = await fetch("docs/" + id + ".md", {cache:"no-cache"});
-    if (!response.ok) throw new Error("Could not load this chapter (HTTP " + response.status + ").");
+    if (!response.ok) throw new Error("Chapter request failed (HTTP " + response.status + ").");
     const markdown = await response.text();
     if (requestId !== loadSequence) return;
     article.innerHTML = renderMarkdown(markdown);
-    const chapterIndex = chapters.findIndex(function (item) { return item.id === id; });
+    const index = chapters.findIndex(item => item.id === id);
     const wordCount = markdown.trim().split(/\s+/).filter(Boolean).length;
-    const readMinutes = Math.max(1, Math.ceil(wordCount / 220));
+    const minutes = Math.max(1, Math.ceil(wordCount / 220));
     const meta = document.createElement("div");
     meta.className = "article-meta";
-    meta.textContent = "CHAPTER " + String(chapterIndex + 1).padStart(2, "0") + " / " + String(chapters.length).padStart(2, "0") + "  ·  " + readMinutes + " MIN READ";
+    const label = document.createElement("span");
+    label.textContent = "CHAPTER " + String(index + 1).padStart(2,"0") + " / " + String(chapters.length).padStart(2,"0") + " · " + minutes + " MIN READ";
+    const completeButton = document.createElement("button");
+    completeButton.type = "button";
+    completeButton.dataset.completeChapter = "true";
+    const isDone = completed.has(id);
+    completeButton.textContent = isDone ? "✓ Completed — mark unread" : "Mark chapter as complete";
+    completeButton.setAttribute("aria-pressed", String(isDone));
+    completeButton.addEventListener("click", () => setChapterCompletion(id, !completed.has(id)));
+    meta.append(label, completeButton);
     article.prepend(meta);
-    const firstHeading = article.querySelector("h1");
-    if (firstHeading) {
-      firstHeading.setAttribute("tabindex", "-1");
-      firstHeading.focus({preventScroll:true});
-    }
-    renderToc(extractHeadings(markdown));
-    enhanceArticle();
-    renderPagination(chapterIndex);
-    updateReadingProgress();
+
+    const h1 = article.querySelector("h1");
+    if (h1) { h1.tabIndex = -1; h1.focus({preventScroll:true}); }
+    addCopyControls();
+    renderToc();
+    renderPagination(index);
+    setActiveChapter(id);
+    updateProgress();
     document.title = chapter.title + " — Simple Hackintosh";
-    window.scrollTo({top:0,behavior:"smooth"});
+    updateReadingProgress();
     if (anchorId) {
       let targetId = anchorId;
       try { targetId = decodeURIComponent(anchorId); } catch (error) {}
       window.setTimeout(function () {
         const target = document.getElementById(targetId);
-        if (target && article.contains(target)) target.scrollIntoView({behavior:"smooth", block:"start"});
-      }, 80);
+        if (target && article.contains(target)) target.scrollIntoView({behavior:"smooth",block:"start"});
+      }, 100);
     }
   } catch (error) {
     if (requestId !== loadSequence) return;
-    article.innerHTML = '<div class="error-state"><h2>Chapter could not be loaded</h2><p>' + escapeHTML(error.message) + '</p><p>Open the source file directly on <a href="https://github.com/kiwewe09-aa/Simple-Hackintosh/blob/main/docs/' + id + '.md" target="_blank" rel="noopener noreferrer">GitHub ↗</a>.</p></div>';
+    article.innerHTML = '<div class="error-state"><h2>Chapter could not be loaded</h2><p>' + escapeHTML(error.message) + '</p><p><a href="https://github.com/kiwewe09-aa/Simple-Hackintosh/blob/main/docs/' + id + '.md" target="_blank" rel="noopener noreferrer">Open the source chapter on GitHub ↗</a></p></div>';
   }
 }
-function showHome() {
-  loadSequence++;
-  activeChapter = null;
-  homeView.hidden = false;
-  guideView.hidden = true;
-  setActiveNavigation("");
-  setTopLinks(true);
-  document.title = "Simple Hackintosh — OpenCore Learning Guide";
-  document.body.classList.remove("menu-open");
-  menuButton.setAttribute("aria-expanded", "false");
-}
+
 function route() {
   const hash = window.location.hash || "#home";
   if (hash.startsWith("#chapter/")) {
     const parts = hash.slice("#chapter/".length).split("/");
-    const chapterId = parts.shift();
-    const anchorId = parts.length ? parts.join("/") : null;
-    openChapter(chapterId, anchorId);
+    const id = parts.shift();
+    const anchor = parts.length ? parts.join("/") : null;
+    openChapter(id, anchor);
   } else if (hash === "#guide") {
     openChapter("00-read-first");
-  } else if (activeChapter && hash.length > 1) {
-    let anchorId = hash.slice(1);
-    try { anchorId = decodeURIComponent(anchorId); } catch (error) {}
-    const target = document.getElementById(anchorId);
-    if (target && article.contains(target)) return;
-    showHome();
   } else {
     showHome();
+    if (hash === "#chapters" || hash === "#library") {
+      window.setTimeout(() => document.getElementById("chapters").scrollIntoView({behavior:"smooth"}), 0);
+    }
   }
 }
+
 async function buildSearchIndex() {
-  if (searchLoaded) return searchIndex;
-  const results = await Promise.allSettled(chapters.map(async function (chapter) {
+  if (searchIndex) return searchIndex;
+  if (searchPromise) return searchPromise;
+  searchPromise = Promise.allSettled(chapters.map(async function (chapter) {
     const response = await fetch("docs/" + chapter.id + ".md");
-    if (!response.ok) throw new Error("fetch failed");
+    if (!response.ok) throw new Error("Search index request failed");
     const markdown = await response.text();
-    return {id:chapter.id,title:chapter.title,text:markdown.replace(/[#>*_|\x60\[\]()!-]/g, " ").replace(/\s+/g, " ").toLowerCase()};
-  }));
-  searchIndex = results.filter(function (r) { return r.status === "fulfilled"; }).map(function (r) { return r.value; });
-  searchLoaded = searchIndex.length > 0;
-  return searchIndex;
+    const plain = markdown.replace(/\x60{3}[\s\S]*?\x60{3}/g, " ")
+      .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1")
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+      .replace(/[>#*_|\x60\[\]()!-]/g, " ")
+      .replace(/\s+/g, " ").toLowerCase();
+    return {id:chapter.id,title:chapter.title,text:plain};
+  })).then(function (results) {
+    searchIndex = results.filter(result => result.status === "fulfilled").map(result => result.value);
+    searchPromise = null;
+    if (!searchIndex.length) throw new Error("Search index is unavailable");
+    return searchIndex;
+  }).catch(function (error) { searchPromise = null; throw error; });
+  return searchPromise;
 }
-function runSearch(query) {
-  const q = query.trim().toLowerCase();
-  if (!q) {
-    searchResults.hidden = true;
-    searchResults.replaceChildren();
-    searchInput.setAttribute("aria-expanded", "false");
+
+async function runGlobalSearch(query) {
+  const value = query.trim().toLowerCase();
+  globalResults.replaceChildren();
+  if (!value) {
+    const hint = document.createElement("p");
+    hint.textContent = "Type to search chapter titles and content.";
+    globalResults.appendChild(hint);
     return;
   }
-  searchResults.hidden = false;
-  searchInput.setAttribute("aria-expanded", "true");
-  searchResults.innerHTML = '<div class="search-result">Searching chapters…</div>';
-  buildSearchIndex().then(function (index) {
-    if (searchInput.value.trim().toLowerCase() !== q) return;
-    if (!index.length) {
-      searchResults.textContent = "Search is temporarily unavailable. Try again in a moment.";
+  const loading = document.createElement("p");
+  loading.textContent = "Searching the field guide…";
+  globalResults.appendChild(loading);
+  try {
+    const index = await buildSearchIndex();
+    if (globalSearch.value.trim().toLowerCase() !== value) return;
+    const matches = index.filter(item => item.title.toLowerCase().includes(value) || item.text.includes(value)).slice(0, 8);
+    globalResults.replaceChildren();
+    if (!matches.length) {
+      const empty = document.createElement("p");
+      empty.textContent = "No matching chapter. Try a hardware name, ACPI, Kext, or config.plist.";
+      globalResults.appendChild(empty);
       return;
     }
-    const found = index.filter(function (item) {
-      return item.title.toLowerCase().includes(q) || item.text.includes(q);
-    }).slice(0, 7);
-    searchResults.innerHTML = found.length ? found.map(function (item) {
-      const position = item.text.indexOf(q);
-      const start = Math.max(0, position - 42);
-      const end = position < 0 ? Math.min(item.text.length, 100) : Math.min(item.text.length, position + q.length + 72);
-      const snippet = (start > 0 ? "…" : "") + item.text.slice(start, end) + (end < item.text.length ? "…" : "");
-      return '<a class="search-result" href="#chapter/' + item.id + '">' + escapeHTML(item.title) + '<small>' + escapeHTML(snippet) + '</small></a>';
-    }).join("") : '<div class="search-result">No matching chapter found.<small>Try a hardware or OpenCore term.</small></div>';
-  }).catch(function () {
-    searchResults.textContent = "Search is temporarily unavailable. Try again in a moment.";
-    searchLoaded = false;
-  });
+    matches.forEach(function (item) {
+      const link = document.createElement("a");
+      link.className = "global-result";
+      link.href = "#chapter/" + item.id;
+      const title = document.createElement("strong");
+      title.textContent = item.title;
+      const position = item.text.indexOf(value);
+      const start = Math.max(0, position - 55);
+      const end = position < 0 ? Math.min(item.text.length, 110) : Math.min(item.text.length, position + value.length + 75);
+      const snippet = document.createElement("small");
+      snippet.textContent = (start ? "…" : "") + item.text.slice(start,end) + (end < item.text.length ? "…" : "");
+      link.append(title,snippet);
+      globalResults.appendChild(link);
+    });
+  } catch (error) {
+    globalResults.replaceChildren();
+    const failed = document.createElement("p");
+    failed.textContent = "Search is temporarily unavailable. Check your connection and try again.";
+    globalResults.appendChild(failed);
+  }
 }
-searchInput.addEventListener("input", function () { runSearch(searchInput.value); });
-searchInput.addEventListener("keydown", function (event) {
-  if (event.key === "Escape") { searchInput.value = ""; runSearch(""); searchInput.blur(); }
+
+function openSearch() {
+  if (typeof searchDialog.showModal === "function") searchDialog.showModal();
+  else searchDialog.setAttribute("open", "");
+  window.setTimeout(() => globalSearch.focus(), 30);
+}
+function closeSearch() {
+  if (typeof searchDialog.close === "function" && searchDialog.open) searchDialog.close();
+  else searchDialog.removeAttribute("open");
+}
+
+document.getElementById("chapter-filters").addEventListener("click", function (event) {
+  const button = event.target.closest("[data-filter]");
+  if (!button) return;
+  document.querySelectorAll(".filter-pill").forEach(function (pill) {
+    const active = pill === button;
+    pill.classList.toggle("active", active);
+    pill.setAttribute("aria-pressed", String(active));
+  });
+  renderChapterCards(button.dataset.filter);
+});
+
+document.getElementById("search-open").addEventListener("click", openSearch);
+document.getElementById("search-close").addEventListener("click", closeSearch);
+searchDialog.addEventListener("click", function (event) {
+  if (event.target === searchDialog) closeSearch();
+});
+globalSearch.addEventListener("input", function () { runGlobalSearch(globalSearch.value); });
+globalSearch.addEventListener("keydown", function (event) {
   if (event.key === "Enter") {
-    const first = searchResults.querySelector("a");
-    if (first) window.location.hash = first.getAttribute("href");
+    const first = globalResults.querySelector("a");
+    if (first) { window.location.hash = first.getAttribute("href"); closeSearch(); }
   }
 });
+
+menuButton.addEventListener("click", function () {
+  const open = !document.body.classList.contains("nav-open");
+  setMobileMenu(open);
+});
+sidebarToggle.addEventListener("click", function () {
+  setDocsMenu(!document.body.classList.contains("docs-menu-open"));
+});
+document.addEventListener("click", function (event) {
+  if (document.body.classList.contains("docs-menu-open") && !docsSidebar.contains(event.target) && !sidebarToggle.contains(event.target)) setDocsMenu(false);
+  if (document.body.classList.contains("nav-open") && !topNav.contains(event.target) && !menuButton.contains(event.target)) setMobileMenu(false);
+});
+chapterNav.addEventListener("click", function (event) {
+  if (event.target.closest("a")) setDocsMenu(false);
+});
+docsSearch.addEventListener("input", function () { renderChapterNavigation(docsSearch.value); });
+
 document.addEventListener("keydown", function (event) {
-  if (event.key === "Escape") {
-    if (document.body.classList.contains("menu-open")) {
-      document.body.classList.remove("menu-open");
-      menuButton.setAttribute("aria-expanded", "false");
-      menuButton.focus();
-    }
-    if (document.activeElement === searchInput || searchInput.value) {
-      searchInput.value = "";
-      runSearch("");
-      searchInput.blur();
-    }
-    return;
-  }
   const shortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k";
   const slash = event.key === "/" && !/INPUT|TEXTAREA/.test(document.activeElement.tagName);
   if (shortcut || slash) {
     event.preventDefault();
-    searchInput.focus();
+    openSearch();
+  }
+  if (event.key === "Escape") {
+    setMobileMenu(false);
+    setDocsMenu(false);
   }
 });
-menuButton.addEventListener("click", function () {
-  const open = !document.body.classList.contains("menu-open");
-  document.body.classList.toggle("menu-open", open);
-  menuButton.setAttribute("aria-expanded", String(open));
-  if (open) {
-    const firstLink = chapterNav.querySelector("a");
-    if (firstLink) firstLink.focus();
-  }
-});
-document.addEventListener("click", function (event) {
-  if (document.body.classList.contains("menu-open") && !sidebar.contains(event.target) && !menuButton.contains(event.target)) {
-    document.body.classList.remove("menu-open");
-    menuButton.setAttribute("aria-expanded", "false");
-  }
-});
-const themeButton = document.getElementById("theme-toggle");
+
 function updateThemeButton() {
-  const light = document.documentElement.getAttribute("data-theme") === "light";
+  const light = document.documentElement.dataset.theme === "light";
   themeButton.textContent = light ? "☾" : "☼";
   themeButton.setAttribute("aria-label", light ? "Switch to dark theme" : "Switch to light theme");
   themeButton.title = light ? "Switch to dark theme" : "Switch to light theme";
 }
 themeButton.addEventListener("click", function () {
   const root = document.documentElement;
-  const next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
-  root.setAttribute("data-theme", next);
+  const next = root.dataset.theme === "light" ? "dark" : "light";
+  root.dataset.theme = next;
   try { localStorage.setItem("simple-hackintosh-theme", next); } catch (error) {}
   updateThemeButton();
 });
-updateThemeButton();
-try {
-  const savedTheme = localStorage.getItem("simple-hackintosh-theme");
-  if (savedTheme === "light" || savedTheme === "dark") document.documentElement.setAttribute("data-theme", savedTheme);
-} catch (e) {}
+
 window.addEventListener("hashchange", route);
 window.addEventListener("scroll", function () {
   if (progressFrame !== null) return;
@@ -510,5 +674,10 @@ window.addEventListener("scroll", function () {
   });
 }, {passive:true});
 window.addEventListener("resize", updateReadingProgress);
+
+renderChapterNavigation("");
+renderChapterCards("all");
+updateProgress();
+updateThemeButton();
 route();
 updateReadingProgress();
