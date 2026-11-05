@@ -32,21 +32,34 @@ let searchIndex = [];
 let searchLoaded = false;
 let activeChapter = null;
 let loadSequence = 0;
+let headingObserver = null;
+let progressFrame = null;
+const progressElement = document.getElementById("reading-progress");
+const announcer = document.getElementById("site-announcer");
 
 function escapeHTML(value) {
   return String(value).replace(/[&<>"']/g, function (ch) {
     return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch];
   });
 }
-function safeHref(value) {
-  try {
-    const decoded = String(value).replace(/&amp;/g, "&").trim();
-    if (/^(https?:|mailto:|#|\.\.?\/)/i.test(decoded)) return escapeHTML(decoded);
-  } catch (e) {}
+function safeHref(value, forImage) {
+  const raw = String(value).replace(/&amp;/g, "&").trim();
+  if (!raw || /[\u0000-\u001f\u007f]/.test(raw)) return "#";
+  if (/^https?:\/\//i.test(raw)) return escapeHTML(raw);
+  if (!forImage && /^mailto:/i.test(raw)) return escapeHTML(raw);
+  if (/^(#|\/(?!\/)|\.{1,2}\/)/.test(raw)) return escapeHTML(raw);
   return "#";
 }
 function slugify(value) {
-  return value.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-");
+  return value.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-") || "section";
+}
+function uniqueSlug(value, used) {
+  const base = slugify(value);
+  let candidate = base;
+  let suffix = 2;
+  while (used.has(candidate)) candidate = base + "-" + suffix++;
+  used.add(candidate);
+  return candidate;
 }
 function inlineMarkdown(input) {
   let text = escapeHTML(input);
@@ -57,11 +70,11 @@ function inlineMarkdown(input) {
     return token;
   });
   text = text.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, function (_, alt, url) {
-    return '<img loading="lazy" alt="' + alt + '" src="' + safeHref(url) + '">';
+    return '<img loading="lazy" alt="' + alt + '" src="' + safeHref(url, true) + '">';
   });
   text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function (_, label, url) {
     const href = safeHref(url);
-    const external = /^https?:/i.test(url);
+    const external = /^https?:\/\//i.test(url);
     return '<a href="' + href + '"' + (external ? ' target="_blank" rel="noopener noreferrer"' : "") + ">" + label + "</a>";
   });
   text = text.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
@@ -77,6 +90,7 @@ function parseTableRow(line) {
 }
 function renderMarkdown(markdown) {
   const lines = markdown.replace(/\r/g, "").split("\n");
+  const headingIds = new Set();
   let html = "";
   let paragraph = [];
   let listType = null;
@@ -120,7 +134,7 @@ function renderMarkdown(markdown) {
       flushParagraph(); closeList();
       const level = heading[1].length;
       const title = heading[2].replace(/\s+#+\s*$/, "");
-      const id = slugify(title);
+      const id = uniqueSlug(title, headingIds);
       html += "<h" + level + ' id="' + id + '">' + inlineMarkdown(title) + "</h" + level + ">";
       i++; continue;
     }
@@ -159,12 +173,17 @@ function renderMarkdown(markdown) {
   return html;
 }
 function extractHeadings(markdown) {
-  return markdown.split("\n").map(function (line) {
-    const match = line.match(/^(#{2,3})\s+(.+)$/);
-    if (!match) return null;
+  const used = new Set();
+  const headings = [];
+  markdown.split("\n").forEach(function (line) {
+    const match = line.match(/^(#{1,4})\s+(.+)$/);
+    if (!match) return;
     const title = match[2].replace(/\s+#+\s*$/, "");
-    return {title:title, id:slugify(title), level:match[1].length};
-  }).filter(Boolean);
+    const id = uniqueSlug(title, used);
+    const level = match[1].length;
+    if (level === 2 || level === 3) headings.push({title:title, id:id, level:level});
+  });
+  return headings;
 }
 function setActiveNavigation(id) {
   document.querySelectorAll(".chapter-link").forEach(function (link) {
@@ -179,9 +198,99 @@ function setTopLinks(isHome) {
   document.querySelector("[data-guide-link]").classList.toggle("active", !isHome);
 }
 function renderToc(headings) {
-  tocLinks.innerHTML = headings.map(function (item) {
-    return '<a class="' + (item.level === 3 ? "toc-sub" : "") + '" href="#' + item.id + '">' + escapeHTML(item.title) + "</a>";
-  }).join("");
+  tocLinks.replaceChildren();
+  headings.forEach(function (item) {
+    const link = document.createElement("a");
+    link.className = item.level === 3 ? "toc-sub" : "";
+    link.href = "#" + item.id;
+    link.textContent = item.title;
+    tocLinks.appendChild(link);
+  });
+}
+
+async function copyText(value) {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(value);
+      return true;
+    }
+  } catch (error) {}
+  const field = document.createElement("textarea");
+  field.value = value;
+  field.setAttribute("readonly", "");
+  field.style.position = "fixed";
+  field.style.opacity = "0";
+  document.body.appendChild(field);
+  field.select();
+  let copied = false;
+  try { copied = document.execCommand("copy"); } catch (error) {}
+  field.remove();
+  return copied;
+}
+
+function enhanceArticle() {
+  article.querySelectorAll("pre").forEach(function (pre) {
+    if (pre.querySelector(".copy-code")) return;
+    pre.classList.add("code-block");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "copy-code";
+    button.textContent = "Copy code";
+    button.addEventListener("click", async function () {
+      const code = pre.querySelector("code");
+      const copied = await copyText(code ? code.textContent : pre.textContent);
+      button.textContent = copied ? "Copied" : "Copy unavailable";
+      announcer.textContent = copied ? "Code copied to clipboard." : "Could not copy the code. Select it manually.";
+      window.setTimeout(function () { button.textContent = "Copy code"; }, 1800);
+    });
+    pre.appendChild(button);
+  });
+
+  article.querySelectorAll("h2[id], h3[id]").forEach(function (heading) {
+    if (heading.querySelector(".heading-anchor")) return;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "heading-anchor";
+    button.textContent = "#";
+    button.setAttribute("aria-label", "Copy link to " + heading.textContent);
+    button.title = "Copy link to this section";
+    button.addEventListener("click", async function () {
+      const link = window.location.origin + window.location.pathname + "#chapter/" + activeChapter + "/" + encodeURIComponent(heading.id);
+      const copied = await copyText(link);
+      announcer.textContent = copied ? "Section link copied." : "Could not copy the section link.";
+    });
+    heading.appendChild(button);
+  });
+
+  observeHeadings();
+}
+
+function observeHeadings() {
+  if (headingObserver) headingObserver.disconnect();
+  if (!("IntersectionObserver" in window)) return;
+  headingObserver = new IntersectionObserver(function (entries) {
+    const visible = entries.filter(function (entry) { return entry.isIntersecting; }).sort(function (a, b) {
+      return a.boundingClientRect.top - b.boundingClientRect.top;
+    });
+    if (!visible.length) return;
+    const activeId = visible[0].target.id;
+    tocLinks.querySelectorAll("a").forEach(function (link) {
+      const active = link.getAttribute("href") === "#" + activeId;
+      link.classList.toggle("active", active);
+      if (active) link.setAttribute("aria-current", "location");
+      else link.removeAttribute("aria-current");
+    });
+  }, {rootMargin:"-18% 0px -68% 0px", threshold:0});
+  article.querySelectorAll("h2[id], h3[id]").forEach(function (heading) {
+    headingObserver.observe(heading);
+  });
+}
+
+function updateReadingProgress() {
+  const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+  const percent = scrollable > 0 ? Math.min(100, Math.max(0, Math.round((window.scrollY / scrollable) * 100))) : 100;
+  progressElement.querySelector("span").style.transform = "scaleX(" + (percent / 100) + ")";
+  progressElement.setAttribute("aria-valuenow", String(percent));
 }
 function renderPagination(index) {
   const previous = chapters[index - 1];
@@ -202,10 +311,12 @@ function renderPagination(index) {
     pagination.appendChild(a);
   }
 }
-async function openChapter(id) {
+async function openChapter(id, anchorId) {
   const chapter = chapters.find(function (item) { return item.id === id; });
   if (!chapter) { showHome(); return; }
   const requestId = ++loadSequence;
+  searchInput.value = "";
+  runSearch("");
   activeChapter = id;
   homeView.hidden = true;
   guideView.hidden = false;
@@ -222,15 +333,32 @@ async function openChapter(id) {
     const markdown = await response.text();
     if (requestId !== loadSequence) return;
     article.innerHTML = renderMarkdown(markdown);
+    const chapterIndex = chapters.findIndex(function (item) { return item.id === id; });
+    const wordCount = markdown.trim().split(/\s+/).filter(Boolean).length;
+    const readMinutes = Math.max(1, Math.ceil(wordCount / 220));
+    const meta = document.createElement("div");
+    meta.className = "article-meta";
+    meta.textContent = "CHAPTER " + String(chapterIndex + 1).padStart(2, "0") + " / " + String(chapters.length).padStart(2, "0") + "  ·  " + readMinutes + " MIN READ";
+    article.prepend(meta);
     const firstHeading = article.querySelector("h1");
     if (firstHeading) {
       firstHeading.setAttribute("tabindex", "-1");
       firstHeading.focus({preventScroll:true});
     }
     renderToc(extractHeadings(markdown));
-    renderPagination(chapters.findIndex(function (item) { return item.id === id; }));
+    enhanceArticle();
+    renderPagination(chapterIndex);
+    updateReadingProgress();
     document.title = chapter.title + " — Simple Hackintosh";
     window.scrollTo({top:0,behavior:"smooth"});
+    if (anchorId) {
+      let targetId = anchorId;
+      try { targetId = decodeURIComponent(anchorId); } catch (error) {}
+      window.setTimeout(function () {
+        const target = document.getElementById(targetId);
+        if (target && article.contains(target)) target.scrollIntoView({behavior:"smooth", block:"start"});
+      }, 80);
+    }
   } catch (error) {
     if (requestId !== loadSequence) return;
     article.innerHTML = '<div class="error-state"><h2>Chapter could not be loaded</h2><p>' + escapeHTML(error.message) + '</p><p>Open the source file directly on <a href="https://github.com/kiwewe09-aa/Simple-Hackintosh/blob/main/docs/' + id + '.md" target="_blank" rel="noopener noreferrer">GitHub ↗</a>.</p></div>';
@@ -250,36 +378,64 @@ function showHome() {
 function route() {
   const hash = window.location.hash || "#home";
   if (hash.startsWith("#chapter/")) {
-    openChapter(hash.slice("#chapter/".length).split("/")[0]);
+    const parts = hash.slice("#chapter/".length).split("/");
+    const chapterId = parts.shift();
+    const anchorId = parts.length ? parts.join("/") : null;
+    openChapter(chapterId, anchorId);
   } else if (hash === "#guide") {
     openChapter("00-read-first");
+  } else if (activeChapter && hash.length > 1) {
+    let anchorId = hash.slice(1);
+    try { anchorId = decodeURIComponent(anchorId); } catch (error) {}
+    const target = document.getElementById(anchorId);
+    if (target && article.contains(target)) return;
+    showHome();
   } else {
     showHome();
   }
 }
 async function buildSearchIndex() {
   if (searchLoaded) return searchIndex;
-  searchLoaded = true;
   const results = await Promise.allSettled(chapters.map(async function (chapter) {
     const response = await fetch("docs/" + chapter.id + ".md");
     if (!response.ok) throw new Error("fetch failed");
     const markdown = await response.text();
-    return {id:chapter.id,title:chapter.title,text:markdown.replace(/[#>*_|`\[\]()!-]/g, " ").replace(/\s+/g, " ").toLowerCase()};
+    return {id:chapter.id,title:chapter.title,text:markdown.replace(/[#>*_|\x60\[\]()!-]/g, " ").replace(/\s+/g, " ").toLowerCase()};
   }));
   searchIndex = results.filter(function (r) { return r.status === "fulfilled"; }).map(function (r) { return r.value; });
+  searchLoaded = searchIndex.length > 0;
   return searchIndex;
 }
 function runSearch(query) {
   const q = query.trim().toLowerCase();
-  if (!q) { searchResults.hidden = true; searchResults.innerHTML = ""; return; }
+  if (!q) {
+    searchResults.hidden = true;
+    searchResults.replaceChildren();
+    searchInput.setAttribute("aria-expanded", "false");
+    return;
+  }
   searchResults.hidden = false;
+  searchInput.setAttribute("aria-expanded", "true");
   searchResults.innerHTML = '<div class="search-result">Searching chapters…</div>';
   buildSearchIndex().then(function (index) {
     if (searchInput.value.trim().toLowerCase() !== q) return;
-    const found = index.filter(function (item) { return item.title.toLowerCase().includes(q) || item.text.includes(q); }).slice(0,7);
+    if (!index.length) {
+      searchResults.textContent = "Search is temporarily unavailable. Try again in a moment.";
+      return;
+    }
+    const found = index.filter(function (item) {
+      return item.title.toLowerCase().includes(q) || item.text.includes(q);
+    }).slice(0, 7);
     searchResults.innerHTML = found.length ? found.map(function (item) {
-      return '<a class="search-result" href="#chapter/' + item.id + '">' + escapeHTML(item.title) + '<small>Open chapter ↗</small></a>';
+      const position = item.text.indexOf(q);
+      const start = Math.max(0, position - 42);
+      const end = position < 0 ? Math.min(item.text.length, 100) : Math.min(item.text.length, position + q.length + 72);
+      const snippet = (start > 0 ? "…" : "") + item.text.slice(start, end) + (end < item.text.length ? "…" : "");
+      return '<a class="search-result" href="#chapter/' + item.id + '">' + escapeHTML(item.title) + '<small>' + escapeHTML(snippet) + '</small></a>';
     }).join("") : '<div class="search-result">No matching chapter found.<small>Try a hardware or OpenCore term.</small></div>';
+  }).catch(function () {
+    searchResults.textContent = "Search is temporarily unavailable. Try again in a moment.";
+    searchLoaded = false;
   });
 }
 searchInput.addEventListener("input", function () { runSearch(searchInput.value); });
@@ -291,14 +447,34 @@ searchInput.addEventListener("keydown", function (event) {
   }
 });
 document.addEventListener("keydown", function (event) {
-  if (event.key === "/" && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) {
-    event.preventDefault(); searchInput.focus();
+  if (event.key === "Escape") {
+    if (document.body.classList.contains("menu-open")) {
+      document.body.classList.remove("menu-open");
+      menuButton.setAttribute("aria-expanded", "false");
+      menuButton.focus();
+    }
+    if (document.activeElement === searchInput || searchInput.value) {
+      searchInput.value = "";
+      runSearch("");
+      searchInput.blur();
+    }
+    return;
+  }
+  const shortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k";
+  const slash = event.key === "/" && !/INPUT|TEXTAREA/.test(document.activeElement.tagName);
+  if (shortcut || slash) {
+    event.preventDefault();
+    searchInput.focus();
   }
 });
 menuButton.addEventListener("click", function () {
   const open = !document.body.classList.contains("menu-open");
   document.body.classList.toggle("menu-open", open);
   menuButton.setAttribute("aria-expanded", String(open));
+  if (open) {
+    const firstLink = chapterNav.querySelector("a");
+    if (firstLink) firstLink.focus();
+  }
 });
 document.addEventListener("click", function (event) {
   if (document.body.classList.contains("menu-open") && !sidebar.contains(event.target) && !menuButton.contains(event.target)) {
@@ -306,15 +482,33 @@ document.addEventListener("click", function (event) {
     menuButton.setAttribute("aria-expanded", "false");
   }
 });
-document.getElementById("theme-toggle").addEventListener("click", function () {
+const themeButton = document.getElementById("theme-toggle");
+function updateThemeButton() {
+  const light = document.documentElement.getAttribute("data-theme") === "light";
+  themeButton.textContent = light ? "☾" : "☼";
+  themeButton.setAttribute("aria-label", light ? "Switch to dark theme" : "Switch to light theme");
+  themeButton.title = light ? "Switch to dark theme" : "Switch to light theme";
+}
+themeButton.addEventListener("click", function () {
   const root = document.documentElement;
   const next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
   root.setAttribute("data-theme", next);
-  try { localStorage.setItem("simple-hackintosh-theme", next); } catch (e) {}
+  try { localStorage.setItem("simple-hackintosh-theme", next); } catch (error) {}
+  updateThemeButton();
 });
+updateThemeButton();
 try {
   const savedTheme = localStorage.getItem("simple-hackintosh-theme");
   if (savedTheme === "light" || savedTheme === "dark") document.documentElement.setAttribute("data-theme", savedTheme);
 } catch (e) {}
 window.addEventListener("hashchange", route);
+window.addEventListener("scroll", function () {
+  if (progressFrame !== null) return;
+  progressFrame = window.requestAnimationFrame(function () {
+    updateReadingProgress();
+    progressFrame = null;
+  });
+}, {passive:true});
+window.addEventListener("resize", updateReadingProgress);
 route();
+updateReadingProgress();

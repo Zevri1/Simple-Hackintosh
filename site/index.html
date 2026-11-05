@@ -7,13 +7,26 @@
   <meta name="description" content="A clear, illustrated learning guide to Hackintosh, OpenCore, hardware compatibility, installation, and troubleshooting.">
   <meta property="og:title" content="Simple Hackintosh — OpenCore Learning Guide">
   <meta property="og:description" content="Understand your hardware. Build your EFI. Learn OpenCore step by step.">
-  <meta property="og:image" content="social-preview.jpg">
+  <meta property="og:image" content="https://kiwewe09-aa.github.io/Simple-Hackintosh/social-preview.jpg">
+  <meta property="og:url" content="https://kiwewe09-aa.github.io/Simple-Hackintosh/">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="https://kiwewe09-aa.github.io/Simple-Hackintosh/">
+  <script>
+    try {
+      const savedTheme = localStorage.getItem("simple-hackintosh-theme");
+      const prefersLight = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
+      document.documentElement.dataset.theme = savedTheme === "light" || savedTheme === "dark" ? savedTheme : (prefersLight ? "light" : "dark");
+    } catch (error) {}
+  </script>
   <title>Simple Hackintosh — OpenCore Learning Guide</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
   <script defer src="app.js"></script>
 </head>
 <body>
+  <div class="reading-progress" id="reading-progress" role="progressbar" aria-label="Page scroll progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
+  <div class="sr-only" id="site-announcer" aria-live="polite" aria-atomic="true"></div>
+  <noscript><div class="noscript-note">This guide uses JavaScript to load chapters. Enable JavaScript, or <a href="https://github.com/kiwewe09-aa/Simple-Hackintosh/tree/main/docs">read the Markdown chapters on GitHub</a>.</div></noscript>
   <a class="skip-link" href="#main-content">Skip to content</a>
 
   <header class="topbar">
@@ -28,7 +41,7 @@
     </nav>
     <div class="top-actions">
       <button class="icon-button" id="theme-toggle" type="button" aria-label="Toggle color theme" title="Toggle theme">◐</button>
-      <button class="mobile-menu-button" id="mobile-menu" type="button" aria-label="Open documentation menu" aria-expanded="false">☰</button>
+      <button class="mobile-menu-button" id="mobile-menu" type="button" aria-label="Open documentation menu" aria-controls="sidebar" aria-expanded="false">☰</button>
     </div>
   </header>
 
@@ -38,9 +51,9 @@
         <span class="eyebrow">THE FIELD GUIDE</span>
         <span class="sidebar-version">DOCUMENTATION / 2026</span>
       </div>
-      <label class="search-box" for="doc-search">
+      <label class="search-box" for="doc-search" title="Search the documentation (press / or Ctrl+K)">
         <span aria-hidden="true">⌕</span>
-        <input id="doc-search" type="search" placeholder="Search the guide…" autocomplete="off">
+        <input id="doc-search" type="search" placeholder="Search the guide…" autocomplete="off" aria-controls="search-results" aria-expanded="false">
         <kbd>/</kbd>
       </label>
       <div class="search-results" id="search-results" hidden aria-live="polite"></div>
