@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1016">
+  <meta name="description" content="A clear, illustrated learning guide to Hackintosh, OpenCore, hardware compatibility, installation, and troubleshooting.">
+  <meta property="og:title" content="Simple Hackintosh — OpenCore Learning Guide">
+  <meta property="og:description" content="Understand your hardware. Build your EFI. Learn OpenCore step by step.">
+  <meta property="og:image" content="social-preview.jpg">
+  <title>Simple Hackintosh — OpenCore Learning Guide</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+
+  <header class="topbar">
+    <a class="brand" href="#home" aria-label="Simple Hackintosh home">
+      <span class="brand-mark">S<span>/</span></span>
+      <span class="brand-name">SIMPLE <b>HACKINTOSH</b><small>OPENCORE FIELD GUIDE</small></span>
+    </a>
+    <nav class="top-links" aria-label="Main navigation">
+      <a href="#home" class="top-link active" data-home-link>Overview</a>
+      <a href="#guide" class="top-link" data-guide-link>Documentation</a>
+      <a href="https://github.com/kiwewe09-aa/Simple-Hackintosh" target="_blank" rel="noopener noreferrer" class="top-link">GitHub ↗</a>
+    </nav>
+    <div class="top-actions">
+      <button class="icon-button" id="theme-toggle" type="button" aria-label="Toggle color theme" title="Toggle theme">◐</button>
+      <button class="mobile-menu-button" id="mobile-menu" type="button" aria-label="Open documentation menu" aria-expanded="false">☰</button>
+    </div>
+  </header>
+
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-head">
+        <span class="eyebrow">THE FIELD GUIDE</span>
+        <span class="sidebar-version">DOCUMENTATION / 2026</span>
+      </div>
+      <label class="search-box" for="doc-search">
+        <span aria-hidden="true">⌕</span>
+        <input id="doc-search" type="search" placeholder="Search the guide…" autocomplete="off">
+        <kbd>/</kbd>
+      </label>
+      <div class="search-results" id="search-results" hidden aria-live="polite"></div>
+      <nav class="chapter-nav" aria-label="Documentation chapters" id="chapter-nav">
+        <div class="nav-group">
+          <span class="nav-label">START HERE</span>
+          <a class="chapter-link" href="#chapter/00-read-first" data-chapter="00-read-first"><span class="chapter-number">00</span><span>Read this first</span></a>
+          <a class="chapter-link" href="#chapter/01-hardware-inventory" data-chapter="01-hardware-inventory"><span class="chapter-number">01</span><span>Hardware inventory</span></a>
+          <a class="chapter-link" href="#chapter/02-compatibility" data-chapter="02-compatibility"><span class="chapter-number">02</span><span>Compatibility check</span></a>
+        </div>
+        <div class="nav-group">
+          <span class="nav-label">BUILD YOUR EFI</span>
+          <a class="chapter-link" href="#chapter/03-usb-installer-windows" data-chapter="03-usb-installer-windows"><span class="chapter-number">03</span><span>Windows USB installer</span></a>
+          <a class="chapter-link" href="#chapter/04-efi-structure" data-chapter="04-efi-structure"><span class="chapter-number">04</span><span>EFI structure</span></a>
+          <a class="chapter-link" href="#chapter/05-acpi-kexts-drivers" data-chapter="05-acpi-kexts-drivers"><span class="chapter-number">05</span><span>ACPI, Kexts & drivers</span></a>
+          <a class="chapter-link" href="#chapter/06-config-plist" data-chapter="06-config-plist"><span class="chapter-number">06</span><span>Configure config.plist</span></a>
+          <a class="chapter-link" href="#chapter/07-validation-debugging" data-chapter="07-validation-debugging"><span class="chapter-number">07</span><span>Validation & debugging</span></a>
+        </div>
+        <div class="nav-group">
+          <span class="nav-label">INSTALL & VERIFY</span>
+          <a class="chapter-link" href="#chapter/08-installation" data-chapter="08-installation"><span class="chapter-number">08</span><span>Install macOS</span></a>
+          <a class="chapter-link" href="#chapter/09-post-installation" data-chapter="09-post-installation"><span class="chapter-number">09</span><span>Post-installation</span></a>
+          <a class="chapter-link" href="#chapter/10-usb-mapping" data-chapter="10-usb-mapping"><span class="chapter-number">10</span><span>USB mapping</span></a>
+          <a class="chapter-link" href="#chapter/11-macos-tahoe-26" data-chapter="11-macos-tahoe-26"><span class="chapter-number">11</span><span>macOS Tahoe 26</span></a>
+        </div>
+        <div class="nav-group">
+          <span class="nav-label">MAINTAIN & LEARN</span>
+          <a class="chapter-link" href="#chapter/12-dual-boot" data-chapter="12-dual-boot"><span class="chapter-number">12</span><span>Dual boot safety</span></a>
+          <a class="chapter-link" href="#chapter/13-maintenance" data-chapter="13-maintenance"><span class="chapter-number">13</span><span>Maintenance & updates</span></a>
+          <a class="chapter-link" href="#chapter/14-troubleshooting" data-chapter="14-troubleshooting"><span class="chapter-number">14</span><span>Troubleshooting</span></a>
+          <a class="chapter-link" href="#chapter/15-glossary" data-chapter="15-glossary"><span class="chapter-number">15</span><span>Glossary</span></a>
+          <a class="chapter-link" href="#chapter/16-visual-walkthrough" data-chapter="16-visual-walkthrough"><span class="chapter-number">16</span><span>Visual walkthrough</span></a>
+        </div>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="status-dot"></div>
+        <span>COMMUNITY LEARNING PROJECT</span>
+      </div>
+    </aside>
+
+    <main id="main-content" class="main-content">
+      <section id="home-view" class="home-view">
+        <div class="hero">
+          <div class="hero-copy">
+            <div class="hero-kicker"><span class="kicker-line"></span> THE OPENCORE FIELD GUIDE</div>
+            <h1>Build with<br><em>understanding.</em></h1>
+            <p class="hero-lede">A practical, step-by-step guide to Hackintosh and OpenCore. Learn your hardware, build a clean EFI, and understand every stage of the process.</p>
+            <div class="hero-actions">
+              <a class="button button-primary" href="#chapter/00-read-first">Start learning <span>→</span></a>
+              <a class="button button-quiet" href="https://github.com/kiwewe09-aa/Simple-Hackintosh" target="_blank" rel="noopener noreferrer">Explore on GitHub ↗</a>
+            </div>
+            <div class="hero-note"><span class="note-icon">i</span> Educational documentation · Hardware-specific research required</div>
+          </div>
+          <div class="hero-art" aria-label="Illustration of a layered OpenCore system boot process">
+            <div class="orbit orbit-one"></div>
+            <div class="orbit orbit-two"></div>
+            <div class="orbit orbit-three"></div>
+            <div class="core-chip"><div class="chip-inner"><span>OC</span><small>BOOT CORE</small></div></div>
+            <div class="float-tag tag-efi"><i></i> EFI STRUCTURE</div>
+            <div class="float-tag tag-acpi"><i></i> ACPI + KEXTS</div>
+            <div class="float-tag tag-config"><i></i> CONFIG.PLIST</div>
+            <div class="art-caption"><span>01 — 06</span><b>THE BOOT ENVIRONMENT</b></div>
+          </div>
+        </div>
+
+        <div class="metric-strip">
+          <div><strong>17</strong><span>LEARNING CHAPTERS</span></div>
+          <div><strong>04</strong><span>CORE STAGES</span></div>
+          <div><strong>100%</strong><span>OPEN DOCUMENTATION</span></div>
+          <div><strong>01</strong><span>GUIDING PRINCIPLE: UNDERSTAND FIRST</span></div>
+        </div>
+
+        <section class="home-section">
+          <div class="section-heading">
+            <div><span class="eyebrow">THE PROCESS</span><h2>From first check to stable boot.</h2></div>
+            <p>Follow the sequence. Each stage builds on the decisions made before it.</p>
+          </div>
+          <div class="stage-grid">
+            <a class="stage-card" href="#chapter/01-hardware-inventory"><span class="stage-index">01 / RESEARCH</span><div class="stage-symbol">⌕</div><h3>Know your hardware</h3><p>Identify exact devices and check compatibility before changing anything.</p><span class="stage-arrow">Explore research chapters ↗</span></a>
+            <a class="stage-card" href="#chapter/03-usb-installer-windows"><span class="stage-index">02 / PREPARE</span><div class="stage-symbol">▤</div><h3>Prepare the environment</h3><p>Understand Recovery media, the EFI layout, ACPI tables, drivers, and Kexts.</p><span class="stage-arrow">Explore preparation ↗</span></a>
+            <a class="stage-card" href="#chapter/06-config-plist"><span class="stage-index">03 / CONFIGURE</span><div class="stage-symbol">{ }</div><h3>Build your configuration</h3><p>Configure OpenCore deliberately, validate it, and keep every component aligned.</p><span class="stage-arrow">Explore configuration ↗</span></a>
+            <a class="stage-card" href="#chapter/08-installation"><span class="stage-index">04 / VERIFY</span><div class="stage-symbol">⌁</div><h3>Install and maintain</h3><p>Install carefully, test the system, document changes, and plan updates.</p><span class="stage-arrow">Explore installation ↗</span></a>
+          </div>
+        </section>
+
+        <section class="notice-panel">
+          <div class="notice-icon">!</div>
+          <div><span class="eyebrow">READ BEFORE YOU BEGIN</span><h3>There is no universal EFI.</h3><p>Hardware support changes by exact component and macOS release. Back up your data, protect private identifiers, and never copy another computer's configuration blindly.</p><a href="#chapter/00-read-first">Read the safety notes →</a></div>
+        </section>
+
+        <section class="home-section quick-start">
+          <div class="section-heading">
+            <div><span class="eyebrow">QUICK START</span><h2>Choose your next chapter.</h2></div>
+            <a class="text-link" href="#guide">View all documentation ↗</a>
+          </div>
+          <div class="quick-grid">
+            <a href="#chapter/00-read-first"><span>00</span><b>Read this first</b><small>Understand risks and prerequisites</small></a>
+            <a href="#chapter/02-compatibility"><span>02</span><b>Check compatibility</b><small>Assess every critical component</small></a>
+            <a href="#chapter/06-config-plist"><span>06</span><b>Configure OpenCore</b><small>Build a hardware-specific config</small></a>
+            <a href="#chapter/14-troubleshooting"><span>14</span><b>Troubleshooting</b><small>Find the stage where boot fails</small></a>
+          </div>
+        </section>
+      </section>
+
+      <section id="guide-view" class="guide-view" hidden>
+        <div class="doc-topline"><a href="#home">Home</a><span>/</span><span>Documentation</span></div>
+        <div class="doc-layout">
+          <article id="doc-article" class="doc-article">
+            <div class="loading-state"><div class="loading-spinner"></div><p>Loading chapter…</p></div>
+          </article>
+          <aside class="doc-toc" id="doc-toc">
+            <span class="eyebrow">ON THIS PAGE</span>
+            <div id="toc-links"></div>
+            <div class="toc-card"><b>Need a hand?</b><p>Prepare a redacted report with your hardware and the exact stage of failure.</p><a href="https://github.com/kiwewe09-aa/Simple-Hackintosh/blob/main/templates/problem-report.md" target="_blank" rel="noopener noreferrer">Problem report ↗</a></div>
+          </aside>
+        </div>
+        <div class="chapter-pagination" id="chapter-pagination"></div>
+      </section>
+
+      <footer class="site-footer">
+        <div class="footer-brand"><span class="brand-mark small">S<span>/</span></span><div><b>SIMPLE HACKINTOSH</b><small>OPENCORE FIELD GUIDE</small></div></div>
+        <div class="footer-links"><a href="https://github.com/kiwewe09-aa/Simple-Hackintosh" target="_blank" rel="noopener noreferrer">GitHub ↗</a><a href="https://dortania.github.io/OpenCore-Install-Guide/" target="_blank" rel="noopener noreferrer">Dortania Guide ↗</a><a href="#chapter/00-read-first">Safety notes</a></div>
+        <p>Independent educational documentation. OpenCore, macOS, and third-party tools remain subject to their respective licenses and terms.</p>
+      </footer>
+    </main>
+  </div>
+</body>
+</html>
