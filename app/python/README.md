@@ -1,72 +1,124 @@
 # Simple Hackintosh CLI
 
-A real Python command-line program for Windows Command Prompt (CMD) and PowerShell. It runs locally; it is not a web page and does not require a browser, login, internet connection, or third-party Python packages.
+A standalone Python assistant for Windows Command Prompt (CMD) and PowerShell. It is a real local program, not a web page or browser wrapper.
 
-## Requirements
+**No third-party Python packages are required.** The program uses Python's standard library and Windows PowerShell/CIM for hardware inventory.
 
-- Windows 10 or 11 for the hardware inventory command.
-- Python 3.10 or newer.
-- Windows PowerShell (included with Windows).
-- EFI and plist checks also run on other platforms with Python 3.10+.
+## Quick start
 
-## Start in CMD
-
-1. Download the repository and extract the ZIP.
-2. Open the \`app\\python\` folder in Command Prompt.
-3. Run:
+1. Download the repository ZIP and extract it.
+2. Open the extracted folder, then open \`app\` and \`python\`.
+3. Double-click \`run.bat\` or open CMD in this folder and run:
 
 \`\`\`cmd
-py -3 simple_hackintosh.py --help
-py -3 simple_hackintosh.py doctor
+run.bat
 \`\`\`
 
-You can also use the included \`run.bat\` launcher:
+A beginner-friendly menu opens automatically. Choose a numbered task and follow the prompts.
+
+To see all command-line options:
 
 \`\`\`cmd
 run.bat --help
 run.bat doctor
+\`\`\`
+
+Requirements: Python 3.10 or newer. Windows 10/11 is required for automatic hardware inventory; EFI and plist checks also work on Linux/macOS.
+
+## Beginner menu
+
+| Menu item | What it does |
+|---|---|
+| Detect my hardware | Lists CPU, graphics, motherboard, BIOS, memory, disks, network/audio/storage devices, and available PCI IDs |
+| Check an EFI folder or ZIP | Scans the folder/archive without extracting or modifying it |
+| Check a config.plist | Checks plist syntax, required OpenCore sections, common entry fields, and duplicate entries |
+| Run official ocvalidate | Runs the validator included with the user's matching OpenCore release |
+| Compare two EFI folders/ZIPs | Shows files present in one EFI and absent in the other |
+| Create a support report | Produces a shareable report without raw config.plist or SMBIOS identity values |
+
+## CMD commands
+
+### Runtime check
+
+\`\`\`cmd
+run.bat doctor
+\`\`\`
+
+### Hardware inventory
+
+\`\`\`cmd
 run.bat hardware
+run.bat hardware --output hardware-report.md
+run.bat hardware --json --output hardware-report.json
 \`\`\`
 
-## Commands
+Collects CPU model/core count, GPU names and driver versions, motherboard, BIOS, Windows version, memory, disks, and selected Plug and Play device classes. It extracts PCI Vendor/Device IDs where Windows reports them. It does not collect serial numbers, UUIDs, MAC addresses, or account identifiers.
 
-### 1. Hardware inventory
+### EFI scan
 
 \`\`\`cmd
-py -3 simple_hackintosh.py hardware
-py -3 simple_hackintosh.py hardware --output hardware-report.md
+run.bat efi-check "E:\\EFI"
+run.bat efi-check "C:\\Users\\YourName\\Downloads\\EFI.zip"
+run.bat efi-check "E:\\EFI" --json --output efi-findings.json
 \`\`\`
 
-Reads CPU, GPU names, motherboard, BIOS version, Windows version, installed memory, disk models/capacities, and physical network-adapter names through Windows CIM/PowerShell. It deliberately does not collect serial numbers, UUIDs, MAC addresses, passwords, or account identifiers.
+Checks the basic EFI layout, parses config.plist, and reviews enabled ACPI, Kext, UEFI driver, and tool references. It checks Kext bundle identifiers against their Info.plist when available. ZIP files are inspected in place and never extracted by this program.
 
-### 2. EFI folder or ZIP check
+### config.plist check
 
 \`\`\`cmd
-py -3 simple_hackintosh.py efi-check "E:\\EFI"
-py -3 simple_hackintosh.py efi-check "C:\\Users\\YourName\\Downloads\\EFI.zip"
+run.bat config-check "E:\\EFI\\OC\\config.plist"
+run.bat config-check "E:\\EFI\\OC\\config.plist" --json
 \`\`\`
 
-Checks the basic OpenCore layout, parses the embedded config.plist, and checks enabled ACPI, Kext, UEFI driver, and tool references. ZIP files are inspected without extracting them. The checker rejects unsafe ZIP paths and does not modify the selected files.
+Supports XML and binary property lists. Checks required top-level sections, common container types, entry fields, path values, and duplicate Kext identifiers. This built-in review is intentionally a preliminary lint, not a substitute for OpenCore's official validator.
 
-### 3. config.plist check
+### Official OpenCore validator
+
+Get \`ocvalidate\` from the same OpenCore release as the EFI you are checking. Then run:
 
 \`\`\`cmd
-py -3 simple_hackintosh.py config-check "E:\\EFI\\OC\\config.plist"
+run.bat ocvalidate "E:\\EFI\\OC\\config.plist" --tool "C:\\OpenCore\\Utilities\\ocvalidate\\ocvalidate.exe" --expect-version 1.0.5
 \`\`\`
 
-Supports XML and binary property lists. Checks the main OpenCore sections and selected basic value types. This is not the official \`ocvalidate\` tool and cannot certify that an EFI will boot.
+Replace the example version with the version you actually use. The program checks the validator's reported version before running when \`--expect-version\` is supplied. OpenCore's official documentation states that the validator must match the OpenCore release; a mismatched validator can produce misleading results.
 
-## Exit codes
+### Compare EFI backups
 
-- \`0\`: checks completed without reported errors/warnings.
-- \`1\`: a validation warning or error was found.
-- \`2\`: invalid input, unreadable file, or runtime/environment error.
+\`\`\`cmd
+run.bat compare-efi "E:\\EFI" "F:\\EFI-backup"
+run.bat compare-efi "E:\\EFI" "F:\\EFI-backup" --json --output comparison.json
+\`\`\`
+
+Compares file paths only. It does not copy, replace, delete, or edit files.
+
+### Build a support report
+
+\`\`\`cmd
+run.bat support-report "E:\\EFI" --output hackintosh-support-report.md
+run.bat support-report "E:\\EFI" --json --output support-report.json
+run.bat support-report "E:\\EFI" --no-hardware
+\`\`\`
+
+The report includes the EFI scan and, on Windows, a hardware inventory. Raw config.plist values and SMBIOS serial/UUID fields are not included. Review the generated report before sharing it; device names and file paths can still reveal personal information.
+
+## Reading the results
+
+- \`[PASS]\`: the specific check passed.
+- \`[WARN]\`: review this item; it may be intentional or hardware/version-specific.
+- \`[ERROR]\`: a required file, structure, or value is missing or invalid.
+- Exit code \`0\`: no warnings/errors reported by that command.
+- Exit code \`1\`: one or more warnings/errors were found.
+- Exit code \`2\`: input or runtime error.
+- Exit code \`3\`: the requested official validator version did not match.
+
+A green result does **not** guarantee that macOS will boot. Compatibility and correct settings depend on the exact hardware and OpenCore release.
 
 ## Privacy and safety
 
-All checks run on the computer where the command is launched. The program does not upload selected EFI files or hardware data. It is read-only: it does not format disks, change partitions, edit EFI files, write boot entries, flash firmware, or change BIOS settings.
+The built-in operations are read-only. They do not format disks, modify partitions, assign drive letters, mount EFI system partitions, change boot entries, edit EFI files, flash firmware, or alter BIOS settings. The program does not upload data.
 
-Hardware inventory is informational only. It does not establish macOS compatibility. Review the exact CPU, GPU, wireless chipset, storage controller, firmware, macOS version, and current upstream OpenCore documentation before making changes.
+Never share an unredacted EFI or config.plist publicly. Always review generated reports before sharing. The support report omits sensitive SMBIOS identity fields, but still review the remaining hardware names and paths.
 
 ## Tests
 
@@ -76,4 +128,4 @@ From this directory:
 py -3 -m unittest discover -s tests -v
 \`\`\`
 
-The test suite uses Python's standard library and temporary sample EFI files; it does not access or alter a real EFI partition.
+The automated tests use temporary sample files and do not inspect or change a real EFI partition.
