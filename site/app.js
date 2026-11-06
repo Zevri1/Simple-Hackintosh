@@ -659,6 +659,8 @@ function updateThemeButton() {
   themeButton.textContent = light ? "☾" : "☼";
   themeButton.setAttribute("aria-label", light ? "Switch to dark theme" : "Switch to light theme");
   themeButton.title = light ? "Switch to dark theme" : "Switch to light theme";
+  const themeMeta = document.querySelector('meta[name="theme-color"]');
+  if (themeMeta) themeMeta.content = light ? "#f4f1e9" : "#0d1420";
 }
 themeButton.addEventListener("click", function () {
   const root = document.documentElement;
