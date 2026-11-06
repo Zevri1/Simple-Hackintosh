@@ -292,6 +292,9 @@ internal sealed class MainForm : Form
         var validateButton = MakeButton("Validate configuration  →", true, new Point(170, 0), new Size(220, 36));
         var officialValidateButton = MakeButton("Official ocvalidate", false, new Point(400, 0), new Size(190, 36));
         var cancelOfficialButton = MakeButton("Cancel", false, new Point(600, 0), new Size(90, 36));
+        var loadVersionsButton = MakeButton("Load OpenCore versions", false, new Point(700, 0), new Size(220, 36));
+        var versionPicker = new ComboBox { Location = new Point(0, 98), Size = new Size(300, 34), DropDownStyle = ComboBoxStyle.DropDownList, Enabled = false };
+        var versionHint = new Label { Text = "Select the exact OpenCore version used by this config.plist. The latest stable release is used if none is selected.", ForeColor = TextSoft, Font = new Font("Segoe UI", 8), Location = new Point(312, 58), Size = new Size(608, 34) };
         cancelOfficialButton.Enabled = false;
         var input = new TextBox
         {
@@ -304,10 +307,10 @@ internal sealed class MainForm : Form
         var hint = new Label
         {
             Text = "The local check is structural. Official ocvalidate downloads the latest stable Acidanthera validator and must only be used with a config.plist from that exact OpenCore version.",
-            ForeColor = TextSoft, Font = new Font("Segoe UI", 8), Location = new Point(2, 402), Size = new Size(920, 38)
+            ForeColor = TextSoft, Font = new Font("Segoe UI", 8), Location = new Point(2, 446), Size = new Size(920, 32)
         };
-        var results = NewResultsPanel(new Point(0, 448), new Size(920, 380));
-        page.Controls.AddRange(new Control[] { fileButton, validateButton, officialValidateButton, cancelOfficialButton, input, hint, results });
+        var results = NewResultsPanel(new Point(0, 484), new Size(920, 380));
+        page.Controls.AddRange(new Control[] { fileButton, validateButton, officialValidateButton, cancelOfficialButton, loadVersionsButton, versionPicker, versionHint, input, hint, results });
 
         fileButton.Click += (_, _) =>
         {
@@ -342,6 +345,36 @@ internal sealed class MainForm : Form
             }
         };
 
+        loadVersionsButton.Click += async (_, _) =>
+        {
+            loadVersionsButton.Enabled = false;
+            versionHint.Text = "Loading stable Acidanthera releases from GitHub…";
+            _status.Text = "●  LOADING OPENCORE RELEASES";
+            _status.ForeColor = Blue;
+            try
+            {
+                var releases = await OpenCoreReleaseService.GetStableReleasesAsync(20);
+                versionPicker.DataSource = releases.ToList();
+                versionPicker.DisplayMember = nameof(OpenCoreReleaseInfo.Version);
+                versionPicker.Enabled = releases.Count > 0;
+                versionHint.Text = releases.Count == 0
+                    ? "No stable release with a verifiable official RELEASE ZIP digest was found."
+                    : "Choose the exact version used by this EFI. Only stable releases with a published SHA-256 digest are listed.";
+                _status.Text = $"●  {releases.Count} STABLE RELEASES LOADED";
+                _status.ForeColor = releases.Count > 0 ? Green : Yellow;
+            }
+            catch (Exception ex)
+            {
+                versionPicker.DataSource = null;
+                versionPicker.Enabled = false;
+                versionHint.Text = "Could not load the official release list.";
+                _status.Text = "●  RELEASE LIST UNAVAILABLE";
+                _status.ForeColor = Yellow;
+                MessageBox.Show(this, ex.Message, "OpenCore release list unavailable", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            finally { loadVersionsButton.Enabled = true; }
+        };
+
         cancelOfficialButton.Click += (_, _) => _ocvalidateCts?.Cancel();
         officialValidateButton.Click += async (_, _) =>
         {
@@ -351,6 +384,8 @@ internal sealed class MainForm : Form
             validateButton.Enabled = false;
             officialValidateButton.Enabled = false;
             cancelOfficialButton.Enabled = true;
+            loadVersionsButton.Enabled = false;
+            versionPicker.Enabled = false;
             input.ReadOnly = true;
             _status.Text = "●  PREPARING OFFICIAL VALIDATOR";
             _status.ForeColor = Blue;
@@ -361,7 +396,10 @@ internal sealed class MainForm : Form
             });
             try
             {
-                var result = await OpenCoreReleaseService.ValidateWithLatestOfficialAsync(input.Text, reporter, _ocvalidateCts.Token);
+                var selectedRelease = versionPicker.SelectedItem as OpenCoreReleaseInfo;
+                var result = selectedRelease is null
+                    ? await OpenCoreReleaseService.ValidateWithLatestOfficialAsync(input.Text, reporter, _ocvalidateCts.Token)
+                    : await OpenCoreReleaseService.ValidateWithReleaseAsync(input.Text, selectedRelease, reporter, _ocvalidateCts.Token);
                 var details = $"OpenCore version: {result.Version}\r\nValidator exit code: {result.ExitCode}\r\n\r\n{result.Output}";
                 RenderResults(results,
                     new List<CheckResult>
@@ -394,6 +432,8 @@ internal sealed class MainForm : Form
                 validateButton.Enabled = true;
                 officialValidateButton.Enabled = true;
                 cancelOfficialButton.Enabled = false;
+                loadVersionsButton.Enabled = true;
+                versionPicker.Enabled = versionPicker.Items.Count > 0;
                 input.ReadOnly = false;
             }
         };

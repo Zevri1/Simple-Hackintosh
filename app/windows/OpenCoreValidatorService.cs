@@ -22,45 +22,41 @@ internal static partial class OpenCoreReleaseService
     public static async Task<OpenCoreValidationResult> ValidateWithLatestOfficialAsync(
         string configText, IProgress<OpenCoreProgress>? progress = null, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(configText))
-            throw new InvalidDataException("Open a non-empty XML config.plist before running official validation.");
-        if (Encoding.UTF8.GetByteCount(configText) > 5 * 1024 * 1024)
-            throw new InvalidDataException("The config.plist exceeds the 5 MB safety limit.");
-
         var release = await GetLatestReleaseAsync(cancellationToken);
+        return await ValidateWithReleaseAsync(configText, release, progress, cancellationToken);
+    }
+
+    public static async Task<OpenCoreValidationResult> ValidateWithReleaseAsync(
+        string configText, OpenCoreReleaseInfo release, IProgress<OpenCoreProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(configText)) throw new InvalidDataException("Open a non-empty XML config.plist before running official validation.");
+        if (Encoding.UTF8.GetByteCount(configText) > 5 * 1024 * 1024) throw new InvalidDataException("The config.plist exceeds the 5 MB safety limit.");
+        if (release is null) throw new ArgumentNullException(nameof(release));
+
         progress?.Report(new OpenCoreProgress($"Preparing official ocvalidate for OpenCore {release.Version}…", 0, null));
         string validatorPath = await EnsureWindowsValidatorAsync(release, progress, cancellationToken);
-
         string workRoot = Path.Combine(Path.GetTempPath(), "SimpleHackintosh", "ocvalidate-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(workRoot);
         try
         {
             string configPath = Path.Combine(workRoot, "config.plist");
             await File.WriteAllTextAsync(configPath, configText, new UTF8Encoding(false), cancellationToken);
-
             progress?.Report(new OpenCoreProgress($"Running ocvalidate for OpenCore {release.Version}…", 0, null));
             var start = new ProcessStartInfo
             {
-                FileName = validatorPath,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                StandardOutputEncoding = Encoding.UTF8,
-                StandardErrorEncoding = Encoding.UTF8
+                FileName = validatorPath, UseShellExecute = false, CreateNoWindow = true,
+                RedirectStandardOutput = true, RedirectStandardError = true,
+                StandardOutputEncoding = Encoding.UTF8, StandardErrorEncoding = Encoding.UTF8
             };
             start.ArgumentList.Add(configPath);
-
             using var process = new Process { StartInfo = start };
             if (!process.Start()) throw new InvalidOperationException("Could not start the verified official ocvalidate executable.");
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(TimeSpan.FromSeconds(45));
             Task<string> stdoutTask = process.StandardOutput.ReadToEndAsync();
             Task<string> stderrTask = process.StandardError.ReadToEndAsync();
-            try
-            {
-                await process.WaitForExitAsync(timeout.Token);
-            }
+            try { await process.WaitForExitAsync(timeout.Token); }
             catch (OperationCanceledException)
             {
                 try { process.Kill(true); } catch { }
@@ -68,23 +64,17 @@ internal static partial class OpenCoreReleaseService
                 if (cancellationToken.IsCancellationRequested) throw;
                 throw new TimeoutException("Official ocvalidate did not finish within 45 seconds.");
             }
-
             string stdout = await stdoutTask;
             string stderr = await stderrTask;
             string output = string.Join(Environment.NewLine, new[] { stdout.Trim(), stderr.Trim() }.Where(value => value.Length > 0));
             string? reportedVersion = ParseValidatorVersionBanner(output);
-            if (reportedVersion is null)
-                throw new InvalidDataException("The executable did not print the expected OpenCore version banner. It was not treated as a valid validator.");
+            if (reportedVersion is null) throw new InvalidDataException("The executable did not print the expected OpenCore version banner.");
             if (!string.Equals(reportedVersion, release.Version, StringComparison.OrdinalIgnoreCase))
-                throw new InvalidDataException($"The downloaded validator reports OpenCore {reportedVersion}, but the verified release is {release.Version}. Validation was stopped.");
-
+                throw new InvalidDataException($"The downloaded validator reports OpenCore {reportedVersion}, but the selected verified release is {release.Version}. Validation was stopped.");
             return new OpenCoreValidationResult(release.Version, process.ExitCode == 0, process.ExitCode,
                 string.IsNullOrWhiteSpace(output) ? "ocvalidate returned no text output." : output);
         }
-        finally
-        {
-            try { if (Directory.Exists(workRoot)) Directory.Delete(workRoot, true); } catch { }
-        }
+        finally { try { if (Directory.Exists(workRoot)) Directory.Delete(workRoot, true); } catch { } }
     }
 
     internal static string? ParseValidatorVersionBanner(string output)

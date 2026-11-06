@@ -57,7 +57,7 @@ Keep the existing native Windows Forms application on .NET 10. Do not introduce 
 
 **Remaining**
 - Build the actual schema-guided config.plist editor using the exact schema/sample shipped with the selected OpenCore version.
-- Add release selection so users can validate older EFI configurations against their exact OpenCore version.
+- Add import of a local official OpenCore release package for offline validation when internet access is unavailable.
 
 **Acceptance**
 - No existing EFI folder is overwritten.
@@ -124,7 +124,7 @@ flowchart TD
 - [x] Apple package downloads have no fixed three-minute HttpClient timeout and follow only manually validated HTTPS Apple-domain redirects.
 - [x] Automated Windows unit-test project (profile-schema and archive-path safety tests).
 - [x] Official OpenCore release downloader and starter EFI builder.
-- [x] Official `ocvalidate` download, version check, and config validation (Windows executable is used only when included by the official release archive).
+- [x] Official `ocvalidate` download, version check, and config validation (Windows executable is used only when included by the official release archive).\n- [x] Select among the latest 20 stable official OpenCore releases for version-matched config validation.
 - [x] Hardware profile JSON export/import (Windows runtime smoke test pending).
 - [x] Read-only guided EFI preparation checklist generated from schema-v1 hardware profiles.
 - [ ] Final QA and signed/notarized macOS counterpart coordination.
