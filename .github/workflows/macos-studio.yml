@@ -1,0 +1,38 @@
+name: macOS Studio
+
+on:
+  push:
+    branches: [main, feature/macos-studio-app]
+    paths:
+      - "app/macos/**"
+      - ".github/workflows/macos-studio.yml"
+  pull_request:
+    paths:
+      - "app/macos/**"
+      - ".github/workflows/macos-studio.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: macos-15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Show Swift version
+        run: swift --version
+      - name: Run unit tests
+        run: swift test --package-path app/macos
+      - name: Build release executable
+        run: swift build --package-path app/macos --configuration release
+      - name: Package macOS app
+        run: bash app/macos/scripts/package-app.sh
+      - name: Upload app bundle ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: Simple-Hackintosh-Studio-macOS-preview
+          path: app/macos/dist/Simple-Hackintosh-Studio-macos.zip
+          if-no-files-found: error
+          retention-days: 14

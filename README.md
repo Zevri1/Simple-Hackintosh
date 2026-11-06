@@ -35,6 +35,15 @@ Features include Windows/macOS hardware inventory, a Windows OpCore-Simplify-sty
 
 Python 3.10 or newer is required. From a repository checkout rather than the release ZIP, run `cd app/python` first. The Windows Hardware Sniffer report option is Windows-only; macOS uses the native `system_profiler` inventory. The Windows report is exported automatically; macOS uses its native inventory. See [the CLI guide](app/python/README.md) for details.
 
+## Native macOS desktop app (preview)
+
+A native SwiftUI desktop application is being developed alongside the CLI. The first preview includes Apple's full-installer discovery and download flow, a hardware inventory with redacted exports, and a checksum-verified OpenCore starter EFI. It is explicitly a starter builder, not a one-click hardware-specific EFI generator.
+
+- [macOS Studio preview and build instructions](app/macos/README.md)
+- [Desktop app roadmap, including the Windows GUI plan](docs/17-desktop-studio-roadmap.md)
+
+The Windows plan keeps hardware detection and EFI preparation on Windows, adds a full graphical front end, and uses macOS for final creation of modern macOS 11+ bootable USB media.
+
 ## What this project is
 
 Simple Hackintosh teaches the concepts and workflow behind installing and maintaining macOS on non-Apple x86-64 hardware with OpenCore. The goal is to explain *why* each part of an EFI exists, how to check whether hardware is supported, and how to validate a configuration before relying on it.
