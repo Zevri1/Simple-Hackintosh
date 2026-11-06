@@ -218,10 +218,10 @@ private struct InstallerView: View {
                             .disabled(model.isBusy)
                         }
                         if model.installers.isEmpty {
-                            ContentUnavailableView(
-                                "No versions loaded",
-                                systemImage: "macwindow",
-                                description: Text("Refresh the list. Apple only returns versions currently available to this Mac.")
+                            EmptyStateView(
+                                title: "No versions loaded",
+                                symbol: "macwindow",
+                                message: "Refresh the list. Apple only returns versions currently available to this Mac."
                             )
                             .frame(minHeight: 130)
                         } else {
@@ -376,10 +376,10 @@ private struct HardwareView: View {
                 Spacer()
             }
             if model.hardwareReport.isEmpty {
-                ContentUnavailableView(
-                    "No hardware report yet",
-                    systemImage: "cpu",
-                    description: Text("Select Scan hardware to collect the inventory.")
+                EmptyStateView(
+                    title: "No hardware report yet",
+                    symbol: "cpu",
+                    message: "Select Scan hardware to collect the inventory."
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -471,6 +471,29 @@ private struct StatusBar: View {
         .padding(.horizontal, 18)
         .padding(.vertical, 10)
         .background(.bar)
+    }
+}
+
+
+private struct EmptyStateView: View {
+    let title: String
+    let symbol: String
+    let message: String
+
+    var body: some View {
+        VStack(spacing: 9) {
+            Image(systemName: symbol)
+                .font(.system(size: 30, weight: .light))
+                .foregroundStyle(.secondary)
+            Text(title).font(.headline)
+            Text(message)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 330)
+        }
+        .frame(maxWidth: .infinity, minHeight: 150)
+        .padding(16)
     }
 }
 
