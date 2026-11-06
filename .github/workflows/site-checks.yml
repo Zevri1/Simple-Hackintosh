@@ -28,6 +28,19 @@ jobs:
         run: |
           node --check site/app.js
           node --check site/tools.js
+      - name: Assemble site for browser tests
+        run: |
+          mkdir -p _site/docs _site/templates
+          cp site/index.html site/styles.css site/app.js site/favicon.svg site/tools.html site/tools.css site/tools.js _site/
+          cp docs/*.md _site/docs/
+          cp templates/*.md _site/templates/
+          cp social-preview.jpg _site/
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Exercise site in Chromium
+        run: SITE_ROOT=_site node site/tests/browser-smoke.mjs
       - name: Check HTML contracts, duplicate IDs, and release links
         run: |
           python - <<'PY'
@@ -54,7 +67,7 @@ jobs:
                   "data": {"data-home-link", "data-guide-link"},
               },
               "site/tools.html": {
-                  "ids": {"tool-efi", "tool-config", "tool-hardware", "efi-run", "config-run", "hardware-run"},
+                  "ids": {"tool-efi", "tool-config", "tool-hardware", "efi-run", "config-run", "hardware-run", "tools-theme-toggle"},
                   "data": {"data-tool-target", "data-tool-panel"},
               },
           }
