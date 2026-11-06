@@ -22,6 +22,7 @@ from simple_hackintosh import (
     check_efi_path,
     hardware_report_markdown,
     estimate_macos_compatibility,
+    parse_macos_profiler_data,
     render_menu,
     _file_digests,
     validate_config_data,
@@ -147,6 +148,79 @@ class MenuRenderingTests(unittest.TestCase):
         menu = render_menu(use_color=True)
         self.assertIn("\033[", menu)
         self.assertIn("Download Recovery", menu)
+
+
+class MacHardwareInventoryTests(unittest.TestCase):
+    def sample_profiler_data(self):
+        return {
+            "SPHardwareDataType": [{
+                "_name": "hardware_overview",
+                "machine_name": "MacBook Pro",
+                "machine_model": "MacBookPro16,1",
+                "chip_type": "Intel Core i7-9750H",
+                "total_number_cores": "6",
+                "physical_memory": "16 GB",
+                "boot_rom_version": "1554.100.20.0.0",
+                "serial_number": "PRIVATE-SERIAL-MUST-NOT-LEAK",
+                "platform_UUID": "PRIVATE-UUID-MUST-NOT-LEAK",
+            }],
+            "SPDisplaysDataType": [{
+                "_name": "Intel UHD Graphics 630",
+                "sppci_model": "Intel UHD Graphics 630",
+                "spdisplays_vram": "1536 MB",
+            }],
+            "SPPCIDataType": [{
+                "_name": "Intel UHD Graphics 630",
+                "spci_model": "Intel UHD Graphics 630",
+                "spci_vendor-id": "0x8086",
+                "spci_device-id": "0x3e9b",
+            }],
+            "SPStorageDataType": [{
+                "physical_drive": "APPLE SSD AP0512",
+                "physical_drive_size": "500 GB",
+            }],
+        }
+
+    def test_parses_macos_hardware_and_display_data(self):
+        data = parse_macos_profiler_data(self.sample_profiler_data(), "15.4", "x86_64")
+        self.assertEqual(data["HostPlatform"], "Darwin")
+        self.assertEqual(data["OS"], "15.4")
+        self.assertEqual(data["ComputerModel"], "MacBook Pro (MacBookPro16,1)")
+        self.assertEqual(data["CPU"], "Intel Core i7-9750H")
+        self.assertEqual(data["CPUCores"], 6)
+        self.assertEqual(data["MemoryGB"], 16.0)
+        self.assertIn("Intel UHD Graphics 630", [gpu["Name"] for gpu in data["GPUs"]])
+        self.assertTrue(any("VEN_8086&DEV_3E9B" in device["HardwareIDs"] for device in data["Devices"]))
+
+    def test_macos_parser_does_not_retain_serial_or_hardware_uuid(self):
+        data = parse_macos_profiler_data(self.sample_profiler_data(), "15.4", "x86_64")
+        rendered = repr(data)
+        self.assertNotIn("PRIVATE-SERIAL-MUST-NOT-LEAK", rendered)
+        self.assertNotIn("PRIVATE-UUID-MUST-NOT-LEAK", rendered)
+
+    def test_apple_silicon_report_confirms_running_version_not_maximum(self):
+        data = parse_macos_profiler_data({
+            "SPHardwareDataType": [{
+                "machine_name": "MacBook Air",
+                "machine_model": "MacBookAir10,1",
+                "chip_type": "Apple M2",
+                "total_number_cores": "8",
+                "physical_memory": "16 GB",
+            }],
+            "SPDisplaysDataType": [{"_name": "Apple M2", "sppci_model": "Apple M2"}],
+        }, "15.4", "arm64")
+        result = estimate_macos_compatibility(data)
+        self.assertEqual(result["status"], "native-mac")
+        self.assertIn("15.4 is currently running", result["target"])
+        self.assertIn("maximum supported version is not inferred", result["confidence"])
+
+    def test_macos_hardware_report_shows_os_and_running_version_estimate(self):
+        data = parse_macos_profiler_data(self.sample_profiler_data(), "15.4", "x86_64")
+        report = hardware_report_markdown(data)
+        self.assertIn("Operating system", report)
+        self.assertIn("15.4 is currently running on this Mac", report)
+        self.assertNotIn("PRIVATE-SERIAL-MUST-NOT-LEAK", report)
+
 
 class CreateEfiTests(unittest.TestCase):
     def _make_release(self, archive_path: Path):
