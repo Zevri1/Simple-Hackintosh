@@ -23,7 +23,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
-APP_VERSION = "2.5.0"
+APP_VERSION = "2.5.1"
 SECTIONS = (
     "ACPI", "Booter", "DeviceProperties", "Kernel",
     "Misc", "NVRAM", "PlatformInfo", "UEFI",
@@ -1090,18 +1090,20 @@ def _download_hardware_sniffer() -> tuple[Path, str]:
 
 
 def _verify_hardware_sniffer_signature(executable: Path) -> str:
-    """Require a valid Windows Authenticode signature before launching the downloaded helper."""
+    """Check Authenticode when present; the caller has already verified the GitHub SHA-256 digest."""
     powershell = _powershell_executable()
     if not powershell:
-        raise RuntimeError("PowerShell is required to verify the Hardware Sniffer digital signature.")
+        raise RuntimeError("PowerShell is required to inspect the Hardware Sniffer executable.")
     environment = os.environ.copy()
     environment["SIMPLE_HACKINTOSH_SNIFFER_PATH"] = str(executable.resolve())
     script = (
         "$ErrorActionPreference = 'Stop'; "
         "$signature = Get-AuthenticodeSignature -LiteralPath $env:SIMPLE_HACKINTOSH_SNIFFER_PATH; "
-        "if ($signature.Status -ne 'Valid') { "
-        "[Console]::Error.WriteLine('Authenticode status: ' + $signature.Status); exit 1 }; "
-        "[Console]::Out.WriteLine($signature.SignerCertificate.Subject)"
+        "if ($signature.Status -eq 'Valid') { "
+        "[Console]::Out.WriteLine('SIGNED:' + $signature.SignerCertificate.Subject); exit 0 }; "
+        "if ($signature.Status -eq 'NotSigned') { "
+        "[Console]::Out.WriteLine('NOT_SIGNED'); exit 0 }; "
+        "[Console]::Error.WriteLine('Authenticode status: ' + $signature.Status); exit 1"
     )
     try:
         result = subprocess.run(
@@ -1115,15 +1117,20 @@ def _verify_hardware_sniffer_signature(executable: Path) -> str:
             env=environment,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
-        raise RuntimeError(f"Could not verify the Hardware Sniffer digital signature: {exc}") from exc
-    signer = result.stdout.strip()
-    if result.returncode != 0 or not signer:
+        raise RuntimeError(f"Could not inspect the Hardware Sniffer executable: {exc}") from exc
+
+    status = result.stdout.strip()
+    if result.returncode != 0:
         detail = (result.stderr or result.stdout).strip()
         raise RuntimeError(
-            "The downloaded Hardware Sniffer did not pass Windows Authenticode verification. "
+            "The Hardware Sniffer executable has an invalid Authenticode signature. "
             + (detail or "The executable was not launched.")
         )
-    return signer
+    if status == "NOT_SIGNED":
+        return "Not Authenticode-signed; official GitHub SHA-256 digest matched"
+    if status.startswith("SIGNED:") and status[7:].strip():
+        return status[7:].strip()
+    raise RuntimeError("PowerShell did not return a recognized Authenticode status; the executable was not launched.")
 
 
 def command_hardware_sniffer(output_dir: str = "HardwareReport") -> int:
@@ -1155,7 +1162,7 @@ def command_hardware_sniffer(output_dir: str = "HardwareReport") -> int:
     signer = _verify_hardware_sniffer_signature(executable)
 
     print(f"Launching official Hardware Sniffer {release_tag}.")
-    print(f"Verified publisher: {signer}")
+    print(f"Executable integrity: {signer}")
     print("Collecting hardware details and exporting Report.json automatically...")
     print("Only the report-export option is selected; ACPI tables are not dumped.")
     print(f"Expected report location: {report_path}")
