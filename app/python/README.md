@@ -109,7 +109,7 @@ The repository includes the upstream **OpenCore macrecovery** utility in `macrec
 From CMD:
 
 ```cmd
-run.bat macrecovery -h
+macrecovery\macrecovery.bat -h
 run.bat macrecovery download --os-type latest --outdir com.apple.recovery.boot
 ```
 
