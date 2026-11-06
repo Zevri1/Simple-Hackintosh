@@ -229,20 +229,22 @@ class HardwareSnifferIntegrationTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "does not support macOS"):
                 command_hardware_sniffer()
 
-    def test_hardware_sniffer_exports_report_without_requesting_acpi_dump(self):
+    def test_hardware_sniffer_automatically_exports_report_without_acpi_dump(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             executable = root / "Hardware-Sniffer.exe"
             executable.write_bytes(b"test executable")
+            captured = {}
 
-            def fake_run(command, cwd, check=False):
-                report_dir = Path(cwd) / "SysReport"
+            def fake_run(command, **kwargs):
+                captured.update(kwargs)
+                report_dir = Path(kwargs["cwd"]) / "SysReport"
                 report_dir.mkdir(parents=True)
                 (report_dir / "Report.json").write_text(
                     '{"Motherboard": {}, "BIOS": {}, "CPU": {}, "GPU": {}}',
                     encoding="utf-8",
                 )
-                return subprocess.CompletedProcess(command, 0)
+                return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
 
             with (
                 patch("simple_hackintosh.platform.system", return_value="Windows"),
@@ -252,23 +254,60 @@ class HardwareSnifferIntegrationTests(unittest.TestCase):
             ):
                 self.assertEqual(command_hardware_sniffer(str(root / "output")), 0)
 
+            self.assertEqual(captured["input"], "H\\n\\nQ\\n\\n")
+            self.assertTrue(captured["capture_output"])
+            self.assertTrue(captured["text"])
+            self.assertEqual(captured["timeout"], 180)
             self.assertTrue((root / "output" / "SysReport" / "Report.json").is_file())
             self.assertFalse((root / "output" / "SysReport" / "ACPI").exists())
 
-    def test_hardware_sniffer_does_not_overwrite_an_existing_report(self):
+    def test_hardware_sniffer_preserves_previous_report_and_creates_a_new_one(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             report = root / "SysReport" / "Report.json"
-            report.parent.mkdir()
+            report.parent.mkdir(parents=True)
             report.write_text('{"existing": true}', encoding="utf-8")
             executable = root / "Hardware-Sniffer.exe"
+            executable.write_bytes(b"test executable")
+
+            def fake_run(command, **kwargs):
+                (Path(kwargs["cwd"]) / "SysReport" / "Report.json").write_text(
+                    '{"CPU": {"Processor Name": "Test CPU"}}', encoding="utf-8"
+                )
+                return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
             with (
                 patch("simple_hackintosh.platform.system", return_value="Windows"),
                 patch("simple_hackintosh._download_hardware_sniffer", return_value=(executable, "test-release")),
                 patch("simple_hackintosh._verify_hardware_sniffer_signature", return_value="CN=Test Publisher"),
-                self.assertRaisesRegex(RuntimeError, "already exists"),
+                patch("simple_hackintosh.subprocess.run", side_effect=fake_run),
             ):
-                command_hardware_sniffer(str(root))
+                self.assertEqual(command_hardware_sniffer(str(root)), 0)
+
+            self.assertIn('"Test CPU"', report.read_text(encoding="utf-8"))
+            archived = list(report.parent.glob("Report.previous-*.json"))
+            self.assertEqual(len(archived), 1)
+            self.assertIn('"existing": true', archived[0].read_text(encoding="utf-8"))
+
+    def test_hardware_sniffer_exit_code_two_without_report_has_diagnostic(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            executable = root / "Hardware-Sniffer.exe"
+            executable.write_bytes(b"test executable")
+            with (
+                patch("simple_hackintosh.platform.system", return_value="Windows"),
+                patch("simple_hackintosh._download_hardware_sniffer", return_value=(executable, "test-release")),
+                patch("simple_hackintosh._verify_hardware_sniffer_signature", return_value="CN=Test Publisher"),
+                patch(
+                    "simple_hackintosh.subprocess.run",
+                    return_value=subprocess.CompletedProcess(
+                        [str(executable)], 2, stdout="collector stopped", stderr="bad device query"
+                    ),
+                ),
+                self.assertRaisesRegex(RuntimeError, r"exited with code 2.*bad device query"),
+            ):
+                command_hardware_sniffer(str(root / "output"))
+
 
 class MacHardwareInventoryTests(unittest.TestCase):
     def sample_profiler_data(self):
