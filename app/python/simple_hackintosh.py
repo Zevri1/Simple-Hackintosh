@@ -221,7 +221,13 @@ def check_efi_path(source: Path) -> tuple[list[Finding], dict[str, Any] | None]:
                 findings.append(Finding("ERROR", f"{section}.{key}[{index}] contains an unsafe path: {ref}"))
                 continue
             expected = _relative_join(oc_prefix, folder, safe_ref)
-            if expected in entries:
+            found = expected in entries
+            if folder == "Kexts" and not found:
+                # A kext is a directory bundle, so ZIP/folder scans normally
+                # contain files below BundlePath rather than a file at that path.
+                prefix = expected.rstrip("/") + "/"
+                found = any(entry.startswith(prefix) for entry in entries)
+            if found:
                 findings.append(Finding("PASS", f"{section}: found referenced {ref}."))
             else:
                 findings.append(Finding("WARN", f"{section}: referenced file/folder is missing: {folder}/{ref}."))
