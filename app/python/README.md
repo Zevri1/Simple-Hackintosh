@@ -8,7 +8,7 @@ A cross-platform Python assistant with a native PowerShell front-end for Windows
 
 ### Option A — Download the ready-to-run release
 
-1. Download the [latest CLI ZIP](https://github.com/kiwewe09-aa/Simple-Hackintosh/releases/latest).
+1. Download the [latest CLI ZIP](https://github.com/Zevri1/Simple-Hackintosh/releases/latest).
 2. Right-click the ZIP and choose **Extract All**.
 3. Open the extracted `Simple-Hackintosh-CLI-v2.4.0` folder. In the release ZIP, the launchers are directly beside `simple_hackintosh.py`.
 4. Start the matching launcher below.

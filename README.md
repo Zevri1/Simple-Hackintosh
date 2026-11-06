@@ -8,7 +8,7 @@
 
 **Identify hardware → Check compatibility → Prepare Recovery → Build EFI → Install → Validate**
 
-[**Open the live field guide ↗**](https://kiwewe09-aa.github.io/Simple-Hackintosh/)
+[**Open the live field guide ↗**](https://zevri1.github.io/Simple-Hackintosh/)
 
 </div>
 
@@ -28,7 +28,7 @@ Features include Windows/macOS hardware inventory, a Windows OpCore-Simplify-sty
 
 ### Run from a downloaded release
 
-1. Download and extract the [latest CLI ZIP](https://github.com/kiwewe09-aa/Simple-Hackintosh/releases/latest).
+1. Download and extract the [latest CLI ZIP](https://github.com/Zevri1/Simple-Hackintosh/releases/latest).
 2. Open the extracted folder; `run.bat`, `run.ps1`, `run.command`, and `simple_hackintosh.py` are together at its top level.
 3. On Windows, double-click `run.bat`, or open PowerShell in that folder and run `./run.ps1`. If PowerShell blocks the script, run `Set-ExecutionPolicy -Scope Process Bypass` in the same window, then retry.
 4. On macOS, Control-click `run.command` and choose **Open**, or open Terminal in that folder and run `chmod +x ./run.command && ./run.command`.

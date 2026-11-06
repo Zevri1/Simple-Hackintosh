@@ -59,7 +59,7 @@ jobs:
                   "data": {"data-tool-target", "data-tool-panel"},
               },
           }
-          release_asset = "https://github.com/kiwewe09-aa/Simple-Hackintosh/releases/download/v2.5.2/Simple-Hackintosh-CLI-v2.5.2.zip"
+          release_asset = "https://github.com/Zevri1/Simple-Hackintosh/releases/download/v2.5.2/Simple-Hackintosh-CLI-v2.5.2.zip"
           for filename, contract in contracts.items():
               parser = ContractParser()
               parser.feed(Path(filename).read_text(encoding="utf-8"))
@@ -85,5 +85,12 @@ jobs:
           tool_html = Path("site/tools.html").read_text(encoding="utf-8")
           if 'role="tablist"' not in tool_html or tool_html.count('role="tab"') != 3 or tool_html.count('role="tabpanel"') != 3:
               raise SystemExit("Tools tabs are missing accessible tablist/tab/tabpanel roles.")
+          legacy_owner = "kiwewe09" + "-aa"
+          owner_link_files = ("README.md", "app/python/README.md", "site/index.html", "site/tools.html", "site/app.js")
+          for filename in owner_link_files:
+              if legacy_owner in Path(filename).read_text(encoding="utf-8"):
+                  raise SystemExit(f"{filename}: stale GitHub owner reference found")
+          if "https://zevri1.github.io/Simple-Hackintosh/" not in Path("site/index.html").read_text(encoding="utf-8"):
+              raise SystemExit("site/index.html: updated GitHub Pages canonical URL is missing")
           print("Website JavaScript, HTML hooks, release links, and CSS braces passed.")
           PY

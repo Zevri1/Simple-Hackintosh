@@ -511,7 +511,7 @@ async function openChapter(id, anchorId) {
     }
   } catch (error) {
     if (requestId !== loadSequence) return;
-    article.innerHTML = '<div class="error-state"><h2>Chapter could not be loaded</h2><p>' + escapeHTML(error.message) + '</p><p><a href="https://github.com/kiwewe09-aa/Simple-Hackintosh/blob/main/docs/' + id + '.md" target="_blank" rel="noopener noreferrer">Open the source chapter on GitHub ↗</a></p></div>';
+    article.innerHTML = '<div class="error-state"><h2>Chapter could not be loaded</h2><p>' + escapeHTML(error.message) + '</p><p><a href="https://github.com/Zevri1/Simple-Hackintosh/blob/main/docs/' + id + '.md" target="_blank" rel="noopener noreferrer">Open the source chapter on GitHub ↗</a></p></div>';
   }
 }
 
