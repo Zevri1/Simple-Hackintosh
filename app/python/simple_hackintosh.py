@@ -994,6 +994,276 @@ def normalize_hardware_sniffer_report(report: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _sniffer_group(report: dict[str, Any], name: str) -> list[tuple[str, dict[str, Any]]]:
+    value = report.get(name)
+    if not isinstance(value, dict):
+        return []
+    return [
+        (str(device_name).strip() or "Unknown device", details)
+        for device_name, details in value.items()
+        if isinstance(details, dict)
+    ]
+
+
+def _sniffer_device_id(details: dict[str, Any]) -> str | None:
+    raw = str(details.get("Device ID") or details.get("Controller Device ID") or "").strip()
+    match = re.search(r"\b([0-9A-F]{4})[-:]([0-9A-F]{4})\b", raw, re.IGNORECASE)
+    return f"{match.group(1).upper()}:{match.group(2).upper()}" if match else None
+
+
+def _compatibility_checker_content(
+    report: dict[str, Any],
+    sniffer_version: str | None,
+    app_update: dict[str, Any] | None,
+) -> list[str]:
+    cpu = report.get("CPU") if isinstance(report.get("CPU"), dict) else {}
+    cpu_name = str(cpu.get("Processor Name") or "CPU not detected")
+    cpu_codename = str(cpu.get("Codename") or "").strip()
+    inventory = normalize_hardware_sniffer_report(report)
+    graphics_estimate = estimate_macos_compatibility(inventory)
+    lines = [
+        "Checking compatibility with macOS for the following devices:",
+        "",
+        "1. CPU:",
+    ]
+    cpu_suffix = f" ({cpu_codename})" if cpu_codename else ""
+    cpu_generation = graphics_estimate.get("cpu_generation")
+    if cpu_generation == 10 and "Comet Lake" in cpu_codename:
+        cpu_result = (
+            "Comet Lake-U laptop CPU family is recognized by the OpenCore CPU guide; "
+            "the CPU alone does not set the maximum macOS version."
+        )
+    elif cpu_generation is not None:
+        cpu_result = (
+            f"Intel generation {cpu_generation} identified; verify the exact CPU family "
+            "against the target macOS and OpenCore guide."
+        )
+    else:
+        cpu_result = "No reliable CPU-family ceiling can be inferred from this report."
+    lines.append(f"   - {cpu_name}{cpu_suffix}: {cpu_result}")
+
+    lines.extend(["", "2. GPU:"])
+    gpu_entries = _sniffer_group(report, "GPU")
+    if gpu_entries:
+        for gpu_name, details in gpu_entries:
+            device_id = _sniffer_device_id(details)
+            name_with_id = f"{gpu_name} (PCI {device_id})" if device_id else gpu_name
+            target = str(graphics_estimate.get("target") or "No reliable version estimate")
+            if graphics_estimate.get("status") == "documented-baseline":
+                target = target.replace("macOS ", "Up to macOS ", 1)
+            if graphics_estimate.get("experimental_target"):
+                target += f"; {graphics_estimate['experimental_target']}"
+            lines.append(f"   - {name_with_id}: {target}")
+            if graphics_estimate.get("status") == "unknown":
+                lines.append("      Exact GPU model and PCI device ID must be checked against the current GPU guide.")
+    else:
+        lines.append("   - No GPU was returned by Hardware Sniffer.")
+
+    for monitor_name, monitor_info in _sniffer_group(report, "Monitor"):
+        connector = str(monitor_info.get("Connector Type") or "").strip()
+        resolution = str(monitor_info.get("Resolution") or "").strip()
+        connected_gpu = str(monitor_info.get("Connected GPU") or "").strip()
+        details = [part for part in (connector, resolution, connected_gpu) if part]
+        label = f"{monitor_name} ({', '.join(details)})" if details else monitor_name
+        lines.append("      - Connected Monitor: " + label)
+        lines.append("        Monitor support depends on the GPU, connector and framebuffer; the monitor has no independent macOS version ceiling.")
+
+    lines.extend(["", "3. Sound:"])
+    sound_entries = _sniffer_group(report, "Sound")
+    if sound_entries:
+        for sound_name, sound_info in sound_entries:
+            endpoints = sound_info.get("Audio Endpoints")
+            endpoint_text = ", ".join(str(item) for item in _as_list(endpoints) if str(item).strip())
+            name = sound_name
+            device_id = _sniffer_device_id(sound_info)
+            if device_id:
+                name += f" (PCI {device_id})"
+            if "display audio" in sound_name.casefold() or "hdmi" in sound_name.casefold():
+                result = "Digital HDMI/DisplayPort audio may work through the GPU; verify the active output path."
+            elif "realtek" in sound_name.casefold() or "conexant" in sound_name.casefold():
+                result = (
+                    "Analog audio depends on the exact codec and AppleALC layout; macOS Tahoe 26 "
+                    "does not provide AppleHDA for the usual AppleALC analog-audio path by default."
+                )
+            else:
+                result = "Exact codec, driver and macOS build are not identified; compatibility remains unverified."
+            lines.append(f"   - {name}: {result}")
+            if endpoint_text:
+                lines.append(f"      - Audio Endpoints: {endpoint_text}")
+    else:
+        lines.append("   - No sound devices were returned.")
+
+    lines.extend(["", "4. Network:"])
+    network_entries = _sniffer_group(report, "Network")
+    if network_entries:
+        for network_name, network_info in network_entries:
+            device_id = _sniffer_device_id(network_info)
+            label = f"{network_name} (PCI {device_id})" if device_id else network_name
+            lowered = network_name.casefold()
+            if "i219-v" in lowered or "i219v" in lowered:
+                result = (
+                    "Listed by IntelMausi; requires the matching kext and a verified PCI ID "
+                    "(driver documentation: Mavericks or newer)."
+                )
+            elif "ax200" in lowered:
+                result = (
+                    "Listed by OpenIntelWireless itlwm/AirportItlwm; use a build matching the target macOS. "
+                    "AirportItlwm Continuity is limited to Handoff and Universal Clipboard."
+                )
+                lines.append(f"   - {label}: {result}")
+                lines.append("      Note: AirDrop, Instant Hotspot, Continuity Camera and other AWDL-dependent features are not supported by the upstream FAQ.")
+                continue
+            else:
+                result = "Requires an exact PCI/USB ID match and a macOS-compatible network kext; no version ceiling inferred."
+            lines.append(f"   - {label}: {result}")
+    else:
+        lines.append("   - No network adapters were returned.")
+
+    lines.extend(["", "5. Storage Controllers:"])
+    storage_entries = _sniffer_group(report, "Storage Controllers")
+    if storage_entries:
+        for storage_name, storage_info in storage_entries:
+            device_id = _sniffer_device_id(storage_info)
+            label = f"{storage_name} (PCI {device_id})" if device_id else storage_name
+            if "nvme" in storage_name.casefold() or "bc901" in storage_name.casefold():
+                result = (
+                    "NVMe class detected; native NVMe support is expected for standard devices, "
+                    "but this exact model/firmware, power management, TRIM and sleep require testing."
+                )
+            else:
+                result = "Controller-specific support and storage-driver requirements must be checked by PCI ID."
+            lines.append(f"   - {label}: {result}")
+    else:
+        lines.append("   - No storage controllers were returned.")
+
+    lines.extend(["", "6. Bluetooth:"])
+    bluetooth_entries = _sniffer_group(report, "Bluetooth")
+    if bluetooth_entries:
+        for bluetooth_name, bluetooth_info in bluetooth_entries:
+            device_id = _sniffer_device_id(bluetooth_info)
+            label = f"{bluetooth_name} (USB/PCI {device_id})" if device_id else bluetooth_name
+            if "intel" in bluetooth_name.casefold():
+                result = (
+                    "Partial support may be possible with IntelBluetoothFirmware, IntelBTPatcher "
+                    "and BlueToolFixup; verify the exact USB ID, firmware and macOS build. "
+                    "IntelBluetoothFirmware uploads firmware; it is not a complete Bluetooth stack."
+                )
+            else:
+                result = "Exact controller ID and matching macOS driver are required; compatibility is unverified."
+            lines.append(f"   - {label}: {result}")
+    else:
+        lines.append("   - No Bluetooth controllers were returned.")
+
+    lines.extend(["", "7. SD Controller:"])
+    sd_entries = _sniffer_group(report, "SD Controller")
+    if sd_entries:
+        known_realtek_ids = {
+            "10EC:5209", "10EC:5227", "10EC:522A", "10EC:5229",
+            "10EC:5249", "10EC:524A", "10EC:525A", "10EC:5260",
+            "10EC:5286", "10EC:5287", "10EC:5289",
+        }
+        for sd_name, sd_info in sd_entries:
+            device_id = _sniffer_device_id(sd_info)
+            label = f"{sd_name} (PCI {device_id})" if device_id else sd_name
+            if device_id and device_id in known_realtek_ids:
+                result = (
+                    "Controller ID appears in the RealtekCardReader supported-device list; "
+                    "the upstream project documents testing only through macOS Monterey, so newer releases are unverified."
+                )
+            elif device_id == "10EC:5228":
+                result = "This controller is marked not yet supported by the RealtekCardReader project."
+            else:
+                result = "Exact controller ID must be matched to a macOS card-reader driver; no version ceiling inferred."
+            lines.append(f"   - {label}: {result}")
+    else:
+        lines.append("   - No SD controller was returned.")
+
+    lines.extend(["", "Software update status:"])
+    if isinstance(app_update, dict) and app_update.get("status") == "update_available":
+        lines.append(
+            f"   - Simple Hackintosh: update {app_update.get('latest_version')} available "
+            f"(installed {app_update.get('current_version')}); {app_update.get('url') or APP_RELEASES_URL}"
+        )
+    elif isinstance(app_update, dict) and app_update.get("status") == "up_to_date":
+        lines.append(
+            f"   - Simple Hackintosh: {app_update.get('current_version')} is up to date."
+        )
+    elif isinstance(app_update, dict):
+        lines.append("   - Simple Hackintosh: latest version could not be checked (offline or GitHub unavailable).")
+    else:
+        lines.append(f"   - Simple Hackintosh: v{APP_VERSION} (update status not checked).")
+
+    if sniffer_version:
+        lines.append(
+            f"   - Hardware Sniffer: {sniffer_version} (latest published stable release checked; "
+            "executable SHA-256 verified)."
+        )
+    else:
+        lines.append("   - Hardware Sniffer: latest release is checked before each Windows hardware-report run.")
+
+    lines.extend([
+        "",
+        "Important: component estimates are evidence-based hints, not a boot test or a guarantee.",
+        "A compatible GPU, correct EFI, kext versions, ACPI, BIOS settings and real-device testing are still required.",
+    ])
+    return lines
+
+
+def render_compatibility_checker(
+    report: dict[str, Any],
+    sniffer_version: str | None = None,
+    app_update: dict[str, Any] | None = None,
+) -> str:
+    """Render a console-style Compatibility Checker without false version ceilings."""
+    body: list[str] = []
+    for line in _compatibility_checker_content(report, sniffer_version, app_update):
+        if not line:
+            body.append("")
+        elif line.startswith("   - "):
+            body.extend(textwrap.wrap(line, width=76, subsequent_indent="     ") or [""])
+        elif line.startswith("      - "):
+            body.extend(textwrap.wrap(line, width=76, subsequent_indent="        ") or [""])
+        else:
+            body.extend(textwrap.wrap(line, width=76) or [""])
+
+    width = 78
+    border_top = "╔" + "═" * width + "╗"
+    border_bottom = "╚" + "═" * width + "╝"
+    title = "Compatibility Checker".center(width)
+    boxed = [border_top, "║" + title + "║", border_bottom]
+    boxed.extend("║ " + line[:width - 2].ljust(width - 2) + " ║" for line in body)
+    boxed.append(border_bottom)
+    return "\n".join(boxed)
+
+
+def build_hardware_sniffer_report_markdown(
+    report: dict[str, Any],
+    sniffer_version: str | None = None,
+    app_update: dict[str, Any] | None = None,
+) -> tuple[str, dict[str, Any]]:
+    """Build a readable report and compatibility estimate without changing upstream JSON."""
+    inventory = normalize_hardware_sniffer_report(report)
+    compatibility = estimate_macos_compatibility(inventory)
+    inventory["macOSCompatibility"] = compatibility
+    rendered = hardware_report_markdown(inventory)
+    checker = render_compatibility_checker(report, sniffer_version, app_update)
+    rendered += "\n\n## Compatibility Checker\n\n" + "\n".join("    " + line for line in checker.splitlines())
+    source_links = [
+        ("OpenCore CPU support limits", "https://dortania.github.io/OpenCore-Install-Guide/macos-limits.html"),
+        ("macOS Tahoe audio caveats", "https://dortania.github.io/OpenCore-Install-Guide/extras/tahoe.html"),
+        ("OpenIntelWireless device compatibility", "https://openintelwireless.github.io/itlwm/Compat.html"),
+        ("OpenIntelWireless Continuity limitations", "https://openintelwireless.github.io/itlwm/FAQ"),
+        ("IntelMausi supported Ethernet controllers", "https://github.com/acidanthera/IntelMausi"),
+        ("Intel Bluetooth firmware limitations", "https://openintelwireless.github.io/IntelBluetoothFirmware/FAQ.html"),
+        ("Realtek PCIe Card Reader supported devices", "https://github.com/0xFireWolf/RealtekCardReader"),
+    ]
+    rendered += "\n\n**Compatibility references:**\n"
+    rendered += "\n".join(f"- [{title}]({url})" for title, url in source_links)
+    if sniffer_version:
+        rendered += f"\n\n**Hardware Sniffer release checked:** {sniffer_version} (official GitHub SHA-256 verified)."
+    return rendered, compatibility
+
+
 def build_hardware_sniffer_report_markdown(report: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     """Build a readable report and compatibility estimate without changing upstream JSON."""
     inventory = normalize_hardware_sniffer_report(report)
