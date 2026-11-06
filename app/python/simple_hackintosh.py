@@ -2447,11 +2447,11 @@ def render_menu(use_color: bool | None = None) -> str:
 def interactive_menu(update_status: dict[str, Any] | None = None) -> int:
     if update_status is None:
         update_status = check_for_updates()
-    print_update_notice(update_status)
     while True:
         use_color = _ansi_enabled()
         if use_color:
             print("\033[2J\033[H", end="")
+        print_update_notice(update_status)
         print(render_menu(use_color))
         try:
             choice = input(_paint("\n  Select an option [0-10] > ", "prompt", use_color)).strip()

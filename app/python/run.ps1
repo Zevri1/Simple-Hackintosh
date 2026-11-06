@@ -59,11 +59,14 @@ if ($CliArguments -and $CliArguments.Count -gt 0) {
 $updateArgs = @()
 $updateArgs += $PythonPrefix
 $updateArgs += @($PythonScript, "check-updates")
-& $PythonCommand.Source @updateArgs
-Write-Host ""
+$script:UpdateCheckOutput = @(& $PythonCommand.Source @updateArgs 2>&1)
 
 function Write-Dashboard {
     Clear-Host
+    foreach ($line in $script:UpdateCheckOutput) {
+        Write-Host "  $line" -ForegroundColor DarkGray
+    }
+    if ($script:UpdateCheckOutput) { Write-Host "" }
     $versionArgs = @()
     $versionArgs += $PythonPrefix
     $versionArgs += @($PythonScript, "--version")
