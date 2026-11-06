@@ -40,3 +40,9 @@ jobs:
         run: |
           python app/python/simple_hackintosh.py --version
           python app/python/simple_hackintosh.py --help
+      - name: Smoke test Windows hardware inventory
+        if: runner.os == 'Windows'
+        run: python app/python/simple_hackintosh.py hardware --json
+      - name: Smoke test CMD launcher
+        if: runner.os == 'Windows'
+        run: cmd /c app\python\run.bat doctor
