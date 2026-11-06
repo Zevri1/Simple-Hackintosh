@@ -51,6 +51,13 @@ try {
   await page.goto(base + "/", {waitUntil: "networkidle"});
   await page.locator("#chapter-grid .chapter-card").first().waitFor();
   await page.screenshot({path: "_site/home-desktop.png", fullPage: true});
+  const homeMobile = await context.newPage();
+  await homeMobile.setViewportSize({width: 390, height: 844});
+  await homeMobile.goto(base + "/", {waitUntil: "networkidle"});
+  const homeMobileWidth = await homeMobile.locator("body").evaluate(node => node.scrollWidth);
+  assert.ok(homeMobileWidth <= 391, "Mobile home page should not overflow horizontally");
+  await homeMobile.screenshot({path: "_site/home-mobile.png", fullPage: true});
+  await homeMobile.close();
   assert.ok(await page.locator("#chapter-grid .chapter-card").count() >= 10, "Home page should render chapter cards");
 
   await page.locator("#search-open").click();
