@@ -1,0 +1,128 @@
+name: Release Python CLI
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Release tag to create"
+        required: true
+        type: string
+        default: "v2.1.0"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-python-cli
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish CLI release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Validate version and tag
+        id: meta
+        shell: bash
+        env:
+          TAG_NAME: ${{ inputs.tag_name }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$TAG_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Tag must use vMAJOR.MINOR.PATCH, for example v2.1.0."
+            exit 1
+          fi
+          APP_VERSION="$(python - <<'PY'
+          import re
+          from pathlib import Path
+          source = Path("app/python/simple_hackintosh.py").read_text(encoding="utf-8")
+          match = re.search(r'^APP_VERSION = "([^"]+)"$', source, re.M)
+          if not match:
+              raise SystemExit("Could not read APP_VERSION from CLI source.")
+          print(match.group(1))
+          PY
+          )"
+          if [[ "$TAG_NAME" != "v$APP_VERSION" ]]; then
+            echo "Requested tag $TAG_NAME does not match app version $APP_VERSION."
+            exit 1
+          fi
+          if git rev-parse -q --verify "refs/tags/$TAG_NAME" >/dev/null; then
+            echo "Git tag $TAG_NAME already exists."
+            exit 1
+          fi
+          echo "version=$APP_VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Build release ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZIP_DEFLATED, ZipFile
+          import re
+
+          root = Path("app/python")
+          source = (root / "simple_hackintosh.py").read_text(encoding="utf-8")
+          version = re.search(r'^APP_VERSION = "([^"]+)"$', source, re.M).group(1)
+          package_name = f"Simple-Hackintosh-CLI-v{version}"
+          dist = Path("dist")
+          dist.mkdir(exist_ok=True)
+          archive_path = dist / f"{package_name}.zip"
+
+          include = [
+              root / "run.bat",
+              root / "simple_hackintosh.py",
+              root / "README.md",
+              *sorted((root / "macrecovery").glob("*")),
+          ]
+          missing = [str(path) for path in include if not path.is_file()]
+          if missing:
+              raise SystemExit("Missing release files: " + ", ".join(missing))
+
+          with ZipFile(archive_path, "w", ZIP_DEFLATED, compresslevel=9) as archive:
+              for path in include:
+                  archive.write(path, f"{package_name}/{path.name}" if path.parent == root else f"{package_name}/macrecovery/{path.name}")
+
+          with ZipFile(archive_path) as archive:
+              names = archive.namelist()
+              required = {
+                  f"{package_name}/run.bat",
+                  f"{package_name}/simple_hackintosh.py",
+                  f"{package_name}/macrecovery/macrecovery.py",
+                  f"{package_name}/macrecovery/LICENSE.txt",
+              }
+              missing = required.difference(names)
+              if missing:
+                  raise SystemExit("Release ZIP validation failed: " + ", ".join(sorted(missing)))
+              if any(name.lower().endswith((".dmg", ".chunklist", ".pkg", ".ipsw")) for name in names):
+                  raise SystemExit("Release ZIP must not bundle Apple Recovery or installer payloads.")
+          print(f"Created {archive_path}")
+          PY
+          sha256sum dist/*.zip | tee dist/SHA256SUMS.txt
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ steps.meta.outputs.tag }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          TARGET_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "$TAG_NAME" \
+            "dist/Simple-Hackintosh-CLI-v${VERSION}.zip" \
+            "dist/SHA256SUMS.txt" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$TARGET_SHA" \
+            --title "Simple Hackintosh CLI v${VERSION}" \
+            --notes "Standalone Python/CMD assistant v${VERSION}.
+
+          Includes the interactive menu, hardware inventory, EFI scanner and checker, the Create EFI starter workflow, and the bundled upstream macrecovery downloader.
+
+          macrecovery downloads Recovery assets directly from Apple when run. No macOS Recovery image, BaseSystem, chunklist, or installer payload is included in this release.
+
+          Python 3.10+. Windows 10/11 recommended for hardware inventory. See the included README for setup and usage."
