@@ -53,7 +53,7 @@ internal static class OfficialComponentService
             "Ethernet driver for a defined set of Intel onboard LAN controllers.",
             "Compare the exact controller/device ID with the upstream supported-controller list. A generic Intel network name is not enough.",
             "No Lilu dependency is stated by the upstream README.",
-            "Upstream lists selected Intel 5–300 series controllers and describes the driver as optimized for Mavericks or newer on 64-bit systems.",
+            "Upstream lists selected Intel 5–300 series controllers, including specific I217/I218/I219 variants, and describes the driver as optimized for Mavericks or newer on 64-bit systems.",
             "https://github.com/acidanthera/IntelMausi"),
         new("NVMeFix", "acidanthera/NVMeFix",
             "Power-management and compatibility fixes for Apple's NVMe storage driver.",
