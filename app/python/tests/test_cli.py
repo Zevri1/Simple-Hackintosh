@@ -1,3 +1,6 @@
+import hashlib
+import io
+import json
 import plistlib
 import subprocess
 import sys
@@ -18,6 +21,7 @@ from simple_hackintosh import (
     command_create_efi,
     command_macrecovery,
     command_hardware_sniffer,
+    _download_hardware_sniffer,
     build_parser,
     check_config_file,
     check_efi_path,
@@ -154,6 +158,72 @@ class MenuRenderingTests(unittest.TestCase):
 
 
 class HardwareSnifferIntegrationTests(unittest.TestCase):
+
+    def test_hardware_sniffer_download_verifies_github_sha256(self):
+        with tempfile.TemporaryDirectory() as temp:
+            payload = b"signed-test-executable-placeholder"
+            metadata = {
+                "tag_name": "2.1.2-test",
+                "draft": False,
+                "prerelease": False,
+                "assets": [{
+                    "name": "Hardware-Sniffer.exe",
+                    "digest": "sha256:" + hashlib.sha256(payload).hexdigest(),
+                    "size": len(payload),
+                    "browser_download_url": (
+                        "https://github.com/lzhoang2801/Hardware-Sniffer/releases/download/"
+                        "2.1.2-test/Hardware-Sniffer.exe"
+                    ),
+                }],
+            }
+            responses = [
+                io.BytesIO(json.dumps(metadata).encode("utf-8")),
+                io.BytesIO(payload),
+            ]
+            with (
+                patch.dict("os.environ", {"LOCALAPPDATA": temp}),
+                patch("simple_hackintosh.urllib.request.urlopen", side_effect=responses),
+            ):
+                executable, release_tag = _download_hardware_sniffer()
+
+            self.assertEqual(release_tag, "2.1.2-test")
+            self.assertEqual(executable.read_bytes(), payload)
+
+    def test_hardware_sniffer_rejects_a_download_with_wrong_digest(self):
+        with tempfile.TemporaryDirectory() as temp:
+            payload = b"tampered-executable"
+            metadata = {
+                "tag_name": "2.1.2-test",
+                "draft": False,
+                "prerelease": False,
+                "assets": [{
+                    "name": "Hardware-Sniffer.exe",
+                    "digest": "sha256:" + ("0" * 64),
+                    "size": len(payload),
+                    "browser_download_url": (
+                        "https://github.com/lzhoang2801/Hardware-Sniffer/releases/download/"
+                        "2.1.2-test/Hardware-Sniffer.exe"
+                    ),
+                }],
+            }
+            responses = [
+                io.BytesIO(json.dumps(metadata).encode("utf-8")),
+                io.BytesIO(payload),
+            ]
+            with (
+                patch.dict("os.environ", {"LOCALAPPDATA": temp}),
+                patch("simple_hackintosh.urllib.request.urlopen", side_effect=responses),
+                self.assertRaisesRegex(RuntimeError, "SHA-256 verification failed"),
+            ):
+                _download_hardware_sniffer()
+
+    def test_hardware_sniffer_cli_parser_accepts_output_directory(self):
+        parsed = build_parser().parse_args([
+            "hardware-sniffer", "--output-dir", "hardware-results",
+        ])
+        self.assertEqual(parsed.command, "hardware-sniffer")
+        self.assertEqual(parsed.output_dir, "hardware-results")
+
     def test_hardware_sniffer_command_is_windows_only(self):
         with patch("simple_hackintosh.platform.system", return_value="Darwin"):
             with self.assertRaisesRegex(RuntimeError, "not supported on macOS"):
