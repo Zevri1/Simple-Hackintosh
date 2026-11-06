@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Added a human-readable Windows Hardware Sniffer report with a conservative, source-linked macOS compatibility estimate. The original OpCore-Simplify `Report.json` remains unchanged.
+
 All notable documentation and CLI changes are recorded here.
 
 ## 2026-11-06 — CLI v2.5.2

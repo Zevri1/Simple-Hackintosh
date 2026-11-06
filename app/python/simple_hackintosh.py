@@ -845,6 +845,137 @@ def estimate_macos_compatibility(data: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def normalize_hardware_sniffer_report(report: dict[str, Any]) -> dict[str, Any]:
+    """Map the upstream Hardware Sniffer schema into Simple Hackintosh's report model.
+
+    The original OpCore-Simplify Report.json is never modified. This normalized
+    view is used only to create a separate, human-readable compatibility report.
+    """
+    cpu = report.get("CPU")
+    if not isinstance(cpu, dict):
+        cpu = {}
+    motherboard = report.get("Motherboard")
+    if not isinstance(motherboard, dict):
+        motherboard = {}
+    bios = report.get("BIOS")
+    if not isinstance(bios, dict):
+        bios = {}
+
+    def group(name: str) -> dict[str, Any]:
+        value = report.get(name)
+        return value if isinstance(value, dict) else {}
+
+    def scalar(value: Any) -> str | None:
+        if value is None:
+            return None
+        rendered = str(value).strip()
+        return rendered if rendered and rendered.casefold() not in {"unknown", "n/a", "none"} else None
+
+    def pci_hardware_id(value: Any) -> str | None:
+        match = re.search(r"\b([0-9A-F]{4})[-:]([0-9A-F]{4})\b", str(value or ""), re.IGNORECASE)
+        if not match:
+            return None
+        return f"PCI\\VEN_{match.group(1).upper()}&DEV_{match.group(2).upper()}"
+
+    devices: list[dict[str, Any]] = []
+
+    def collect_group(
+        group_name: str,
+        device_class: str,
+        assume_pci: bool = False,
+        include_controller_id: bool = False,
+    ) -> list[str]:
+        names: list[str] = []
+        for raw_name, raw_info in group(group_name).items():
+            if not isinstance(raw_info, dict):
+                continue
+            name = str(raw_name).strip() or "Unknown device"
+            info = raw_info
+            details: list[str] = []
+            codename = scalar(info.get("Codename"))
+            if codename:
+                details.append(codename)
+            device_type = scalar(info.get("Device Type"))
+            if device_type:
+                details.append(device_type)
+            rendered_name = f"{name} ({', '.join(details)})" if details else name
+            names.append(rendered_name)
+
+            hardware_ids: list[str] = []
+            bus_type = str(info.get("Bus Type") or "").upper()
+            if assume_pci or bus_type == "PCI":
+                device_id = pci_hardware_id(info.get("Device ID"))
+                if device_id:
+                    hardware_ids.append(device_id)
+            if include_controller_id:
+                controller_id = pci_hardware_id(info.get("Controller Device ID"))
+                if controller_id and controller_id not in hardware_ids:
+                    hardware_ids.append(controller_id)
+
+            devices.append({
+                "Name": name,
+                "Class": device_class,
+                "HardwareIDs": hardware_ids,
+                "Status": "Detected",
+            })
+        return names
+
+    gpu_group = group("GPU")
+    gpu_entries = [
+        {
+            "Name": str(name),
+            "DriverVersion": scalar(info.get("Driver Version")) if isinstance(info, dict) else None,
+        }
+        for name, info in gpu_group.items()
+        if isinstance(info, dict)
+    ]
+    network_names = collect_group("Network", "Net")
+    audio_names = collect_group("Sound", "Audio", include_controller_id=True)
+    storage_names = collect_group("Storage Controllers", "Storage")
+    bluetooth_names = collect_group("Bluetooth", "Bluetooth")
+    collect_group("GPU", "Display", assume_pci=True)
+    collect_group("USB Controllers", "USB")
+    collect_group("SD Controller", "Storage")
+
+    chipset = scalar(motherboard.get("Chipset"))
+    model = scalar(motherboard.get("Name"))
+    bios_parts = [
+        scalar(bios.get("Version")),
+        scalar(bios.get("Release Date")),
+        scalar(bios.get("Firmware Type")),
+        f"Secure Boot {scalar(bios.get('Secure Boot'))}" if scalar(bios.get("Secure Boot")) else None,
+    ]
+    core_count = scalar(cpu.get("Core Count"))
+    cpu_name = scalar(cpu.get("Processor Name"))
+    cpu_features = scalar(cpu.get("SIMD Features"))
+
+    return {
+        "ComputerModel": model,
+        "CPU": cpu_name,
+        "CPUCores": core_count,
+        "Motherboard": model,
+        "Chipset": chipset,
+        "Platform": scalar(motherboard.get("Platform")),
+        "BIOS": "; ".join(item for item in bios_parts if item) or None,
+        "CPUFeatures": cpu_features,
+        "GPUs": gpu_entries,
+        "NetworkAdapters": network_names,
+        "AudioDevices": audio_names,
+        "StorageControllers": storage_names,
+        "BluetoothDevices": bluetooth_names,
+        "Devices": devices,
+        "Disks": [],
+    }
+
+
+def build_hardware_sniffer_report_markdown(report: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    """Build a readable report and compatibility estimate without changing upstream JSON."""
+    inventory = normalize_hardware_sniffer_report(report)
+    compatibility = estimate_macos_compatibility(inventory)
+    inventory["macOSCompatibility"] = compatibility
+    return hardware_report_markdown(inventory), compatibility
+
+
 def hardware_report_markdown(data: dict[str, Any]) -> str:
     compatibility = data.get("macOSCompatibility")
     if not isinstance(compatibility, dict):
@@ -863,14 +994,21 @@ def hardware_report_markdown(data: dict[str, Any]) -> str:
         ("CPU", data.get("CPU")),
         ("CPU cores / threads", f"{data.get('CPUCores', '?')} / {data.get('LogicalProcessors', '?')}"),
         ("Motherboard", data.get("Motherboard")),
+        ("Chipset", data.get("Chipset")),
+        ("Platform type", data.get("Platform")),
         ("Firmware / BIOS", data.get("BIOS")),
         ("Operating system", data.get("OS") or data.get("Windows")),
         ("OS build", data.get("WindowsVersion")),
         ("Memory", f"{data.get('MemoryGB')} GB" if data.get("MemoryGB") is not None else None),
+        ("CPU instruction features", data.get("CPUFeatures")),
         ("GPUs", "; ".join(
             f"{gpu.get('Name', 'Unknown')} (driver {gpu.get('DriverVersion') or 'unknown'})"
             for gpu in data.get("GPUs", []) if isinstance(gpu, dict)
         )),
+        ("Network adapters", "; ".join(data.get("NetworkAdapters", [])) or None),
+        ("Audio devices", "; ".join(data.get("AudioDevices", [])) or None),
+        ("Storage controllers", "; ".join(data.get("StorageControllers", [])) or None),
+        ("Bluetooth devices", "; ".join(data.get("BluetoothDevices", [])) or None),
         ("Disks", "; ".join(
             f"{disk.get('Model', 'Unknown')} ({disk.get('SizeGB', '?')} GB, {disk.get('InterfaceType') or 'interface unknown'})"
             for disk in data.get("Disks", []) if isinstance(disk, dict)
@@ -888,6 +1026,10 @@ def hardware_report_markdown(data: dict[str, Any]) -> str:
         f"- **Confidence:** {compatibility.get('confidence', 'Not available')}",
         f"- **Detected graphics family:** {compatibility.get('gpu_family', 'Unknown')}",
     ])
+    if compatibility.get("cpu_generation") is not None:
+        lines.append(f"- **Detected Intel CPU generation:** {compatibility['cpu_generation']}")
+    if compatibility.get("gpu_pci_ids"):
+        lines.append(f"- **Graphics PCI ID(s):** {', '.join(compatibility['gpu_pci_ids'])}")
     if compatibility.get("experimental_target"):
         lines.append(f"- **Experimental possibility:** {compatibility['experimental_target']}")
     if compatibility.get("notes"):
@@ -1215,6 +1357,28 @@ def command_hardware_sniffer(output_dir: str = "HardwareReport") -> int:
     if not isinstance(report, dict) or not report:
         raise RuntimeError("Hardware Sniffer Report.json does not contain a hardware report object.")
 
+    compatibility_path = report_path.with_name("Hardware-Report.md")
+    try:
+        rendered_report, compatibility = build_hardware_sniffer_report_markdown(report)
+        if compatibility_path.is_file():
+            stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+            archived = compatibility_path.with_name(f"Hardware-Report.previous-{stamp}.md")
+            suffix = 2
+            while archived.exists():
+                archived = compatibility_path.with_name(f"Hardware-Report.previous-{stamp}-{suffix}.md")
+                suffix += 1
+            compatibility_path.replace(archived)
+
+        temporary_report = compatibility_path.with_name(".Hardware-Report.md.tmp")
+        temporary_report.write_text(rendered_report.rstrip() + "\n", encoding="utf-8")
+        temporary_report.replace(compatibility_path)
+        print(f"[PASS] Human-readable hardware and macOS estimate saved to: {compatibility_path}")
+        print(f"[INFO] Conservative macOS target: {compatibility.get('target', 'Unknown')}")
+        if compatibility.get("experimental_target"):
+            print(f"[INFO] Experimental possibility: {compatibility['experimental_target']}")
+    except Exception as exc:
+        print(f"[WARN] Could not create the macOS compatibility companion report: {exc}")
+
     if process.returncode != 0:
         print(
             f"[WARN] Hardware Sniffer exited with code {process.returncode}, "
@@ -1222,7 +1386,7 @@ def command_hardware_sniffer(output_dir: str = "HardwareReport") -> int:
         )
     print("")
     print(f"[PASS] OpCore-Simplify hardware report saved to: {report_path}")
-    print("Review the report before sharing it; device names and IDs can identify your hardware.")
+    print("Review both reports before sharing them; device names and IDs can identify your hardware.")
     return 0
 
 

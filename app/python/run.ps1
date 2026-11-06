@@ -67,7 +67,7 @@ function Write-Dashboard {
     Write-Host ""
     Write-Host "  HARDWARE & DIAGNOSTICS" -ForegroundColor Yellow
     if ($env:OS -eq "Windows_NT") {
-        Write-Host "   01  Hardware report             Export OpCore-Simplify Report.json"
+        Write-Host "   01  Hardware report             Export Report.json + macOS estimate"
     }
     else {
         Write-Host "   01  Hardware report             Native macOS system_profiler inventory"

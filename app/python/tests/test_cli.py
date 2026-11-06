@@ -28,6 +28,7 @@ from simple_hackintosh import (
     check_efi_path,
     hardware_report_markdown,
     estimate_macos_compatibility,
+    build_hardware_sniffer_report_markdown,
     parse_macos_profiler_data,
     render_menu,
     _file_digests,
@@ -77,6 +78,72 @@ class MacRecoveryIntegrationTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Gather recovery information for Macs", result.stdout)
 
+
+
+class HardwareSnifferCompatibilityReportTests(unittest.TestCase):
+    def test_hardware_sniffer_report_adds_sequoia_estimate_without_losing_pci_ids(self):
+        upstream_report = {
+            "Motherboard": {
+                "Name": "LENOVO ThinkPad L14 Gen 1",
+                "Chipset": "Comet Lake-U",
+                "Platform": "Laptop",
+            },
+            "BIOS": {
+                "Version": "N2XETxxW",
+                "Release Date": "2025-01-01",
+                "Firmware Type": "UEFI",
+                "Secure Boot": "Disabled",
+            },
+            "CPU": {
+                "Processor Name": "Intel(R) Core(TM) i5-10210U CPU @ 1.60GHz",
+                "Codename": "Comet Lake-U",
+                "Core Count": "04",
+                "SIMD Features": "SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, AVX, AVX2",
+            },
+            "GPU": {
+                "Intel(R) UHD Graphics": {
+                    "Manufacturer": "Intel",
+                    "Codename": "Comet Lake-U",
+                    "Device ID": "8086-9B41",
+                    "Device Type": "Integrated",
+                },
+            },
+            "Network": {
+                "Intel(R) Wi-Fi 6 AX200 160MHz": {
+                    "Bus Type": "PCI",
+                    "Device ID": "8086-2723",
+                },
+            },
+            "Sound": {},
+            "Storage Controllers": {},
+        }
+        original = json.loads(json.dumps(upstream_report))
+
+        rendered, estimate = build_hardware_sniffer_report_markdown(upstream_report)
+
+        self.assertEqual(upstream_report, original, "The source Report.json data must remain unchanged.")
+        self.assertEqual(estimate["status"], "documented-baseline")
+        self.assertIn("Sequoia 15", estimate["target"])
+        self.assertIn("Tahoe 26", estimate["experimental_target"])
+        self.assertIn("VEN_8086&DEV_9B41", rendered)
+        self.assertIn("Intel(R) Wi-Fi 6 AX200 160MHz", rendered)
+        self.assertIn("macOS compatibility estimate", rendered)
+        self.assertIn("Detected Intel CPU generation:** 10", rendered)
+
+    def test_unrecognised_hardware_sniffer_gpu_does_not_get_a_guessed_target(self):
+        report = {
+            "CPU": {"Processor Name": "Unknown CPU"},
+            "GPU": {
+                "Unknown Display Adapter": {
+                    "Device ID": "1234-5678",
+                    "Device Type": "Unknown",
+                },
+            },
+        }
+        rendered, estimate = build_hardware_sniffer_report_markdown(report)
+        self.assertEqual(estimate["status"], "unknown")
+        self.assertIn("Insufficient hardware data", estimate["target"])
+        self.assertNotIn("Experimental possibility", rendered)
 
 
 class CompatibilityEstimateTests(unittest.TestCase):
