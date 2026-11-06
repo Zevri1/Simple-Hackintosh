@@ -281,4 +281,35 @@ public sealed class SafetyAndProfileTests
         }
     }
 
+
+    [Fact]
+    public void ParsesStandardAppleXmlPlistDoctypeWithoutResolvingExternalDtd()
+    {
+        const string xml = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+          <dict>
+            <key>ShowPicker</key>
+            <true/>
+            <key>Timeout</key>
+            <integer>5</integer>
+          </dict>
+        </plist>
+        """;
+
+        var document = SafePlistXml.Load(xml);
+
+        Assert.Equal("plist", document.Root?.Name.LocalName);
+        Assert.Null(document.DocumentType);
+        Assert.Equal("ShowPicker", document.Root?.Element("dict")?.Elements().First().Value);
+    }
+
+    [Fact]
+    public void RejectsMalformedXmlPlist()
+    {
+        const string xml = "<plist><dict><key>MissingValue</dict></plist>";
+        Assert.ThrowsAny<System.Xml.XmlException>(() => SafePlistXml.Load(xml));
+    }
+
 }

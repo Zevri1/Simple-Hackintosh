@@ -1045,10 +1045,7 @@ internal static class PlistParser
     {
         if (string.IsNullOrWhiteSpace(xmlText)) throw new InvalidDataException("The plist is empty.");
         if (xmlText.Length > 5 * 1024 * 1024) throw new InvalidDataException("The XML exceeds the 5 MB safety limit.");
-        var settings = new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null, MaxCharactersInDocument = 5 * 1024 * 1024 };
-        using var stringReader = new StringReader(xmlText);
-        using var reader = XmlReader.Create(stringReader, settings);
-        var document = XDocument.Load(reader, LoadOptions.None);
+        var document = SafePlistXml.Load(xmlText);
         var root = document.Root;
         if (root?.Name.LocalName != "plist") throw new InvalidDataException("The XML root element must be <plist>.");
         var value = root.Elements().FirstOrDefault();

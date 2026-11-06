@@ -20,5 +20,6 @@
     <Compile Include="../windows/OpenCoreReleaseCatalog.cs" Link="OpenCoreReleaseCatalog.cs" />
     <Compile Include="../windows/HardwareProfileService.cs" Link="HardwareProfileService.cs" />
     <Compile Include="../windows/OfficialComponentService.cs" Link="OfficialComponentService.cs" />
+    <Compile Include="../windows/SafePlistXml.cs" Link="SafePlistXml.cs" />
   </ItemGroup>
 </Project>
