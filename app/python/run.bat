@@ -18,5 +18,6 @@ goto finish
 python "%~dp0simple_hackintosh.py" %*
 
 :finish
+set "RC=%errorlevel%"
 if "%~1"=="" pause
-exit /b %errorlevel%
+exit /b %RC%
