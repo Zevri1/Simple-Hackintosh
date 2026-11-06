@@ -19,12 +19,12 @@
 
 ## Python command-line assistant
 
-The repository includes a cross-platform Python assistant (v2.4.0) with a PowerShell-native menu on Windows, a double-clickable macOS Terminal launcher, and hardware inventory on both systems. It opens an interactive numbered menu when launched without arguments and requires no third-party Python packages; the optional Windows OpCore-Simplify report uses the official signed Hardware Sniffer release.
+The repository includes a cross-platform Python assistant (v2.5.0) with a PowerShell-native menu on Windows, a double-clickable macOS Terminal launcher, and hardware inventory on both systems. It opens an interactive numbered menu when launched without arguments and requires no third-party Python packages; the optional Windows OpCore-Simplify report uses the official signed Hardware Sniffer release and exports JSON automatically.
 
 - [Python CLI source, beginner guide, commands, and tests](app/python/README.md)
 - [Python CLI test workflow](.github/workflows/python-cli.yml)
 
-Features include Windows/macOS hardware inventory, a Windows OpCore-Simplify-style `Report.json` export using the official Hardware Sniffer (downloaded with SHA-256 and Authenticode verification), EFI and Kext reference checks, config.plist linting, official version-matched `ocvalidate` integration, the bundled OpenCore `macrecovery` utility, EFI starter-folder creation, safe backups, SHA-256 comparison, and privacy-conscious support reports.
+Features include Windows/macOS hardware inventory, a Windows OpCore-Simplify-style `Report.json` export using the official Hardware Sniffer (downloaded with SHA-256 and Authenticode verification, then driven automatically without an ACPI dump), EFI and Kext reference checks, config.plist linting, official version-matched `ocvalidate` integration, the bundled OpenCore `macrecovery` utility, EFI starter-folder creation, safe backups, SHA-256 comparison, and privacy-conscious support reports.
 
 ### Run from a downloaded release
 
@@ -33,7 +33,7 @@ Features include Windows/macOS hardware inventory, a Windows OpCore-Simplify-sty
 3. On Windows, double-click `run.bat`, or open PowerShell in that folder and run `./run.ps1`. If PowerShell blocks the script, run `Set-ExecutionPolicy -Scope Process Bypass` in the same window, then retry.
 4. On macOS, Control-click `run.command` and choose **Open**, or open Terminal in that folder and run `chmod +x ./run.command && ./run.command`.
 
-Python 3.10 or newer is required. From a repository checkout rather than the release ZIP, run `cd app/python` first. The Windows Hardware Sniffer report option is Windows-only; macOS uses the native `system_profiler` inventory. See [the CLI guide](app/python/README.md) for its report-export steps.
+Python 3.10 or newer is required. From a repository checkout rather than the release ZIP, run `cd app/python` first. The Windows Hardware Sniffer report option is Windows-only; macOS uses the native `system_profiler` inventory. The Windows report is exported automatically; macOS uses its native inventory. See [the CLI guide](app/python/README.md) for details.
 
 ## What this project is
 
