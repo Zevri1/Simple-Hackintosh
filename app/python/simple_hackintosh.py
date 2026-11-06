@@ -1128,10 +1128,12 @@ def _verify_hardware_sniffer_signature(executable: Path) -> str:
 def command_hardware_sniffer(output_dir: str = "HardwareReport") -> int:
     """Launch the official interactive Hardware Sniffer to export Report.json on Windows."""
     if platform.system() != "Windows":
-        raise RuntimeError(
-            "OpCore-Simplify's Hardware Sniffer is not supported on macOS. "
-            "Use the built-in 'hardware' command there for a system_profiler report."
-        )
+        if platform.system() == "Darwin":
+            raise RuntimeError(
+                "OpCore-Simplify's Hardware Sniffer does not support macOS. "
+                "Use the built-in 'hardware' command there for a system_profiler report."
+            )
+        raise RuntimeError("This packaged Hardware Sniffer integration is available on Windows only.")
 
     working_dir = Path(output_dir).expanduser().resolve()
     report_path = working_dir / "SysReport" / "Report.json"
@@ -1147,7 +1149,7 @@ def command_hardware_sniffer(output_dir: str = "HardwareReport") -> int:
     print(f"Launching official Hardware Sniffer {release_tag}.")
     print(f"Verified publisher: {signer}")
     print("")
-    print("In Hardware Sniffer, choose H to export the hardware report, then Q to quit.")
+    print("In Hardware Sniffer, choose H to export the report, press Enter to dismiss the save message, then Q to quit.")
     print("Do not choose A unless you explicitly want to dump ACPI tables.")
     print(f"Expected report location: {report_path}")
     print("")
@@ -1682,11 +1684,12 @@ def render_menu(use_color: bool | None = None) -> str:
         return boxed(row, "item")
 
     system_line = f"  {platform.system()} {platform.release()}  |  Python {platform.python_version()}  |  v{APP_VERSION}"
-    hardware_description = (
-        "Export the OpCore-Simplify Report.json with the signed Hardware Sniffer"
-        if platform.system() == "Windows"
-        else "Inspect this Mac with the native system_profiler inventory"
-    )
+    if platform.system() == "Windows":
+        hardware_description = "Export Report.json with the signed OpCore-Simplify Hardware Sniffer"
+    elif platform.system() == "Darwin":
+        hardware_description = "Inspect this Mac with the native system_profiler inventory"
+    else:
+        hardware_description = "Hardware inventory is available on Windows and macOS"
     lines = [
         _paint(border, "border", enabled),
         boxed(f"  SIMPLE HACKINTOSH                                      v{APP_VERSION}", "title"),
