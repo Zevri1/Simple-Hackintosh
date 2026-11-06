@@ -42,10 +42,10 @@ function Invoke-Assistant {
     $CallArguments = @()
     $CallArguments += $PythonPrefix
     $CallArguments += $PythonScript
-    if (-not $script:UpdateCheckPerformed) {
-        # A direct CLI invocation checks updates itself; dashboard actions already did so.
-        # Do not repeat the two GitHub API requests for every dashboard menu selection.
-        # The launcher passes the global option before the requested subcommand.
+    $isHardwareReport = $ArgumentsToPass -and $ArgumentsToPass.Count -gt 0 -and $ArgumentsToPass[0] -eq "hardware-sniffer"
+    if ($script:UpdateCheckPerformed -and -not $isHardwareReport) {
+        # Dashboard actions already checked updates. Re-check immediately before a
+        # Hardware Sniffer report so the generated report can include current app/tool status.
         $CallArguments += "--no-update-check"
     }
     if ($ArgumentsToPass) {
