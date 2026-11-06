@@ -57,7 +57,9 @@ class EfiCheckTests(unittest.TestCase):
         config["UEFI"]["Drivers"] = [{"Enabled": True, "Path": "OpenRuntime.efi"}]
         config["Misc"]["Tools"] = [{"Enabled": True, "Path": "OpenShell.efi"}]
         (root / "OC" / "ACPI" / "SSDT-Test.aml").write_bytes(b"test")
-        (root / "OC" / "Kexts" / "Test.kext").mkdir()
+        kext_contents = root / "OC" / "Kexts" / "Test.kext" / "Contents"
+        kext_contents.mkdir(parents=True)
+        (kext_contents / "Info.plist").write_bytes(plistlib.dumps({"CFBundleIdentifier": "test.kext"}))
         (root / "OC" / "Drivers" / "OpenRuntime.efi").write_bytes(b"test")
         (root / "OC" / "Tools" / "OpenShell.efi").write_bytes(b"test")
         (root / "OC" / "config.plist").write_bytes(plistlib.dumps(config))
