@@ -30,6 +30,10 @@ from simple_hackintosh import (
     estimate_macos_compatibility,
     build_hardware_sniffer_report_markdown,
     parse_macos_profiler_data,
+    check_for_app_update,
+    check_for_hardware_sniffer_update,
+    check_for_updates,
+    render_compatibility_checker,
     render_menu,
     _file_digests,
     validate_config_data,
@@ -78,6 +82,179 @@ class MacRecoveryIntegrationTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Gather recovery information for Macs", result.stdout)
 
+
+
+class UpdateCheckerTests(unittest.TestCase):
+    def test_app_update_checker_reports_newer_stable_release(self):
+        payload = {
+            "tag_name": "v3.2.0",
+            "draft": False,
+            "prerelease": False,
+            "html_url": "https://github.com/Zevri1/Simple-Hackintosh/releases/tag/v3.2.0",
+        }
+        with patch(
+            "simple_hackintosh.urllib.request.urlopen",
+            return_value=io.BytesIO(json.dumps(payload).encode("utf-8")),
+        ):
+            result = check_for_app_update()
+        self.assertEqual(result["status"], "update_available")
+        self.assertEqual(result["latest_version"], "3.2.0")
+
+    def test_app_update_checker_identifies_newer_development_build(self):
+        payload = {
+            "tag_name": "v3.0.0",
+            "draft": False,
+            "prerelease": False,
+            "html_url": "https://github.com/Zevri1/Simple-Hackintosh/releases/tag/v3.0.0",
+        }
+        with patch(
+            "simple_hackintosh.urllib.request.urlopen",
+            return_value=io.BytesIO(json.dumps(payload).encode("utf-8")),
+        ):
+            result = check_for_app_update()
+        self.assertEqual(result["status"], "dev_build")
+
+    def test_app_update_checker_fails_open_when_offline(self):
+        with patch("simple_hackintosh.urllib.request.urlopen", side_effect=OSError("offline")):
+            result = check_for_app_update()
+        self.assertEqual(result["status"], "unavailable")
+
+    def test_hardware_sniffer_checker_recognizes_verified_cached_binary(self):
+        payload = b"verified test binary"
+        digest = hashlib.sha256(payload).hexdigest()
+        release = {
+            "tag_name": "2.1.2",
+            "draft": False,
+            "prerelease": False,
+            "assets": [{
+                "name": "Hardware-Sniffer.exe",
+                "digest": f"sha256:{digest}",
+                "browser_download_url": (
+                    "https://github.com/lzhoang2801/Hardware-Sniffer/releases/download/2.1.2/"
+                    "Hardware-Sniffer.exe"
+                ),
+            }],
+        }
+        with tempfile.TemporaryDirectory() as temp:
+            cache = Path(temp)
+            (cache / "Hardware-Sniffer-2.1.2.exe").write_bytes(payload)
+            with patch("simple_hackintosh._hardware_sniffer_cache_dir", return_value=cache):
+                with patch(
+                    "simple_hackintosh.urllib.request.urlopen",
+                    return_value=io.BytesIO(json.dumps(release).encode("utf-8")),
+                ):
+                    result = check_for_hardware_sniffer_update()
+        self.assertEqual(result["status"], "up_to_date")
+        self.assertTrue(result["cached_and_verified"])
+
+    def test_hardware_sniffer_checker_detects_uncached_release(self):
+        release = {
+            "tag_name": "2.1.2",
+            "draft": False,
+            "prerelease": False,
+            "assets": [{
+                "name": "Hardware-Sniffer.exe",
+                "digest": f"sha256:{'a' * 64}",
+                "browser_download_url": (
+                    "https://github.com/lzhoang2801/Hardware-Sniffer/releases/download/2.1.2/"
+                    "Hardware-Sniffer.exe"
+                ),
+            }],
+        }
+        with tempfile.TemporaryDirectory() as temp:
+            with patch("simple_hackintosh._hardware_sniffer_cache_dir", return_value=Path(temp)):
+                with patch(
+                    "simple_hackintosh.urllib.request.urlopen",
+                    return_value=io.BytesIO(json.dumps(release).encode("utf-8")),
+                ):
+                    result = check_for_hardware_sniffer_update()
+        self.assertEqual(result["status"], "update_available")
+        self.assertFalse(result["cached_and_verified"])
+
+    def test_checker_renders_all_components_and_release_statuses(self):
+        report = {
+            "CPU": {
+                "Processor Name": "Intel(R) Core(TM) i5-10210U",
+                "Codename": "Comet Lake-U",
+            },
+            "GPU": {
+                "Intel(R) UHD Graphics": {
+                    "Device ID": "8086-9B41",
+                    "Codename": "Comet Lake-U",
+                },
+            },
+            "Monitor": {
+                "HKC0201": {
+                    "Connector Type": "Internal",
+                    "Resolution": "1920x1080",
+                    "Connected GPU": "Intel(R) UHD Graphics",
+                },
+            },
+            "Sound": {
+                "Intel(R) Display Audio": {"Audio Endpoints": ["Speakers"]},
+                "Realtek(R) Audio": {"Audio Endpoints": ["Speakers", "Microphone Array"]},
+            },
+            "Network": {
+                "Intel(R) Ethernet Connection (10) I219-V": {"Device ID": "8086-0DC7"},
+                "Intel(R) Wi-Fi 6 AX200 160MHz": {"Device ID": "8086-2723"},
+            },
+            "Storage Controllers": {
+                "BC901 NVMe Solid State Drive (DRAM-less)": {"Device ID": "144D-A80A"},
+            },
+            "Bluetooth": {"Intel(R) Wireless Bluetooth(R)": {"Device ID": "8087-0026"}},
+            "SD Controller": {"Realtek PCIE CardReader": {"Device ID": "10EC-5229"}},
+        }
+        update_status = {
+            "status": "dev_build",
+            "current_version": "3.1.0",
+            "latest_version": "3.0.0",
+            "hardware_sniffer": {"status": "up_to_date", "latest_version": "2.1.2"},
+        }
+        rendered = render_compatibility_checker(report, "2.1.2", update_status)
+        for expected in (
+            "Compatibility Checker",
+            "1. CPU:",
+            "2. GPU:",
+            "HKC0201",
+            "3. Sound:",
+            "Microphone Array",
+            "4. Network:",
+            "Handoff and Universal Clipboard",
+            "5. Storage Controllers:",
+            "6. Bluetooth:",
+            "7. SD Controller:",
+            "Realtek PCIE CardReader",
+            "Simple Hackintosh",
+            "Hardware Sniffer",
+            "SHA-256 verified",
+        ):
+            self.assertIn(expected, rendered)
+        self.assertTrue(all(len(line) <= 80 for line in rendered.splitlines()))
+
+    def test_checker_is_included_in_markdown_companion_report(self):
+        report = {
+            "CPU": {"Processor Name": "Intel Core i5-10210U", "Codename": "Comet Lake-U"},
+            "GPU": {"Intel UHD Graphics": {"Device ID": "8086-9B41"}},
+            "Monitor": {"HKC0201": {"Connector Type": "Internal"}},
+            "Sound": {},
+            "Network": {},
+            "Storage Controllers": {},
+            "Bluetooth": {},
+            "SD Controller": {},
+        }
+        markdown, _ = build_hardware_sniffer_report_markdown(
+            report,
+            "2.1.2",
+            {
+                "status": "dev_build",
+                "current_version": "3.1.0",
+                "latest_version": "3.0.0",
+                "hardware_sniffer": {"status": "up_to_date", "latest_version": "2.1.2"},
+            },
+        )
+        self.assertIn("## Compatibility Checker", markdown)
+        self.assertIn("HKC0201", markdown)
+        self.assertIn("Hardware Sniffer", markdown)
 
 
 class HardwareSnifferCompatibilityReportTests(unittest.TestCase):
