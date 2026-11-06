@@ -219,7 +219,8 @@ class UpdateCheckerTests(unittest.TestCase):
             "3. Sound:",
             "Microphone Array",
             "4. Network:",
-            "Handoff and Universal Clipboard",
+            "Handoff and Universal",
+            "Clipboard.",
             "5. Storage Controllers:",
             "6. Bluetooth:",
             "7. SD Controller:",
@@ -551,6 +552,9 @@ class HardwareSnifferIntegrationTests(unittest.TestCase):
             self.assertEqual(captured["errors"], "replace")
             self.assertEqual(captured["timeout"], 180)
             self.assertTrue((root / "output" / "SysReport" / "Report.json").is_file())
+            checker = root / "output" / "SysReport" / "Hardware-Compatibility.txt"
+            self.assertTrue(checker.is_file())
+            self.assertIn("Compatibility Checker", checker.read_text(encoding="utf-8"))
             self.assertFalse((root / "output" / "SysReport" / "ACPI").exists())
 
     def test_hardware_sniffer_preserves_previous_report_and_creates_a_new_one(self):
