@@ -42,6 +42,12 @@ function Invoke-Assistant {
     $CallArguments = @()
     $CallArguments += $PythonPrefix
     $CallArguments += $PythonScript
+    $isHardwareReport = $ArgumentsToPass -and $ArgumentsToPass.Count -gt 0 -and $ArgumentsToPass[0] -eq "hardware-sniffer"
+    if ($script:UpdateCheckPerformed -and -not $isHardwareReport) {
+        # Dashboard actions already checked updates. Re-check immediately before a
+        # Hardware Sniffer report so the generated report can include current app/tool status.
+        $CallArguments += "--no-update-check"
+    }
     if ($ArgumentsToPass) {
         $CallArguments += $ArgumentsToPass
     }
@@ -53,8 +59,20 @@ if ($CliArguments -and $CliArguments.Count -gt 0) {
     exit (Invoke-Assistant -ArgumentsToPass $CliArguments)
 }
 
+# The native PowerShell dashboard does not enter Python's interactive menu.
+# Check the app and Hardware Sniffer once when this dashboard starts.
+$updateArgs = @()
+$updateArgs += $PythonPrefix
+$updateArgs += @($PythonScript, "check-updates")
+$script:UpdateCheckOutput = @(& $PythonCommand.Source @updateArgs 2>&1)
+$script:UpdateCheckPerformed = $true
+
 function Write-Dashboard {
     Clear-Host
+    foreach ($line in $script:UpdateCheckOutput) {
+        Write-Host "  $line" -ForegroundColor DarkGray
+    }
+    if ($script:UpdateCheckOutput) { Write-Host "" }
     $versionArgs = @()
     $versionArgs += $PythonPrefix
     $versionArgs += @($PythonScript, "--version")
@@ -165,6 +183,6 @@ while ($true) {
             Write-Host ""
             Write-Host "  Finished with exit code $result." -ForegroundColor Yellow
         }
-        [void](Read-Host "  Press Enter to return to the dashboard")
+        [void](Read-Host "  Press Enter to continue...")
     }
 }
