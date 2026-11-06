@@ -37,12 +37,13 @@ Python 3.10 or newer is required. From a repository checkout rather than the rel
 
 ## Native macOS desktop app (preview)
 
-A native SwiftUI desktop application is being developed alongside the CLI. The first preview includes Apple's full-installer discovery and download flow, a hardware inventory with redacted exports, and a checksum-verified OpenCore starter EFI. It is explicitly a starter builder, not a one-click hardware-specific EFI generator.
+The native SwiftUI app has a graphical workspace for Apple's full-installer catalog, direct InstallAssistant package downloads to a chosen drive, hardware inventory, and a checksum-verified OpenCore starter EFI. The EFI result is deliberately labelled as a starter, not a ready-to-boot configuration.
 
 - [macOS Studio preview and build instructions](app/macos/README.md)
-- [Desktop app roadmap, including the Windows GUI plan](docs/17-desktop-studio-roadmap.md)
+- [Desktop app roadmap and shared hardware profile](docs/17-desktop-studio-roadmap.md)
+- [Hardware profile JSON Schema v1](schemas/hardware-profile-v1.schema.json)
 
-The Windows plan keeps hardware detection and EFI preparation on Windows, adds a full graphical front end, and uses macOS for final creation of modern macOS 11+ bootable USB media.
+The Windows desktop app is also present as a native .NET 10 Windows Forms utility with EFI Checker, Config Validator, and Hardware Inspector screens. The planned next step is to add the same Apple catalog downloader and EFI builder to Windows.
 
 ## What this project is
 

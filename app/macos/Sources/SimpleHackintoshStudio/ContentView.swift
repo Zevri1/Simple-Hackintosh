@@ -136,7 +136,7 @@ private struct OverviewView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         Label("Important workflow notes", systemImage: "info.circle")
                             .font(.headline)
-                        Text("Apple's softwareupdate tool temporarily places the downloaded installer in /Applications. Studio then copies the completed installer app to the folder you choose. The system disk therefore needs enough free space for the download.")
+                        Text("Studio downloads Apple's full InstallAssistant.pkg package directly to the folder you select. The package is streamed to that destination volume; it is not staged in /Applications and no Recovery image is used.")
                         Text("The EFI Builder creates a checksum-verified OpenCore starter. It does not yet select hardware-specific ACPI, Kexts, SMBIOS, or UEFI quirks. Do not boot this template without configuring and validating it for the target computer.")
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -202,7 +202,7 @@ private struct InstallerView: View {
                 PageHeading(
                     eyebrow: "APPLE SOFTWARE UPDATE",
                     title: "macOS Downloader",
-                    subtitle: "Browse the full installers Apple currently offers to this Mac and save the completed installer app to a folder you choose."
+                    subtitle: "Browse Apple's public full-installer catalog and save the InstallAssistant.pkg file directly to any mounted drive you choose."
                 )
                 GroupBox {
                     VStack(alignment: .leading, spacing: 16) {
@@ -257,6 +257,14 @@ private struct InstallerView: View {
                             Spacer()
                             Button("Choose folder…") { destination = FolderPicker.choose() }
                         }
+                        if let progress = model.downloadProgress {
+                            ProgressView(value: progress.fractionCompleted)
+                            Text("\(ByteCountFormatter.string(fromByteCount: progress.receivedBytes, countStyle: .file)) downloaded"
+                                + (progress.expectedBytes.map { " of " + ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) } ?? ""))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
                         Button {
                             guard let destination else { return }
                             Task { await model.downloadInstaller(to: destination) }
@@ -270,7 +278,7 @@ private struct InstallerView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 Label(
-                    "This uses Apple's full-installer download, not macOS Recovery. Apple downloads to /Applications first; Studio copies the completed .app to your selected folder. Keep enough free space on the internal system disk during the download.",
+                    "This downloads the full InstallAssistant.pkg package directly to the selected folder using a streaming HTTPS request. It does not use Recovery or stage the package in /Applications. A partial file is removed if the transfer fails or its final size does not match Apple's catalog.",
                     systemImage: "info.circle"
                 )
                 .font(.callout)

@@ -1,18 +1,30 @@
 # Simple Hackintosh — Windows Desktop App
 
-A native Windows utility companion for the Simple Hackintosh field guide.
+A native Windows Forms (.NET 10) desktop companion for the Simple Hackintosh field guide. It is a graphical application, not a CMD menu.
 
-## First release scope
+## Included in preview 0.1.0
 
 - **EFI Checker:** inspects a selected EFI directory or ZIP archive without extracting it, checks the basic OpenCore layout, parses XML config.plist, and tests enabled ACPI, Kext, and UEFI driver file references.
 - **Config Validator:** parses XML property lists securely and checks common OpenCore sections and value container types.
 - **Hardware Inspector:** uses read-only Windows CIM queries to collect CPU, graphics, motherboard, BIOS, storage, network and audio details, then lets the user copy or save a Markdown report.
 
+## Windows roadmap
+
+The next Windows desktop iteration should add:
+
+1. An Apple public software-update catalog browser and direct streaming download of the full `InstallAssistant.pkg` to a folder or external drive selected in the GUI.
+2. An OpenCore release downloader that checks the official GitHub SHA-256 digest before extracting files.
+3. An EFI starter builder and a profile-driven hardware-specific EFI workflow.
+4. A config editor and official, version-matched `ocvalidate` integration.
+5. Import/export of the shared [Hardware Profile JSON Schema v1](../../schemas/hardware-profile-v1.schema.json).
+
+Windows can download Apple's full installer package and prepare EFI assets. For macOS 11 Big Sur and newer, it cannot use the traditional gibMacOS Windows `MakeInstall` flow to create a complete bootable installer USB; the final media-creation step uses Apple's `createinstallmedia` on macOS. The Windows GUI should therefore support a clear handoff: download in Windows, then finish USB creation from macOS.
+
 ## Privacy and safety
 
-All file inspection takes place locally on the Windows computer. The app does not upload EFI folders, configuration files, or hardware reports. The hardware inspection performs read-only CIM queries and does not require administrator privileges. The app never modifies an EFI, config.plist, firmware setting, partition, or boot entry.
+All current file inspection takes place locally on the Windows computer. The app does not upload EFI folders, configuration files, or hardware reports. Hardware inspection performs read-only CIM queries and does not require administrator privileges. The app never modifies an EFI, config.plist, firmware setting, partition, or boot entry.
 
-The first release is a structural helper. It does not replace OpenCore's official `ocvalidate` tool, the Dortania guide, or a hardware-specific compatibility review. A clean report is not proof that an EFI will boot.
+The current release is a structural helper. It does not replace OpenCore's official `ocvalidate` tool, the Dortania guide, or a hardware-specific compatibility review. A clean report is not proof that an EFI will boot.
 
 ## Build
 

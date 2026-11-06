@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zevri1.github.io/Simple-Hackintosh/schemas/hardware-profile-v1.schema.json",
+  "title": "Simple Hackintosh Hardware Profile",
+  "description": "Privacy-conscious, versioned hardware profile shared by the macOS and Windows desktop applications. Do not include serial numbers, SMBIOS identifiers, UUIDs, or network MAC addresses.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "sourcePlatform", "device", "cpu", "gpu", "network", "audio", "storage"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "sourcePlatform": { "enum": ["windows", "macos", "manual"] },
+    "device": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "manufacturer": { "type": "string" },
+        "model": { "type": "string" },
+        "firmwareVendor": { "type": "string" },
+        "firmwareVersion": { "type": "string" },
+        "firmwareMode": { "enum": ["UEFI", "Legacy", "Unknown"] }
+      }
+    },
+    "cpu": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "vendor": { "type": "string" },
+        "model": { "type": "string" },
+        "family": { "type": "string" },
+        "architecture": { "type": "string" },
+        "coreCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "gpu": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "vendor": { "type": "string" },
+          "model": { "type": "string" },
+          "pciVendorId": { "type": "string" },
+          "pciDeviceId": { "type": "string" },
+          "vramBytes": { "type": "integer", "minimum": 0 },
+          "connectedDisplays": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "network": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "wifiAdapters": { "type": "array", "items": { "$ref": "#/$defs/pciDevice" } },
+        "ethernetAdapters": { "type": "array", "items": { "$ref": "#/$defs/pciDevice" } },
+        "bluetoothAdapters": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "audio": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "codec": { "type": "string" },
+        "controllers": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "storage": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "model": { "type": "string" },
+          "controller": { "type": "string" },
+          "interface": { "type": "string" },
+          "capacityBytes": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "notes": { "type": "array", "items": { "type": "string" } }
+  },
+  "$defs": {
+    "pciDevice": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "vendor": { "type": "string" },
+        "model": { "type": "string" },
+        "pciVendorId": { "type": "string" },
+        "pciDeviceId": { "type": "string" }
+      }
+    }
+  }
+}

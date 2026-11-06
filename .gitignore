@@ -10,3 +10,10 @@ EFI/
 *.plist.local
 hardware-report-private.md
 private-logs/
+
+# Desktop app build outputs
+app/macos/.build/
+app/macos/dist/
+app/windows/bin/
+app/windows/obj/
+artifacts/

@@ -1,29 +1,42 @@
 import Foundation
 
 public struct InstallerEntry: Identifiable, Equatable, Sendable {
+    public let productID: String?
     public let title: String
     public let version: String
     public let size: String?
     public let build: String?
+    public let downloadURL: URL?
+    public let expectedBytes: Int64?
 
-    public var id: String { version }
+    public var id: String { productID ?? version }
 
-    public init(title: String, version: String, size: String? = nil, build: String? = nil) {
+    public init(
+        title: String,
+        version: String,
+        size: String? = nil,
+        build: String? = nil,
+        productID: String? = nil,
+        downloadURL: URL? = nil,
+        expectedBytes: Int64? = nil
+    ) {
+        self.productID = productID
         self.title = title
         self.version = version
         self.size = size
         self.build = build
+        self.downloadURL = downloadURL
+        self.expectedBytes = expectedBytes
     }
 }
 
 public enum InstallerCatalogParser {
-    /// Parses the human-readable output of Apple's softwareupdate --list-full-installers.
+    /// Parses softwareupdate output for compatibility with the existing CLI.
     public static func parse(_ output: String) -> [InstallerEntry] {
         var entries: [InstallerEntry] = []
 
         for rawLine in output.split(whereSeparator: \.isNewline) {
-            let line = String(rawLine)
-            let fields = line.split(separator: ",", omittingEmptySubsequences: false)
+            let fields = String(rawLine).split(separator: ",", omittingEmptySubsequences: false)
             var title: String?
             var version: String?
             var size: String?

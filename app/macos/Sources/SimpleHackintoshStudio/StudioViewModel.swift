@@ -10,20 +10,24 @@ final class StudioViewModel: ObservableObject {
     @Published var statusMessage = "Ready. Choose a task from the sidebar."
     @Published var isBusy = false
     @Published var lastOutputPath = ""
+    @Published var downloadProgress: InstallerDownloadProgress?
+
+    var selectedInstaller: InstallerEntry? {
+        installers.first { $0.version == selectedVersion }
+    }
 
     func refreshInstallers() async {
         guard !isBusy else { return }
         isBusy = true
+        statusMessage = "Reading Apple's public full-installer catalog…"
         defer { isBusy = false }
         do {
-            let entries = try await Task.detached(priority: .utility) {
-                try FullInstallerService.availableInstallers()
-            }.value
+            let entries = try await FullInstallerService.availableInstallers()
             installers = entries
             if !entries.contains(where: { $0.version == selectedVersion }) {
                 selectedVersion = entries.first?.version ?? ""
             }
-            statusMessage = "Loaded \(entries.count) full installer version(s) from Apple Software Update."
+            statusMessage = "Loaded \(entries.count) full installer package(s) from Apple."
         } catch {
             statusMessage = error.localizedDescription
         }
@@ -31,20 +35,28 @@ final class StudioViewModel: ObservableObject {
 
     func downloadInstaller(to destination: URL) async {
         guard !isBusy else { return }
-        guard !selectedVersion.isEmpty else {
+        guard let installer = selectedInstaller else {
             statusMessage = "Choose a macOS version first."
             return
         }
+
         isBusy = true
-        statusMessage = "Downloading the full macOS installer through Apple's Software Update service…"
+        downloadProgress = nil
+        statusMessage = "Streaming \(installer.title) directly to the selected drive…"
         defer { isBusy = false }
+
         do {
-            let version = selectedVersion
-            let target = try await Task.detached(priority: .utility) {
-                try FullInstallerService.download(version: version, to: destination)
-            }.value
+            let target = try await FullInstallerService.download(
+                installer: installer,
+                to: destination,
+                progress: { [weak self] progress in
+                    Task { @MainActor in
+                        self?.downloadProgress = progress
+                    }
+                }
+            )
             lastOutputPath = target.path
-            statusMessage = "Full installer saved to: \(target.path)"
+            statusMessage = "Full InstallAssistant package saved to: \(target.path)"
         } catch {
             statusMessage = error.localizedDescription
         }

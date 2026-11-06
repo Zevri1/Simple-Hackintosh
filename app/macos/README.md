@@ -1,34 +1,39 @@
 # Simple Hackintosh Studio — macOS Preview
 
-**Status:** early preview (0.1.0), not a full OpenCore Legacy Patcher replacement.
+**Status:** early preview (0.1.0). This is not yet a complete OpenCore Legacy Patcher replacement.  
+**UI:** native SwiftUI. **Minimum OS:** macOS 13 Ventura.
 
-This is the first native SwiftUI desktop front end for the Simple Hackintosh project. It is a graphical workspace rather than a terminal menu.
+Simple Hackintosh Studio is the native macOS desktop companion to the existing Python CLI and Windows desktop utility.
 
-## Included in this preview
+## Included
 
-- Native macOS sidebar interface with Overview, macOS Downloader, EFI Builder, and Hardware screens.
-- Full-installer discovery through Apple's `softwareupdate --list-full-installers`.
-- Full macOS installer download through Apple's `softwareupdate --fetch-full-installer`, followed by copying the completed installer app to the folder selected in Studio.
-- Hardware inventory through `system_profiler`; serial numbers, UUIDs and common MAC-address fields are redacted before display and export.
-- Starter x64 EFI assembled from the official Acidanthera OpenCore RELEASE archive.
-- SHA-256 verification against the digest published in official GitHub release metadata.
-- No-overwrite rule: EFI Builder stops if the selected output already contains an EFI folder.
+- Native macOS sidebar with Overview, macOS Downloader, EFI Builder and Hardware screens.
+- Apple public software-update catalog discovery for full macOS installers.
+- Direct streaming download of Apple's `InstallAssistant.pkg` to the directory selected in the app. The file is written to the selected volume as it downloads; it is not staged in `/Applications` and no Recovery image is used.
+- Partial-file cleanup and downloaded-byte-count verification against the size in Apple's catalog.
+- Official OpenCore x64 RELEASE archive download with GitHub's published SHA-256 digest checked before extraction.
+- Starter EFI creation using the matching OpenCore `Sample.plist`.
+- Hardware inventory through `system_profiler`; common serial, UUID and MAC-address fields are redacted before display and export.
 
-## macOS installer download behavior
+## Apple installer download
 
-Apple's supported full-installer command downloads the installer app into `/Applications`. Studio then copies that completed `.app` bundle into the folder you selected. This avoids Recovery images and does not require the user to work in Terminal, but the internal system disk still needs enough free space for Apple's temporary download. The app does not claim that Apple's `softwareupdate` command can stream directly to an arbitrary external path.
+The app reads Apple's public software-update catalog, filters products marked as full InstallAssistant installers, then selects the `InstallAssistant.pkg` package URL. Only HTTPS URLs under Apple domains are accepted. The package is streamed directly to a user-selected folder, including external drives.
 
-The list shows only full-installer versions currently returned by Apple Software Update for the host system. A version not listed by Apple cannot be selected in this preview.
+The output is a full Apple installer package, not a Recovery image. Once downloaded, opening the package in Finder runs Apple's Installer and installs the macOS installer application (normally into `/Applications`). The downloaded `.pkg` remains on the selected drive.
+
+The version list depends on products Apple currently publishes in the public catalog. Studio does not promise that all historical releases remain available.
 
 ## EFI safety boundary
 
-The EFI Builder creates a **starter folder**, not a ready-to-boot EFI for any computer. It copies the official x64 OpenCore EFI files and the matching `Sample.plist`. It does not yet select or configure ACPI, Kexts, SMBIOS, NVRAM, Kernel quirks, or device-specific UEFI drivers. Those settings must be created for the exact target hardware and validated with the `ocvalidate` shipped in the same OpenCore release.
+The EFI Builder creates an **OpenCore starter folder**, not a ready-to-boot EFI for every PC. It fetches the official x64 RELEASE archive, checks its SHA-256 digest against GitHub release metadata, copies the official EFI folder and places the matching `Sample.plist` at `OC/config.plist`.
 
-Do not use this starter to replace an existing internal EFI. Keep an existing EFI backup and test a hardware-specific configuration from a removable drive first.
+It does not yet choose or configure target-specific ACPI, Kexts, SMBIOS, NVRAM, Kernel quirks or UEFI drivers. These must be selected for the exact target hardware and validated with `ocvalidate` from the same OpenCore release.
+
+The builder never overwrites an existing EFI. Back up any existing EFI and test a fully configured result from removable media before changing internal boot files.
 
 ## Build
 
-Requirements: macOS 13 or newer and Swift 5.9 or newer.
+Requirements: macOS 13 or newer, Xcode Command Line Tools, and Swift 5.9 or newer.
 
 ```bash
 swift test --package-path app/macos
@@ -36,17 +41,23 @@ swift build --package-path app/macos --configuration release
 bash app/macos/scripts/package-app.sh
 ```
 
-The generated app ZIP is written to `app/macos/dist/Simple-Hackintosh-Studio-macos.zip`.
+The GitHub Actions workflow builds both Apple Silicon and Intel executables, combines them into a universal app, and uploads:
 
-## Planned next milestones
+`app/macos/dist/Simple-Hackintosh-Studio-macos.zip`
 
-1. Import the existing Windows Hardware Sniffer `Report.json` and map it to a target hardware profile.
-2. Add a guided hardware-profile editor for CPU, GPU, Wi-Fi, Ethernet, audio, storage and firmware.
-3. Add version-matched Kext, ACPI and driver selection from official upstream release feeds.
-4. Generate and validate a target-specific `config.plist`; block export while required values remain unresolved.
-5. Add a guarded USB-installer workflow with explicit disk-erasure confirmation and matching OpenCore validation.
-6. Create the Windows GUI using the same profile schema and feature definitions.
+The preview is not Developer ID signed or notarized. A public release should be signed and notarized before broad distribution.
 
-## Licensing and downloads
+## Next milestones
 
-The app downloads OpenCore from the official [Acidanthera OpenCorePkg releases](https://github.com/acidanthera/OpenCorePkg/releases). OpenCore and all third-party Kexts or drivers retain their upstream licenses. This repository does not bundle Apple installers or third-party binaries.
+1. Import the Windows hardware report and build a shared target-hardware profile.
+2. Select Kexts, ACPI tables and UEFI drivers from official upstream release feeds.
+3. Generate a hardware-specific `config.plist` and validate it with the matching `ocvalidate`.
+4. Add a guarded USB Builder using Apple's `createinstallmedia`, with the selected disk model/capacity shown before a separate erase confirmation.
+5. Add a shared hardware-profile editor and installer-catalog downloader to the Windows GUI.
+
+## Upstream sources
+
+- [Apple macOS software downloads](https://support.apple.com/102662)
+- [Apple bootable installer guide](https://support.apple.com/101578)
+- [OpenCorePkg official releases](https://github.com/acidanthera/OpenCorePkg/releases)
+- [gibMacOS catalog and package workflow](https://github.com/corpnewt/gibMacOS)
