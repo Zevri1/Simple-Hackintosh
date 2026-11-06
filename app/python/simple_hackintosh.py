@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import platform
@@ -579,20 +580,54 @@ def command_config(path: str, output: str | None = None, as_json: bool = False) 
     return 2 if summary is None else (1 if any(x.level in ("WARN", "ERROR") for x in findings) else 0)
 
 
+def _file_digests(source: Path, entries: dict[str, str]) -> dict[str, str]:
+    """Calculate SHA-256 for files in a folder or ZIP without extracting it."""
+    digests: dict[str, str] = {}
+    if source.is_dir():
+        for key, original in entries.items():
+            path = source / Path(*original.split("/"))
+            digest = hashlib.sha256()
+            with path.open("rb") as stream:
+                for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                    digest.update(chunk)
+            digests[key] = digest.hexdigest()
+        return digests
+
+    with zipfile.ZipFile(source) as archive:
+        for key, original in entries.items():
+            digest = hashlib.sha256()
+            with archive.open(original, "r") as stream:
+                for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                    digest.update(chunk)
+            digests[key] = digest.hexdigest()
+    return digests
+
+
 def command_compare(first: str, second: str, output: str | None = None, as_json: bool = False) -> int:
-    left, _, left_error = _read_source(Path(first).expanduser())
-    right, _, right_error = _read_source(Path(second).expanduser())
+    left_source = Path(first).expanduser()
+    right_source = Path(second).expanduser()
+    left, _, left_error = _read_source(left_source)
+    right, _, right_error = _read_source(right_source)
     if left_error or right_error:
         message = left_error or right_error
         print(f"[ERROR] {message}", file=sys.stderr)
         return 2
+
     left_paths, right_paths = set(left), set(right)
+    common = left_paths & right_paths
+    left_hashes = _file_digests(left_source, left)
+    right_hashes = _file_digests(right_source, right)
+    changed = sorted(path for path in common if left_hashes[path] != right_hashes[path])
     result = {
-        "first_name": Path(first).name,
-        "second_name": Path(second).name,
+        "first_name": left_source.name,
+        "second_name": right_source.name,
         "only_in_first": sorted(left_paths - right_paths),
         "only_in_second": sorted(right_paths - left_paths),
+        "different_contents": changed,
+        "identical_files": len(common) - len(changed),
         "same_file_list": left_paths == right_paths,
+        "byte_identical": not (left_paths - right_paths or right_paths - left_paths or changed),
+        "hash_algorithm": "SHA-256",
     }
     if as_json:
         _emit_result(result, output, True)
@@ -604,9 +639,11 @@ def command_compare(first: str, second: str, output: str | None = None, as_json:
         print(f"Only in second: {len(result['only_in_second'])}")
         for item in result["only_in_second"][:100]:
             print(f"  + {item}")
-        if len(result["only_in_first"]) > 100 or len(result["only_in_second"]) > 100:
-            print("  (Showing the first 100 differences in each direction.)")
-        print("File lists match." if result["same_file_list"] else "File lists differ.")
+        print(f"Same path, different content: {len(changed)}")
+        for item in changed[:100]:
+            print(f"  * {item}")
+        print(f"Identical files: {result['identical_files']}")
+        print("The two EFI copies are byte-identical." if result["byte_identical"] else "The two EFI copies differ.")
         if output:
             _emit_result(result, output, True)
     return 0
