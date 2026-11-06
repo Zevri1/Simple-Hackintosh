@@ -1039,7 +1039,6 @@ internal sealed class MainForm : Form
         string? sourcePath = null;
         PlistEditableEntry? selectedEntry = null;
         IReadOnlyList<PlistEditableEntry> allEntries = Array.Empty<PlistEditableEntry>();
-        bool modified = false;
 
         void ShowSelectedEntry()
         {
@@ -1104,7 +1103,6 @@ internal sealed class MainForm : Form
                 session = ConfigPlistEditorSession.Load(xml);
                 sourcePath = dialog.FileName;
                 allEntries = session.Entries;
-                modified = false;
                 sourceLabel.Text = $"Loaded: {sourcePath}  ·  {allEntries.Count} editable scalar value(s)";
                 status.Text = "Changes remain in memory until you save a new file.";
                 saveAs.Enabled = true;
@@ -1135,7 +1133,6 @@ internal sealed class MainForm : Form
                 string changedPath = selectedEntry.Path;
                 session.SetValue(selectedEntry, newValue);
                 allEntries = session.Entries;
-                modified = true;
                 status.Text = "Value updated in memory. Save a separate copy when the review is complete.";
                 status.ForeColor = Green;
                 RefreshEntries(changedPath);

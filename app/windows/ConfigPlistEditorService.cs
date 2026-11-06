@@ -68,7 +68,7 @@ internal sealed class ConfigPlistEditorSession
             case "boolean":
                 if (!bool.TryParse(value, out bool boolean))
                     throw new InvalidDataException("A Boolean value must be true or false.");
-                entry.Element.ReplaceWith(new XElement(boolean ? "true" : "false"));
+                entry.Element.ReplaceWith(new XElement(entry.Element.Name.Namespace + (boolean ? "true" : "false")));
                 break;
             default:
                 throw new InvalidOperationException("This plist value type is read-only in the scalar editor.");
@@ -147,7 +147,11 @@ internal sealed class ConfigPlistEditorSession
             {
                 int index = 0;
                 foreach (var item in node.Elements())
-                    Walk(item, path + "[" + index++ .ToString(CultureInfo.InvariantCulture) + "]", entries, depth + 1);
+                {
+                    string itemPath = path + "[" + index.ToString(CultureInfo.InvariantCulture) + "]";
+                    index++;
+                    Walk(item, itemPath, entries, depth + 1);
+                }
                 break;
             }
             case "string":

@@ -379,9 +379,9 @@ public sealed class SafetyAndProfileTests
         """;
 
         var session = ConfigPlistEditorSession.Load(xml);
-        var showPicker = Assert.Single(session.Entries.Where(item => item.Path == "Misc/Boot/ShowPicker"));
-        var timeout = Assert.Single(session.Entries.Where(item => item.Path == "Misc/Boot/Timeout"));
-        var kextPath = Assert.Single(session.Entries.Where(item => item.Path == "Kernel/Add[0]/BundlePath"));
+        var showPicker = Assert.Single(session.Entries, item => item.Path == "Misc/Boot/ShowPicker");
+        var timeout = Assert.Single(session.Entries, item => item.Path == "Misc/Boot/Timeout");
+        var kextPath = Assert.Single(session.Entries, item => item.Path == "Kernel/Add[0]/BundlePath"));
         Assert.Equal("boolean", showPicker.Type);
         Assert.Equal("integer", timeout.Type);
         Assert.Equal("string", kextPath.Type);
@@ -390,9 +390,9 @@ public sealed class SafetyAndProfileTests
         session.SetValue(timeout, "10");
         session.SetValue(kextPath, "VirtualSMC.kext");
 
-        Assert.Equal("false", Assert.Single(session.Entries.Where(item => item.Path == showPicker.Path)).Value);
-        Assert.Equal("10", Assert.Single(session.Entries.Where(item => item.Path == timeout.Path)).Value);
-        Assert.Equal("VirtualSMC.kext", Assert.Single(session.Entries.Where(item => item.Path == kextPath.Path)).Value);
+        Assert.Equal("false", Assert.Single(session.Entries, item => item.Path == showPicker.Path).Value);
+        Assert.Equal("10", Assert.Single(session.Entries, item => item.Path == timeout.Path).Value);
+        Assert.Equal("VirtualSMC.kext", Assert.Single(session.Entries, item => item.Path == kextPath.Path).Value);
     }
 
     [Theory]
@@ -430,9 +430,11 @@ public sealed class SafetyAndProfileTests
 
             session.SetValue(Assert.Single(session.Entries), "9");
             session.SaveAsNewFile(output);
-            var saved = SafePlistXml.Load(File.ReadAllText(output));
+            string savedText = File.ReadAllText(output);
+            Assert.Contains("<!DOCTYPE plist PUBLIC", savedText);
+            var saved = SafePlistXml.Load(savedText);
             Assert.Equal("9", saved.Root?.Element("dict")?.Element("integer")?.Value);
-            Assert.NotNull(saved.DocumentType);
+            Assert.Null(saved.DocumentType);
         }
         finally { Directory.Delete(directory, true); }
     }
