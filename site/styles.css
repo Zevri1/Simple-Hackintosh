@@ -819,3 +819,34 @@ body {
   .download-band p { font-size:12px; }
   .hero-actions .button { width:100%;justify-content:center; }
 }
+
+
+/* v2.5.2 finish: stronger hierarchy, focus states, and small-screen guardrails */
+.top-link:focus-visible,.button:focus-visible,.filter-pill:focus-visible {
+  outline:3px solid var(--accent-2);outline-offset:3px;
+}
+.chapter-card,.path-step,.proof-strip,.download-band,.hero-wrap {
+  -webkit-backdrop-filter:blur(12px);
+  backdrop-filter:blur(12px);
+}
+.chapter-card,.path-step { transform:translateZ(0); }
+.chapter-card:focus-within,.path-step:focus-within {
+  border-color:var(--accent-2) !important;
+  box-shadow:0 14px 38px rgba(27,43,65,.12);
+}
+.download-band-action .button { box-shadow:0 8px 18px rgba(255,112,85,.18); }
+.download-band-action .button:hover { box-shadow:0 14px 30px rgba(255,112,85,.28); }
+@media(max-width:760px) {
+  .hero-wrap { overflow:hidden; }
+  .download-band,.proof-strip { overflow:hidden; }
+  .download-band-action { min-width:0;width:100%; }
+  .download-band-action .button { max-width:100%; }
+  .topbar { min-width:0; }
+  .top-nav { min-width:0; }
+}
+@media(max-width:360px) {
+  .hero-copy h1 { overflow-wrap:anywhere; }
+  .proof-strip { grid-template-columns:1fr 1fr; }
+  .download-band { padding:18px; }
+  .download-band h2 { font-size:21px; }
+}
