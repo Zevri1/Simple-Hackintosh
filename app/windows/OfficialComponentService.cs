@@ -151,7 +151,7 @@ internal static class OfficialComponentService
                 throw new InvalidDataException("The official component SHA-256 verification failed. Nothing was extracted.");
 
             progress?.Report(new ComponentDownloadProgress("Extracting verified Kext bundles…", release.ExpectedBytes, release.ExpectedBytes));
-            var kextNames = ExtractKextBundles(archivePath, Path.Combine(staging, "Kexts"));
+            var kextNames = await ExtractKextBundlesAsync(archivePath, Path.Combine(staging, "Kexts"), cancellationToken);
             string notes = $@"SIMPLE HACKINTOSH — OFFICIAL COMPONENT DOWNLOAD
 
 Component: {release.Source.Name}
@@ -199,13 +199,17 @@ IMPORTANT:
         return string.Join('/', parts);
     }
 
-    internal static IReadOnlyList<string> ExtractKextBundles(string archivePath, string destination)
+    internal static async Task<IReadOnlyList<string>> ExtractKextBundlesAsync(
+        string archivePath, string destination, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         using var archive = ZipFile.OpenRead(archivePath);
         if (archive.Entries.Count == 0 || archive.Entries.Count > 20000)
             throw new InvalidDataException("The component archive has an unexpected number of entries.");
 
+        const long maxUncompressedBytes = 500L * 1024 * 1024;
         long totalUncompressed = 0;
+        long totalWritten = 0;
         int extractedFiles = 0;
         var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var kextNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -213,12 +217,13 @@ IMPORTANT:
 
         foreach (var entry in archive.Entries)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             string normalized = ValidateArchivePath(entry.FullName);
             if (!seenPaths.Add(normalized))
                 throw new InvalidDataException("The component archive contains duplicate paths.");
-            totalUncompressed += entry.Length;
-            if (entry.Length < 0 || totalUncompressed > 500L * 1024 * 1024)
+            if (entry.Length < 0 || entry.Length > maxUncompressedBytes - totalUncompressed)
                 throw new InvalidDataException("The component archive exceeds the 500 MB uncompressed safety limit.");
+            totalUncompressed += entry.Length;
 
             int unixType = (int)((entry.ExternalAttributes >> 16) & 0xF000);
             if (unixType == 0xA000 || (entry.ExternalAttributes & 0x400) != 0)
@@ -230,18 +235,32 @@ IMPORTANT:
             if (kextIndex < 0 || kextIndex == parts.Length - 1) continue;
 
             string kextName = parts[kextIndex];
-            string relative = string.Join('/', parts.Skip(kextIndex));
+            string relative = string.Join("/", parts.Skip(kextIndex));
             string outputPath = SafeCombine(destination, relative);
-            string rootKey = kextName;
-            kextNames.Add(rootKey);
+            kextNames.Add(kextName);
             if (relative.EndsWith("Contents/Info.plist", StringComparison.OrdinalIgnoreCase) ||
-                relative.Equals(rootKey + "/Info.plist", StringComparison.OrdinalIgnoreCase))
-                infoPlists.Add(rootKey);
+                relative.Equals(kextName + "/Info.plist", StringComparison.OrdinalIgnoreCase))
+                infoPlists.Add(kextName);
 
             Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
-            using var input = entry.Open();
-            using var output = new FileStream(outputPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-            input.CopyTo(output);
+            await using var input = entry.Open();
+            await using var output = new FileStream(outputPath, FileMode.CreateNew, FileAccess.Write, FileShare.None,
+                128 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
+            var buffer = new byte[128 * 1024];
+            long fileWritten = 0;
+            int count;
+            while ((count = await input.ReadAsync(buffer, cancellationToken)) > 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                fileWritten += count;
+                totalWritten += count;
+                if (fileWritten > entry.Length || totalWritten > maxUncompressedBytes)
+                    throw new InvalidDataException("The extracted component data exceeded its declared size or safety limit.");
+                await output.WriteAsync(buffer.AsMemory(0, count), cancellationToken);
+            }
+            await output.FlushAsync(cancellationToken);
+            if (fileWritten != entry.Length)
+                throw new InvalidDataException($"An archive entry was truncated. Expected {entry.Length:N0} bytes; extracted {fileWritten:N0} bytes.");
             extractedFiles++;
         }
 

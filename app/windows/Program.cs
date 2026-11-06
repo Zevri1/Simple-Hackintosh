@@ -603,12 +603,15 @@ internal sealed class MainForm : Form
             var reporter = new Progress<OpenCoreProgress>(value =>
             {
                 status.Text = value.Stage;
-                if (value.Expected is > 0)
+                if (value.Stage.Contains("Extracting", StringComparison.OrdinalIgnoreCase) || value.Expected is not > 0)
+                {
+                    progress.Style = ProgressBarStyle.Marquee;
+                }
+                else
                 {
                     progress.Style = ProgressBarStyle.Continuous;
                     progress.Value = (int)Math.Clamp(value.Received * 100L / value.Expected.Value, 0, 100);
                 }
-                else progress.Style = ProgressBarStyle.Marquee;
             });
             try
             {

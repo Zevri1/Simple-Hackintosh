@@ -253,7 +253,7 @@ public sealed class SafetyAndProfileTests
     }
 
     [Fact]
-    public void ExtractsOnlyKextBundlesIntoSafeFolder()
+    public async Task ExtractsOnlyKextBundlesIntoSafeFolder()
     {
         string root = Path.Combine(Path.GetTempPath(), "sh-kext-test-" + Guid.NewGuid().ToString("N"));
         string zip = root + ".zip";
@@ -269,7 +269,7 @@ public sealed class SafetyAndProfileTests
                 var docs = archive.CreateEntry("Lilu-1.7.2-RELEASE/Docs/README.md");
                 using (var writer = new StreamWriter(docs.Open())) writer.Write("not extracted");
             }
-            var names = OfficialComponentService.ExtractKextBundles(zip, root);
+            var names = await OfficialComponentService.ExtractKextBundlesAsync(zip, root);
             Assert.Equal(new[] { "Lilu.kext" }, names);
             Assert.True(File.Exists(Path.Combine(root, "Lilu.kext", "Contents", "Info.plist")));
             Assert.False(File.Exists(Path.Combine(root, "Docs", "README.md")));
