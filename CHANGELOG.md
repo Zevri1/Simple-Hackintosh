@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 2026-11-06 — CLI v3.0.0
+- Added a human-readable Windows Hardware Sniffer report with a conservative, source-linked macOS compatibility estimate. The original OpCore-Simplify `Report.json` remains unchanged.
+- Consolidated the cross-platform hardware inventory, EFI validation, Kext/path checks, OpenCore version-matched `ocvalidate`, EFI starter creation, safe backups, SHA-256 comparison, and privacy-conscious support reporting into the v3 CLI release.
+
+
 - Added a human-readable Windows Hardware Sniffer report with a conservative, source-linked macOS compatibility estimate. The original OpCore-Simplify `Report.json` remains unchanged.
 
 All notable documentation and CLI changes are recorded here.
