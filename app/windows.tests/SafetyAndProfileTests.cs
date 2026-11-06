@@ -312,4 +312,41 @@ public sealed class SafetyAndProfileTests
         Assert.ThrowsAny<System.Xml.XmlException>(() => SafePlistXml.Load(xml));
     }
 
+    [Theory]
+    [InlineData("Kexts/Lilu.kext/Contents/Info.plist", "Lilu.kext/Contents/Info.plist")]
+    [InlineData("VirtualSMC.kext/Contents/PlugIns/SMCProcessor.kext/Contents/Info.plist", "VirtualSMC.kext/Contents/PlugIns/SMCProcessor.kext/Contents/Info.plist")]
+    public void FindsKextBundleInsideOfficialArchivePaths(string path, string expected)
+    {
+        Assert.Equal(expected, KextCatalogService.FindKextBundleRelativePath(path));
+    }
+
+    [Theory]
+    [InlineData("../outside/Lilu.kext/Contents/Info.plist")]
+    [InlineData(@"C:\outside\Lilu.kext\Contents\Info.plist")]
+    public void RejectsUnsafeKextArchivePaths(string path)
+    {
+        Assert.Throws<InvalidDataException>(() => KextCatalogService.FindKextBundleRelativePath(path));
+    }
+
+    [Fact]
+    public void ParsesOnlySha256VerifiedOfficialKextReleaseAssets()
+    {
+        var project = KextCatalogService.GetSupportedProjects().Single(item => item.Name == "Lilu");
+        const string json = """
+        {
+          "tag_name": "1.7.2",
+          "draft": false,
+          "prerelease": false,
+          "assets": [{
+            "name": "Lilu-1.7.2-RELEASE.zip",
+            "digest": "sha256:53967d7dcfaab01023a33df2e969a89522f13d6654a6a56ac4711b62dabf3ab8",
+            "size": 781360,
+            "browser_download_url": "https://github.com/acidanthera/Lilu/releases/download/1.7.2/Lilu-1.7.2-RELEASE.zip"
+          }]
+        }
+        """;
+        using var document = JsonDocument.Parse(json);
+        Assert.Equal("1.7.2", KextCatalogService.ParseLatestRelease(project, document.RootElement).Version);
+    }
+
 }

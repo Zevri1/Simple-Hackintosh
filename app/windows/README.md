@@ -2,7 +2,7 @@
 
 A native Windows Forms (.NET 10) desktop companion for the Simple Hackintosh field guide. It is a graphical application, not a CMD menu.
 
-## Included in preview 0.4.0
+## Included in preview 0.5.0
 
 - **EFI Checker:** inspects a selected EFI directory or ZIP archive without extracting it, checks the basic OpenCore layout, parses XML config.plist, and tests enabled ACPI, Kext, and UEFI driver file references.
 - **Config Validator:** parses XML property lists securely, checks common OpenCore sections and value container types, and can download the official Windows `ocvalidate.exe` from a selected stable Acidanthera release after verifying the enclosing ZIP digest. A release picker supports older OpenCore versions. It checks the validator's embedded OpenCore version before running it and reports upstream findings.
@@ -10,6 +10,7 @@ A native Windows Forms (.NET 10) desktop companion for the Simple Hackintosh fie
 - **macOS Downloader:** reads Apple's public full-installer catalog, lists available macOS releases, and streams the Apple-hosted `InstallAssistant.pkg` directly to a folder or external drive selected in the GUI. Shows progress and supports cancellation.
 - **OpenCore Builder:** discovers the latest stable release from the official Acidanthera GitHub repository, checks the release asset SHA-256 digest, and creates an x64 EFI starter with the matching `Sample.plist`. ZIP paths, links, archive size and output collisions are checked before creating the final `EFI` folder.
 - **Hardware Profile v1:** exports detected Windows hardware as JSON compatible with the shared schema and imports/validates schema-v1 profiles. PCI vendor/device IDs are retained, while serial numbers, UUIDs, SMBIOS identifiers and network MAC addresses are not exported.
+- **Kext Manager:** checks the latest stable releases from a built-in allowlist of official Acidanthera projects, requires GitHub's SHA-256 asset digest, verifies the release ZIP, and extracts only Kext bundles into a new versioned folder. It does not modify an EFI or config.plist.
 - **Official Kext Library:** checks stable releases from a curated set of upstream Acidanthera repositories, requires a GitHub-published SHA-256 digest before downloading, verifies the archive, and extracts only `.kext` bundles into a new staging folder. Existing EFI folders and `config.plist` files are never changed.
 
 ## Remaining Windows roadmap
@@ -55,4 +56,4 @@ The Windows GitHub Actions workflow builds the app and stores the portable execu
 
 ## Current target
 
-Windows x64, version 0.4.0 (preview).
+Windows x64, version 0.5.0 (preview).

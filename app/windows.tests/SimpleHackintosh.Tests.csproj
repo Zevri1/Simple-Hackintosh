@@ -18,6 +18,7 @@
     <Compile Include="../windows/OpenCoreReleaseService.cs" Link="OpenCoreReleaseService.cs" />
     <Compile Include="../windows/OpenCoreValidatorService.cs" Link="OpenCoreValidatorService.cs" />
     <Compile Include="../windows/OpenCoreReleaseCatalog.cs" Link="OpenCoreReleaseCatalog.cs" />
+    <Compile Include="../windows/KextCatalogService.cs" Link="KextCatalogService.cs" />
     <Compile Include="../windows/HardwareProfileService.cs" Link="HardwareProfileService.cs" />
     <Compile Include="../windows/OfficialComponentService.cs" Link="OfficialComponentService.cs" />
     <Compile Include="../windows/SafePlistXml.cs" Link="SafePlistXml.cs" />

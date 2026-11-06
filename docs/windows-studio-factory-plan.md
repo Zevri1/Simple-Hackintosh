@@ -134,6 +134,7 @@ flowchart TD
 - [x] Official OpenCore release downloader and starter EFI builder.
 - [x] Official `ocvalidate` download, version check, and config validation (Windows executable is used only when included by the official release archive).
 - [x] Select among the latest 20 stable official OpenCore releases for version-matched config validation.
+- [x] Official Kext release download and digest verification for SHA-256-published Acidanthera packages.
 - [x] Hardware profile JSON export/import (Windows runtime smoke test pending).
 - [x] Read-only guided EFI preparation checklist generated from schema-v1 hardware profiles.
 - [x] Official Kext Library with digest-required download and safe Kext-only extraction.

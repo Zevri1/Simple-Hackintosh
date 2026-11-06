@@ -55,6 +55,7 @@ internal sealed class MainForm : Form
     private CancellationTokenSource? _installerDownloadCts;
     private CancellationTokenSource? _opencoreBuildCts;
     private CancellationTokenSource? _ocvalidateCts;
+    private CancellationTokenSource? _kextDownloadCts;
     private CancellationTokenSource? _componentDownloadCts;
 
     public MainForm()
@@ -92,6 +93,7 @@ internal sealed class MainForm : Form
         AddNav(sidebar, "hardware", "03   Hardware Inspector", 298);
         AddNav(sidebar, "opencore", "04   OpenCore Builder", 346);
         AddNav(sidebar, "installer", "05   macOS Downloader", 394);
+        AddNav(sidebar, "kexts", "06   Kext Manager", 442);
         AddNav(sidebar, "components", "06   Kext Library", 442);
 
         var privacy = new Panel { BackColor = Panel, BorderStyle = BorderStyle.FixedSingle, Location = new Point(18, 500), Size = new Size(194, 116), Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom };
@@ -165,6 +167,11 @@ internal sealed class MainForm : Form
                 _pageTitle.Text = "OpenCore Builder";
                 _pageSubtitle.Text = "Download the official release, verify its SHA-256 digest, and create a safe starter EFI.";
                 page = BuildOpenCoreBuilderPage();
+                break;
+            case "kexts":
+                _pageTitle.Text = "Kext Manager";
+                _pageSubtitle.Text = "Fetch verified Kext bundles from selected official upstream releases.";
+                page = BuildKextManagerPage();
                 break;
             case "installer":
                 _pageTitle.Text = "macOS Downloader";
@@ -828,6 +835,120 @@ internal sealed class MainForm : Form
             }
         };
 
+        return page;
+    }
+
+    private Control BuildKextManagerPage()
+    {
+        var page = NewPage();
+        var projectPicker = new ComboBox { Location = new Point(0, 20), Size = new Size(330, 34), DropDownStyle = ComboBoxStyle.DropDownList };
+        projectPicker.DataSource = KextCatalogService.GetSupportedProjects().ToList();
+        projectPicker.DisplayMember = nameof(KextProjectInfo.Name);
+        var load = MakeButton("Check official release", true, new Point(345, 18), new Size(190, 36));
+        var releaseLabel = new Label { Text = "Select a project and check its latest stable official release.", ForeColor = TextMuted, Location = new Point(0, 62), Size = new Size(900, 20) };
+        var choose = MakeButton("Choose destination", false, new Point(0, 88), new Size(170, 36));
+        var download = MakeButton("Verify and extract", true, new Point(182, 88), new Size(180, 36));
+        var cancel = MakeButton("Cancel", false, new Point(375, 88), new Size(100, 36));
+        var destination = new Label { Text = "No destination selected", ForeColor = TextMuted, Location = new Point(0, 132), Size = new Size(900, 24), AutoEllipsis = true };
+        var progress = new ProgressBar { Location = new Point(0, 168), Size = new Size(900, 18), Minimum = 0, Maximum = 100 };
+        var status = new Label
+        {
+            Text = "Only official RELEASE archives with a published SHA-256 digest are offered.",
+            ForeColor = TextMuted, Location = new Point(0, 198), Size = new Size(900, 46)
+        };
+        var warning = new Panel { Location = new Point(0, 254), Size = new Size(900, 135), BackColor = Panel };
+        warning.Controls.Add(new Label { Text = "NO AUTOMATIC EFI CHANGES", ForeColor = Yellow, Font = new Font("Consolas", 9, FontStyle.Bold), Location = new Point(18, 16), AutoSize = true });
+        warning.Controls.Add(new Label
+        {
+            Text = "Verified Kext bundles are extracted into a new versioned folder. Review upstream documentation and macOS compatibility before copying a required .kext into EFI/OC/Kexts. This page does not edit config.plist, add Kext entries, overwrite existing bundles, or change a disk.",
+            ForeColor = TextMuted, Font = new Font("Segoe UI", 9), Location = new Point(18, 45), Size = new Size(850, 70)
+        });
+        page.Controls.AddRange(new Control[] { projectPicker, load, releaseLabel, choose, download, cancel, destination, progress, status, warning });
+
+        KextReleaseInfo? latest = null;
+        string? selectedFolder = null;
+        download.Enabled = false;
+        cancel.Enabled = false;
+
+        projectPicker.SelectedIndexChanged += (_, _) =>
+        {
+            latest = null;
+            download.Enabled = false;
+            releaseLabel.Text = "Check the selected project's official stable release.";
+        };
+        load.Click += async (_, _) =>
+        {
+            if (projectPicker.SelectedItem is not KextProjectInfo project || _kextDownloadCts is not null) return;
+            load.Enabled = false;
+            projectPicker.Enabled = false;
+            status.Text = "Fetching official GitHub release metadata and checking its SHA-256 digest…";
+            try
+            {
+                latest = await KextCatalogService.GetLatestStableReleaseAsync(project);
+                releaseLabel.Text = $"{latest.Project}  ·  {latest.Version}  ·  {latest.AssetName}  ·  SHA-256 verified in metadata";
+                status.Text = "Official release metadata verified. Archive contents will be checked after download.";
+                download.Enabled = selectedFolder is not null;
+            }
+            catch (Exception ex)
+            {
+                latest = null;
+                releaseLabel.Text = "No verified official release is available for this project.";
+                status.Text = ex.Message;
+                download.Enabled = false;
+            }
+            finally { load.Enabled = true; projectPicker.Enabled = true; }
+        };
+        choose.Click += (_, _) =>
+        {
+            using var dialog = new FolderBrowserDialog { Description = "Choose a folder where a new Kext package folder will be created." };
+            if (dialog.ShowDialog(this) == DialogResult.OK)
+            {
+                selectedFolder = dialog.SelectedPath;
+                destination.Text = selectedFolder;
+                download.Enabled = latest is not null;
+            }
+        };
+        cancel.Click += (_, _) => _kextDownloadCts?.Cancel();
+        download.Click += async (_, _) =>
+        {
+            if (latest is null || selectedFolder is null || _kextDownloadCts is not null) return;
+            _kextDownloadCts = new CancellationTokenSource();
+            projectPicker.Enabled = false; load.Enabled = false; choose.Enabled = false;
+            download.Enabled = false; cancel.Enabled = true;
+            progress.Value = 0;
+            var reporter = new Progress<KextDownloadProgress>(value =>
+            {
+                status.Text = value.Stage;
+                if (value.Expected is > 0)
+                {
+                    progress.Style = ProgressBarStyle.Continuous;
+                    progress.Value = (int)Math.Clamp(value.Received * 100L / value.Expected.Value, 0, 100);
+                }
+                else progress.Style = ProgressBarStyle.Marquee;
+            });
+            try
+            {
+                var result = await KextCatalogService.DownloadAndExtractAsync(latest, selectedFolder, reporter, _kextDownloadCts.Token);
+                progress.Style = ProgressBarStyle.Continuous;
+                progress.Value = 100;
+                status.Text = $"Extracted {result.KextNames.Count} bundle(s): {string.Join(", ", result.KextNames)}";
+                releaseLabel.Text = $"{result.Project} {result.Version} · SHA-256 verified";
+                MessageBox.Show(this,
+                    $"Verified Kext package created at:\r\n\r\n{result.Destination}\r\n\r\nBundles: {string.Join(", ", result.KextNames)}\r\n\r\nReview the upstream compatibility notes before using any bundle.",
+                    "Kext package ready", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (OperationCanceledException) { status.Text = "Download cancelled. Temporary files were removed; no Kext package was created."; }
+            catch (Exception ex) { status.Text = "Kext download or extraction failed: " + ex.Message; }
+            finally
+            {
+                _kextDownloadCts.Dispose();
+                _kextDownloadCts = null;
+                projectPicker.Enabled = true; load.Enabled = true; choose.Enabled = true;
+                download.Enabled = latest is not null && selectedFolder is not null;
+                cancel.Enabled = false;
+                progress.Style = ProgressBarStyle.Continuous;
+            }
+        };
         return page;
     }
 
