@@ -15,6 +15,7 @@ from simple_hackintosh import (
     _safe_archive_name,
     build_support_report,
     command_backup_efi,
+    command_create_efi,
     command_macrecovery,
     build_parser,
     check_config_file,
@@ -66,6 +67,73 @@ class MacRecoveryIntegrationTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Gather recovery information for Macs", result.stdout)
+
+
+class CreateEfiTests(unittest.TestCase):
+    def _make_release(self, archive_path: Path):
+        with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("OpenCore/X64/EFI/BOOT/BOOTx64.efi", b"boot-loader")
+            archive.writestr("OpenCore/X64/EFI/OC/OpenCore.efi", b"opencore")
+            archive.writestr("OpenCore/X64/EFI/OC/Drivers/OpenRuntime.efi", b"runtime")
+            archive.writestr(
+                "OpenCore/Docs/Sample.plist",
+                plistlib.dumps(valid_config(), fmt=plistlib.FMT_XML),
+            )
+
+    def test_create_efi_starter_from_release_zip(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            package = root / "OpenCore.zip"
+            output = root / "EFI"
+            self._make_release(package)
+
+            result = command_create_efi(str(package), str(output))
+
+            self.assertEqual(result, 0)
+            self.assertEqual((output / "BOOT" / "BOOTx64.efi").read_bytes(), b"boot-loader")
+            self.assertEqual((output / "OC" / "OpenCore.efi").read_bytes(), b"opencore")
+            self.assertEqual((output / "OC" / "Drivers" / "OpenRuntime.efi").read_bytes(), b"runtime")
+            self.assertTrue((output / "OC" / "ACPI").is_dir())
+            self.assertTrue((output / "OC" / "Kexts").is_dir())
+            self.assertTrue((output / "OC" / "Tools").is_dir())
+            self.assertTrue((output / "SETUP_REQUIRED.txt").is_file())
+            parsed = plistlib.loads((output / "OC" / "config.plist").read_bytes())
+            self.assertIsInstance(parsed, dict)
+
+    def test_create_efi_refuses_existing_output(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            package = root / "OpenCore.zip"
+            output = root / "EFI"
+            output.mkdir()
+            marker = output / "keep.txt"
+            marker.write_text("keep", encoding="utf-8")
+            self._make_release(package)
+
+            self.assertEqual(command_create_efi(str(package), str(output)), 2)
+            self.assertEqual(marker.read_text(encoding="utf-8"), "keep")
+
+    def test_create_efi_rejects_package_missing_core_files(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            package = root / "OpenCore.zip"
+            output = root / "EFI"
+            with zipfile.ZipFile(package, "w") as archive:
+                archive.writestr("X64/EFI/BOOT/BOOTx64.efi", b"boot")
+                archive.writestr("Docs/Sample.plist", plistlib.dumps(valid_config()))
+            self.assertEqual(command_create_efi(str(package), str(output)), 2)
+            self.assertFalse(output.exists())
+
+    def test_create_efi_ignores_archive_path_traversal(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            package = root / "OpenCore.zip"
+            output = root / "EFI"
+            self._make_release(package)
+            with zipfile.ZipFile(package, "a") as archive:
+                archive.writestr("../../outside.txt", b"do not extract")
+            self.assertEqual(command_create_efi(str(package), str(output)), 0)
+            self.assertFalse((root.parent / "outside.txt").exists())
 
 class ConfigValidationTests(unittest.TestCase):
     def test_accepts_minimal_main_sections(self):
