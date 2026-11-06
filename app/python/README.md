@@ -1,35 +1,30 @@
 # Simple Hackintosh CLI
 
-A standalone Python assistant for Windows Command Prompt (CMD) and PowerShell. It is a real local program, not a web page or browser wrapper. Version 2.2.0 adds a redesigned terminal dashboard and a conservative, source-linked macOS hardware compatibility estimate.
+A cross-platform Python assistant with a native PowerShell front-end for Windows and a double-clickable Terminal launcher on macOS. Version 2.3.0 adds PowerShell-native navigation, macOS hardware inventory, and OS-specific launchers.
 
-**No third-party Python packages are required.** The program uses Python's standard library and Windows PowerShell/CIM for hardware inventory.
+**No third-party Python packages are required.** The program uses Python's standard library. Windows hardware inventory uses PowerShell/CIM; macOS inventory uses the built-in system_profiler and sw_vers commands.
 
 ## Quick start
 
-1. Download the repository ZIP and extract it.
-2. Open the extracted folder, then open `app` and `python`.
-3. Double-click `run.bat` or open CMD in this folder and run:
+1. Download the release ZIP and extract it.
+2. Open the extracted Simple-Hackintosh-CLI-v2.3.0 folder.
+3. Launch with the file for your system:
 
-```cmd
-run.bat
-```
+| System | Launch file |
+|---|---|
+| Windows CMD | Double-click run.bat |
+| Windows PowerShell | Run ./run.ps1 |
+| macOS Terminal | Double-click run.command in Finder, or run ./run.command |
+| macOS with PowerShell 7 | Run pwsh ./run.ps1 |
 
-A redesigned terminal dashboard opens automatically, with grouped tool sections, a version/system header, colour when the terminal supports it, and a clean no-colour fallback. Choose a numbered task and follow the prompts. Set `NO_COLOR=1` to disable ANSI colour.
+The PowerShell front-end renders a native coloured menu and forwards operations to the shared Python core. The macOS launcher uses zsh and Python 3; it does not require PowerShell. Set NO_COLOR=1 to disable ANSI colour in the Python terminal dashboard.
 
-To see all command-line options:
-
-```cmd
-run.bat --help
-run.bat doctor
-```
-
-Requirements: Python 3.10 or newer. Windows 10/11 is required for automatic hardware inventory; EFI and plist checks also work on Linux/macOS.
-
+Requirements: Python 3.10 or newer on Windows/macOS. Hardware inventory is supported on Windows and macOS; EFI and plist checks also work on Linux. Windows PowerShell 5.1 or PowerShell 7 can launch the Windows version. PowerShell 7 is also available for macOS.
 ## Beginner menu
 
 | Menu item | What it does |
 |---|---|
-| Detect my hardware | Lists CPU, graphics, motherboard, BIOS, memory, disks and PCI IDs; estimates a conservative macOS target from recognised CPU/GPU families |
+| Detect my hardware | Lists CPU, graphics, firmware, memory, disks and PCI IDs; estimates a conservative target on Windows and reports the running macOS version on Mac |
 | Check an EFI folder or ZIP | Scans the folder/archive without extracting or modifying it |
 | Check a config.plist | Checks plist syntax, required OpenCore sections, common entry fields, and duplicate entries |
 | Run official ocvalidate | Runs the validator included with the user's matching OpenCore release |
@@ -38,6 +33,32 @@ Requirements: Python 3.10 or newer. Windows 10/11 is required for automatic hard
 | Download macOS Recovery | Runs the bundled OpenCore macrecovery tool to download and verify Recovery files from Apple |
 | Create an EFI starter | Builds an EFI folder from a supplied OpenCore release ZIP and copies its Sample.plist as a starting point |
 | Create a support report | Produces a shareable report without raw config.plist or SMBIOS identity values |
+
+
+## PowerShell and macOS launchers
+
+### PowerShell
+
+~~~powershell
+./run.ps1
+./run.ps1 doctor
+./run.ps1 hardware --json
+~~~
+
+run.ps1 draws a PowerShell-native menu and forwards the selected operation to the shared Python engine. It works with Windows PowerShell 5.1 and PowerShell 7. PowerShell 7 can also run on macOS when installed.
+
+### macOS Terminal
+
+Double-click run.command in Finder, or use Terminal:
+
+~~~zsh
+./run.command
+./run.command doctor
+./run.command hardware --json
+~~~
+
+The launcher looks for Python 3.10 or newer and does not install packages or request administrator privileges. The macOS hardware report uses system_profiler -json -detailLevel mini and sw_vers. Apple documents System Profiler's JSON and mini-detail output modes; Microsoft documents PowerShell 7 on macOS.
+
 
 ## CMD commands
 
@@ -55,11 +76,11 @@ run.bat hardware --output hardware-report.md
 run.bat hardware --json --output hardware-report.json
 ```
 
-Collects CPU model/core count, GPU names and driver versions, motherboard, BIOS, Windows version, memory, disks, and selected Plug and Play device classes. It extracts PCI Vendor/Device IDs where Windows reports them. It does not collect serial numbers, UUIDs, MAC addresses, or account identifiers.
+On Windows, the report collects CPU, GPU, motherboard, BIOS, memory, disks and Plug and Play device IDs through PowerShell/CIM. On macOS, it uses the built-in system_profiler JSON interface to collect the Mac model, chip/CPU, graphics, selected PCI devices, storage, memory and running macOS version. It deliberately does not retain serial numbers or hardware UUIDs.
 
-The report also includes a **macOS compatibility estimate**. It identifies supported/unsupported Intel integrated-graphics families where the CPU model and PCI device IDs are sufficiently specific, reports a conservative version ceiling, and lists reference guides and untested subsystems. For example, recognised Comet Lake UHD 620/630-class graphics receive a conservative macOS Sequoia 15 estimate; Tahoe 26 is labelled experimental rather than treated as a confirmed target. Unknown GPUs are reported as unknown instead of receiving a guessed version.
+For Windows-hosted PC hardware, the report includes a **macOS compatibility estimate**. It recognises selected Intel graphics families, provides a conservative version ceiling and references the guides used. Tahoe 26 is labelled experimental where appropriate. Unknown GPUs are reported as unknown rather than assigned a guessed version.
 
-This is a community-guide estimate, not official Apple support or a boot test. Wi-Fi, audio, sleep, USB mapping, storage, BIOS/ACPI and display routing require separate checks.
+For a Mac host, the report confirms the macOS version currently running. It does not claim to know the maximum macOS version supported by that Mac model. Neither report is a boot test or an official Apple compatibility verdict.
 
 ### EFI scan
 
