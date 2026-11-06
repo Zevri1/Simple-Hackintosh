@@ -5,13 +5,22 @@
 <meta name="theme-color" content="#f4f1e9">
 <meta name="description" content="Local Hackintosh workspace for EFI inspection, configuration checks, hardware reports, and the Simple Hackintosh cross-platform CLI.">
 <title>Tools & Downloads — Simple Hackintosh</title>
-<link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="tools.css"><script defer src="tools.js"></script>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<script>
+  try {
+    const saved = localStorage.getItem("simple-hackintosh-theme");
+    const prefersLight = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
+    document.documentElement.dataset.theme = saved === "light" || saved === "dark" ? saved : (prefersLight ? "light" : "dark");
+  } catch (error) {}
+</script>
+<link rel="stylesheet" href="tools.css"><script defer src="tools.js"></script>
 </head>
 <body>
 <header class="topbar">
 <a class="brand" href="index.html"><span class="brand-mark">SH<span>_</span></span><span class="brand-name">SIMPLE<span>HACKINTOSH</span></span></a>
-<nav class="top-links" aria-label="Main navigation"><a href="index.html">Overview</a><a href="index.html#guide">Documentation</a><a class="active" href="tools.html" aria-current="page">Tools</a><a href="https://github.com/kiwewe09-aa/Simple-Hackintosh" target="_blank" rel="noopener noreferrer">GitHub ↗</a></nav>
-<a class="header-download" href="https://github.com/kiwewe09-aa/Simple-Hackintosh/releases/download/v2.5.1/Simple-Hackintosh-CLI-v2.5.1.zip">Download CLI v2.5.1 <span>↓</span></a>
+<nav class="top-links" id="tools-nav" aria-label="Main navigation"><a href="index.html">Overview</a><a href="index.html#guide">Documentation</a><a class="active" href="tools.html" aria-current="page">Tools</a><a href="https://github.com/kiwewe09-aa/Simple-Hackintosh" target="_blank" rel="noopener noreferrer">GitHub ↗</a></nav>
+<button class="tools-theme-button" id="tools-theme-toggle" type="button" aria-label="Switch theme" title="Switch theme">◐</button>
+<a class="header-download" href="https://github.com/kiwewe09-aa/Simple-Hackintosh/releases/download/v2.5.2/Simple-Hackintosh-CLI-v2.5.2.zip">Download CLI v2.5.2 <span>↓</span></a>
 </header>
 <main class="page">
 <section class="intro">
@@ -22,19 +31,21 @@
 </section>
 <section class="tool-download-banner" aria-label="Simple Hackintosh CLI download">
   <div class="tool-download-icon">SH<span>_</span></div>
-  <div><span class="download-kicker">DESKTOP COMPANION / VERSION 2.5.1</span><h2>Take the diagnostics with you.</h2><p>PowerShell menu for Windows. Terminal launcher for macOS. Official Hardware Sniffer report export on Windows.</p></div>
-  <a class="action-button primary" href="https://github.com/kiwewe09-aa/Simple-Hackintosh/releases/download/v2.5.1/Simple-Hackintosh-CLI-v2.5.1.zip">Download ZIP <span>↓</span></a>
+  <div><span class="download-kicker">DESKTOP COMPANION / VERSION 2.5.2</span><h2>Take the diagnostics with you.</h2><p>PowerShell menu for Windows. Terminal launcher for macOS. Official Hardware Sniffer report export on Windows.</p></div>
+  <a class="action-button primary" href="https://github.com/kiwewe09-aa/Simple-Hackintosh/releases/download/v2.5.2/Simple-Hackintosh-CLI-v2.5.1.zip">Download ZIP <span>↓</span></a>
 </section>
 <section class="workbench" aria-label="Tools workspace">
 <aside class="tool-rail">
 <div class="rail-heading">WORKSPACE <span>01 / 03</span></div>
-<button class="tool-tab active" type="button" data-tool-target="efi" aria-selected="true"><span class="tool-icon">01</span><span class="tool-tab-copy"><strong>EFI Checker</strong><small>Folder & ZIP inspection</small></span><span class="tab-arrow">↗</span></button>
-<button class="tool-tab" type="button" data-tool-target="config" aria-selected="false"><span class="tool-icon">02</span><span class="tool-tab-copy"><strong>Config Validator</strong><small>XML plist structure</small></span><span class="tab-arrow">↗</span></button>
-<button class="tool-tab" type="button" data-tool-target="hardware" aria-selected="false"><span class="tool-icon">03</span><span class="tool-tab-copy"><strong>Hardware Inspector</strong><small>System report builder</small></span><span class="tab-arrow">↗</span></button>
+<div class="tool-tablist" role="tablist" aria-label="Choose a utility">
+<button class="tool-tab active" id="tool-tab-efi" type="button" role="tab" aria-controls="tool-efi" data-tool-target="efi" aria-selected="true" tabindex="0"><span class="tool-icon">01</span><span class="tool-tab-copy"><strong>EFI Checker</strong><small>Folder & ZIP inspection</small></span><span class="tab-arrow">↗</span></button>
+<button class="tool-tab" id="tool-tab-config" type="button" role="tab" aria-controls="tool-config" data-tool-target="config" aria-selected="false" tabindex="-1"><span class="tool-icon">02</span><span class="tool-tab-copy"><strong>Config Validator</strong><small>XML plist structure</small></span><span class="tab-arrow">↗</span></button>
+<button class="tool-tab" id="tool-tab-hardware" type="button" role="tab" aria-controls="tool-hardware" data-tool-target="hardware" aria-selected="false" tabindex="-1"><span class="tool-icon">03</span><span class="tool-tab-copy"><strong>Hardware Inspector</strong><small>System report builder</small></span><span class="tab-arrow">↗</span></button>
+</div>
 <div class="rail-note"><span class="rail-note-mark">i</span><p>These utilities perform practical structural checks. They do not replace OpenCore's official validation tools or a hardware-specific compatibility review.</p></div>
 </aside>
 <div class="tool-stage">
-<section class="tool-panel active" id="tool-efi" data-tool-panel="efi">
+<section class="tool-panel active" id="tool-efi" data-tool-panel="efi" role="tabpanel" aria-labelledby="tool-tab-efi" tabindex="0">
 <div class="panel-heading"><div><div class="panel-kicker">UTILITY / 01</div><h2>EFI Checker</h2><p>Check the expected OpenCore layout and the paths referenced by your config.plist.</p></div><span class="panel-tag">ZIP · FOLDER</span></div>
 <div class="dropzone" id="efi-dropzone"><div class="drop-icon">↥</div><strong>Choose an EFI ZIP or folder</strong><p>ZIP archives and extracted EFI folders are supported. Nothing is uploaded.</p>
 <div class="file-actions"><label class="action-button primary">Choose ZIP<input id="efi-zip" type="file" accept=".zip,application/zip"></label><label class="action-button secondary">Choose folder<input id="efi-folder" type="file" webkitdirectory directory multiple></label></div>
@@ -43,7 +54,7 @@
 <div class="panel-actions"><button class="action-button primary run-button" id="efi-run" type="button" disabled>Analyze EFI <span>→</span></button><button class="text-button" id="efi-reset" type="button">Clear selection</button></div>
 <div class="results" id="efi-results" aria-live="polite" hidden></div>
 </section>
-<section class="tool-panel" id="tool-config" data-tool-panel="config" hidden>
+<section class="tool-panel" id="tool-config" data-tool-panel="config" role="tabpanel" aria-labelledby="tool-tab-config" aria-hidden="true" tabindex="0" hidden>
 <div class="panel-heading"><div><div class="panel-kicker">UTILITY / 02</div><h2>Config Validator</h2><p>Inspect an XML config.plist for common OpenCore structure and reference issues.</p></div><span class="panel-tag">XML PLIST</span></div>
 <div class="upload-row"><label class="file-picker">Select config.plist<input id="config-file" type="file" accept=".plist,.xml,application/xml,text/xml"></label><span id="config-selection">No file selected</span></div>
 <div class="or-divider"><span>OR PASTE XML</span></div>
@@ -52,7 +63,7 @@
 <div class="panel-actions"><button class="action-button primary run-button" id="config-run" type="button">Validate configuration <span>→</span></button><button class="text-button" id="config-reset" type="button">Clear</button></div>
 <div class="results" id="config-results" aria-live="polite" hidden></div>
 </section>
-<section class="tool-panel" id="tool-hardware" data-tool-panel="hardware" hidden>
+<section class="tool-panel" id="tool-hardware" data-tool-panel="hardware" role="tabpanel" aria-labelledby="tool-tab-hardware" aria-hidden="true" tabindex="0" hidden>
 <div class="panel-heading"><div><div class="panel-kicker">UTILITY / 03</div><h2>Hardware Inspector</h2><p>Collect component names and PCI IDs into a shareable report for compatibility research.</p></div><span class="panel-tag">REPORT BUILDER</span></div>
 <div class="hardware-grid">
 <label>CPU <input id="hw-cpu" type="text" placeholder="e.g. Intel Core i5-10210U"></label>
