@@ -33,6 +33,7 @@ jobs:
           python - <<'PY'
           from html.parser import HTMLParser
           from pathlib import Path
+          import re
 
           class ContractParser(HTMLParser):
               def __init__(self):
@@ -58,7 +59,7 @@ jobs:
                   "data": {"data-tool-target", "data-tool-panel"},
               },
           }
-          release_asset = "https://github.com/kiwewe09-aa/Simple-Hackintosh/releases/download/v2.5.1/Simple-Hackintosh-CLI-v2.5.1.zip"
+          release_asset = "https://github.com/kiwewe09-aa/Simple-Hackintosh/releases/download/v2.5.2/Simple-Hackintosh-CLI-v2.5.2.zip"
           for filename, contract in contracts.items():
               parser = ContractParser()
               parser.feed(Path(filename).read_text(encoding="utf-8"))
@@ -68,10 +69,21 @@ jobs:
               if duplicates or missing_ids or missing_data:
                   raise SystemExit(f"{filename}: duplicates={duplicates}, missing IDs={missing_ids}, missing data attributes={missing_data}")
               if release_asset not in parser.hrefs:
-                  raise SystemExit(f"{filename}: the v2.5.1 CLI download link is missing")
+                  raise SystemExit(f"{filename}: the v2.5.2 CLI download link is missing")
           for filename in ("site/styles.css", "site/tools.css"):
               css = Path(filename).read_text(encoding="utf-8")
               if css.count("{") != css.count("}"):
                   raise SystemExit(f"{filename}: unbalanced CSS braces")
+          home_ids = set(re.findall(r'getElementById\(["\']([^"\']+)["\']\)', Path("site/app.js").read_text(encoding="utf-8")))
+          tools_ids = set(re.findall(r'\$\(["\']([^"\']+)["\']\)', Path("site/tools.js").read_text(encoding="utf-8")))
+          for filename, referenced in (("site/index.html", home_ids), ("site/tools.html", tools_ids)):
+              parser = ContractParser()
+              parser.feed(Path(filename).read_text(encoding="utf-8"))
+              missing = sorted(referenced.difference(parser.ids))
+              if missing:
+                  raise SystemExit(f"{filename}: JavaScript references missing DOM IDs: {missing}")
+          tool_html = Path("site/tools.html").read_text(encoding="utf-8")
+          if 'role="tablist"' not in tool_html or tool_html.count('role="tab"') != 3 or tool_html.count('role="tabpanel"') != 3:
+              raise SystemExit("Tools tabs are missing accessible tablist/tab/tabpanel roles.")
           print("Website JavaScript, HTML hooks, release links, and CSS braces passed.")
           PY
