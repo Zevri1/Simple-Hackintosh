@@ -384,7 +384,7 @@ internal sealed class MainForm : Form
             {
                 var path = await AppleInstallerCatalog.DownloadAsync(selected, folder, reporter, _installerDownloadCts.Token);
                 status.Text = "Saved to " + path;
-                MessageBox.Show(this, "Full installer package saved to:\\n\\n" + path, "Download complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(this, "Full installer package saved to:\n\n" + path, "Download complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (OperationCanceledException) { status.Text = "Download cancelled. Partial data was removed."; }
             catch (Exception ex) { status.Text = "Download failed: " + ex.Message; }

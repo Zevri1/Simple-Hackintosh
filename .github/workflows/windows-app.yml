@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - chatgpt/windows-desktop-app-v1
+      - chatgpt/windows-desktop-app-v2
     paths:
       - "app/windows/**"
       - ".github/workflows/windows-app.yml"
