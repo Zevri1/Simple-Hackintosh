@@ -54,5 +54,11 @@ final class AppleSoftwareUpdateCatalogTests: XCTestCase {
         XCTAssertTrue(AppleSoftwareUpdateCatalog.isAppleHTTPS(
             URL(string: "https://updates.cdn-apple.com/InstallAssistant.pkg")!
         ))
+        XCTAssertFalse(AppleSoftwareUpdateCatalog.isAppleHTTPS(
+            URL(string: "https://cdn-apple.com.attacker.example/InstallAssistant.pkg")!
+        ))
+        XCTAssertTrue(AppleSoftwareUpdateCatalog.isAppleHTTPS(
+            URL(string: "https://cdn-apple.com/InstallAssistant.pkg")!
+        ))
     }
 }

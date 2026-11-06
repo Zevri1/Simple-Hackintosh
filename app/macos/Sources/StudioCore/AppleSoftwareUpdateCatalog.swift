@@ -122,6 +122,7 @@ public enum AppleSoftwareUpdateCatalog {
         guard url.scheme?.lowercased() == "https",
               let host = url.host?.lowercased() else { return false }
         return host == "apple.com" || host.hasSuffix(".apple.com")
+            || host == "cdn-apple.com" || host.hasSuffix(".cdn-apple.com")
     }
 
     private static func validateHTTP(_ response: URLResponse) throws {

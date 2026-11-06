@@ -124,7 +124,8 @@ flowchart TD
 - [x] Apple package downloads have no fixed three-minute HttpClient timeout and follow only manually validated HTTPS Apple-domain redirects.
 - [x] Automated Windows unit-test project (profile-schema and archive-path safety tests).
 - [x] Official OpenCore release downloader and starter EFI builder.
-- [x] Official `ocvalidate` download, version check, and config validation (Windows executable is used only when included by the official release archive).\n- [x] Select among the latest 20 stable official OpenCore releases for version-matched config validation.
+- [x] Official `ocvalidate` download, version check, and config validation (Windows executable is used only when included by the official release archive).
+- [x] Select among the latest 20 stable official OpenCore releases for version-matched config validation.
 - [x] Hardware profile JSON export/import (Windows runtime smoke test pending).
 - [x] Read-only guided EFI preparation checklist generated from schema-v1 hardware profiles.
 - [ ] Final QA and signed/notarized macOS counterpart coordination.

@@ -77,7 +77,7 @@ public sealed class SafetyAndProfileTests
         try
         {
             string result = OpenCoreReleaseService.SafeCombine(root, "OC/config.plist");
-            Assert.True(result.StartsWith(Path.GetFullPath(root) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
+            Assert.StartsWith(Path.GetFullPath(root) + Path.DirectorySeparatorChar, result, StringComparison.OrdinalIgnoreCase);
             Assert.Throws<InvalidDataException>(() => OpenCoreReleaseService.SafeCombine(root, "../escape.txt"));
         }
         finally { Directory.Delete(root, true); }
