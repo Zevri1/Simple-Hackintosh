@@ -172,8 +172,8 @@ def check_efi_path(source: Path) -> tuple[list[Finding], dict[str, Any] | None]:
         return [Finding("ERROR", "Could not find OC/config.plist. Select the EFI folder or a ZIP containing it.")], None
 
     config_key, config_original = sorted(config_candidates, key=lambda pair: len(pair[0]))[0]
-    oc_prefix = config_key[: -len("oc/config.plist")]
-    efi_prefix = oc_prefix
+    oc_prefix = config_key[: -len("config.plist")]
+    efi_prefix = oc_prefix[: -len("oc/")]
 
     findings: list[Finding] = []
     expected_files = (
