@@ -15,7 +15,7 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="../app/windows/OpenCoreReleaseService.cs" Link="OpenCoreReleaseService.cs" />
-    <Compile Include="../app/windows/HardwareProfileService.cs" Link="HardwareProfileService.cs" />
+    <Compile Include="../windows/OpenCoreReleaseService.cs" Link="OpenCoreReleaseService.cs" />
+    <Compile Include="../windows/HardwareProfileService.cs" Link="HardwareProfileService.cs" />
   </ItemGroup>
 </Project>
