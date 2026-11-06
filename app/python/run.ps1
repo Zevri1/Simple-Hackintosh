@@ -177,6 +177,6 @@ while ($true) {
             Write-Host ""
             Write-Host "  Finished with exit code $result." -ForegroundColor Yellow
         }
-        [void](Read-Host "  Press Enter to return to the dashboard")
+        [void](Read-Host "  Press Enter to continue...")
     }
 }

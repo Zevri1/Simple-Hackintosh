@@ -1890,7 +1890,7 @@ def command_hardware_sniffer(
         print("")
         print(render_compatibility_checker(report, release_tag, app_update))
     except Exception as exc:
-        print(f"[WARN] Could not create the macOS compatibility companion report: {exc}")
+        raise RuntimeError(f"Could not create the compatibility reports: {exc}") from exc
 
     if process.returncode != 0:
         print(
@@ -2524,7 +2524,7 @@ def interactive_menu(update_status: dict[str, Any] | None = None) -> int:
             print("\nReturning to the prompt.")
             return 0
         try:
-            input("\nPress Enter to return to the main menu...")
+            input("\nPress Enter to continue...")
         except (KeyboardInterrupt, EOFError):
             return 0
 
@@ -2542,7 +2542,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     commands = parser.add_subparsers(dest="command")
 
-    commands.add_parser("check-updates", help="Check the latest Simple Hackintosh release.")
+    commands.add_parser("check-updates", help="Check Simple Hackintosh and Hardware Sniffer updates.")
 
     commands.add_parser("wizard", help="Open the beginner-friendly interactive menu.")
     commands.add_parser("doctor", help="Check Python, Windows tools, and optional ocvalidate.")
