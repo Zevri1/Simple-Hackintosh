@@ -22,7 +22,7 @@ internal static class HardwareKextCompatibilityService
     private const string RestrictEventsGuide = "https://github.com/acidanthera/RestrictEvents";
     private const string CpuTscSyncGuide = "https://github.com/acidanthera/CpuTscSync";
     
-    public static IReadOnlyList<HardwareKextFinding> Analyze(string profileJson, string? targetMacOS = null)
+    public static string Analyze(string profileJson, string? targetMacOS = null)
     {
         HardwareProfileService.ValidateProfile(profileJson);
         using var document = JsonDocument.Parse(profileJson, new JsonDocumentOptions { MaxDepth = 24 });
