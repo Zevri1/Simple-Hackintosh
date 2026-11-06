@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import textwrap
 import zipfile
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -513,13 +514,13 @@ def estimate_macos_compatibility(data: dict[str, Any]) -> dict[str, Any]:
     }
 
     unsupported_intel_gpu = bool(re.search(
-        r"\b(?:UHD\s*(?:600|605|610)|HD\s*(?:400|405|500|505|510)|Iris\s*Xe|Intel\s*Arc|Arc\s+Graphics)\b",
+        r"\b(?:UHD(?:\s+Graphics)?\s*(?:600|605|610)|HD(?:\s+Graphics)?\s*(?:400|405|500|505|510)|Iris\s*Xe(?:\s+Graphics)?|Intel\s*Arc|Arc\s+Graphics)\b",
         gpu_text,
         re.IGNORECASE,
     ))
     unsupported_intel_ids = bool(device_codes.intersection({"9B21", "3E90", "3E93", "3E99", "3E9C", "9BA5", "9BA8"}))
     supported_intel_names = bool(re.search(
-        r"\b(?:UHD\s*(?:615|617|620|630)|HD\s*(?:515|520|530|615|620|630)|Iris\s*(?:Plus\s*)?(?:540|550|580|640|645|650|655))\b",
+        r"\b(?:UHD(?:\s+Graphics)?\s*(?:615|617|620|630)|HD(?:\s+Graphics)?\s*(?:515|520|530|615|620|630)|Iris(?:\s+Plus)?(?:\s+Graphics)?\s*(?:540|550|580|640|645|650|655))\b",
         gpu_text,
         re.IGNORECASE,
     ))
