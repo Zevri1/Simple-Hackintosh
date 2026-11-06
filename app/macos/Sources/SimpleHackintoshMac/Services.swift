@@ -218,8 +218,15 @@ enum InstallerService {
         guard FileManager.default.isExecutableFile(atPath: createInstallMedia.path) else {
             throw AppFailure.missingInstaller("The selected installer does not contain Apple's createinstallmedia tool.")
         }
-        guard volume.path.hasPrefix("/Volumes/"), volume.path != "/" else {
+        guard volume.path.hasPrefix("/Volumes/"), volume.path != "/", FileManager.default.fileExists(atPath: volume.path) else {
             throw AppFailure.unsafeDestination("The selected target is not a mounted external volume.")
+        }
+
+        let targetRoot = URL(fileURLWithPath: volume.path, isDirectory: true).standardizedFileURL.path
+        let targetPrefix = targetRoot.hasSuffix("/") ? targetRoot : targetRoot + "/"
+        let installerPath = installerApp.standardizedFileURL.path
+        guard !installerPath.hasPrefix(targetPrefix) else {
+            throw AppFailure.unsafeDestination("The installer application is stored on the same volume selected for erasure. Move the installer to a different disk and choose a separate USB target.")
         }
 
         _ = try ProcessRunner.runPrivileged(
