@@ -21,13 +21,23 @@ permissions:
 
 jobs:
   test-and-build:
-    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - architecture: x86_64
+            runner: macos-15-intel
+          - architecture: arm64
+            runner: macos-latest
+    runs-on: ${{ matrix.runner }}
     steps:
       - name: Check out source
         uses: actions/checkout@v4
 
-      - name: Show Swift version
-        run: swift --version
+      - name: Show Swift version and architecture
+        run: |
+          swift --version
+          uname -m
 
       - name: Run core tests
         run: swift test --package-path app/macos
@@ -41,7 +51,7 @@ jobs:
       - name: Upload macOS app
         uses: actions/upload-artifact@v4
         with:
-          name: Simple-Hackintosh-macOS-0.1.0
-          path: app/macos/.build/packaged/Simple-Hackintosh-macOS-0.1.0.zip
+          name: Simple-Hackintosh-macOS-0.1.0-${{ matrix.architecture }}
+          path: app/macos/.build/packaged/Simple-Hackintosh-macOS-0.1.0-${{ matrix.architecture }}.zip
           if-no-files-found: error
           retention-days: 14

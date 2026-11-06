@@ -6,7 +6,8 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 BUILD_DIR="$PROJECT_DIR/.build"
 BINARY="$BUILD_DIR/release/SimpleHackintoshMacApp"
 APP_DIR="$BUILD_DIR/packaged/Simple Hackintosh.app"
-ZIP_PATH="$BUILD_DIR/packaged/Simple-Hackintosh-macOS-0.1.0.zip"
+ARCH="$(uname -m)"
+ZIP_PATH="$BUILD_DIR/packaged/Simple-Hackintosh-macOS-0.1.0-$ARCH.zip"
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
   echo "This packaging script must run on macOS." >&2

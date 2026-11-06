@@ -29,7 +29,7 @@ Requires Xcode Command Line Tools and Swift 5.10 or newer:
     swift build -c release --package-path app/macos
     bash app/macos/scripts/package-app.sh
 
-The package script creates app/macos/.build/packaged/Simple Hackintosh.app and a ZIP archive. The resulting app is ad-hoc signed for local testing, not Developer ID signed or notarized. Gatekeeper may require Control-click then Open on first launch.
+The package script creates app/macos/.build/packaged/Simple Hackintosh.app and an architecture-specific ZIP. The GitHub Actions workflow builds separate native downloads for Intel x86_64 and Apple Silicon arm64. The app is ad-hoc signed for local testing, not Developer ID signed or notarized. Gatekeeper may require Control-click then Open on first launch.
 
 ## Windows counterpart
 
