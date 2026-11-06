@@ -66,6 +66,12 @@ When its menu appears:
 2. Press `Q` to quit.
 3. The report is saved to `HardwareReport/SysReport/Report.json` by default. Change the folder when prompted in the Simple Hackintosh menu.
 
+You can launch this export directly from PowerShell with:
+
+```powershell
+./run.ps1 hardware-sniffer --output-dir HardwareReport
+```
+
 Do **not** choose `A` unless you intentionally want to dump ACPI tables. The report export does not require an ACPI dump. This upstream Hardware Sniffer is Windows-only; on macOS, Simple Hackintosh continues to use the built-in `system_profiler` hardware inventory instead. Review the generated report before sharing it.
 
 ## PowerShell and macOS launchers
@@ -90,7 +96,7 @@ Double-click run.command in Finder, or use Terminal:
 ./run.command hardware --json
 ~~~
 
-The launcher looks for Python 3.10 or newer and does not install packages or request administrator privileges. The macOS hardware report uses system_profiler -json -detailLevel mini and sw_vers. Apple documents System Profiler's JSON and mini-detail output modes; Microsoft documents PowerShell 7 on macOS.
+The launcher looks for Python 3.10 or newer and does not install packages or request administrator privileges. To save a macOS hardware report instead of only displaying it, run `./run.command hardware --output mac-hardware-report.md`; use `--json --output mac-hardware-report.json` for JSON. The macOS report uses `system_profiler -json -detailLevel mini` and `sw_vers`. Apple documents System Information and its hardware overview.
 
 
 ## CMD commands
