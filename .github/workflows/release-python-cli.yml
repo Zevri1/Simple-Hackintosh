@@ -140,7 +140,7 @@ jobs:
             --title "Simple Hackintosh CLI v${VERSION}" \
             --notes "Standalone Python/CMD assistant v${VERSION}.
 
-          Includes the PowerShell front-end, macOS Terminal launcher, cross-platform hardware inventory, EFI scanner and checker, Create EFI starter workflow, and bundled upstream macrecovery downloader.
+          Includes the PowerShell front-end, macOS Terminal launcher, cross-platform native hardware inventory, Windows OpCore-Simplify Hardware Sniffer export with GitHub SHA-256 and Authenticode verification, EFI scanner and checker, Create EFI starter workflow, and bundled upstream macrecovery downloader.
 
           macrecovery downloads Recovery assets directly from Apple when run. No macOS Recovery image, BaseSystem, chunklist, or installer payload is included in this release.
 

@@ -66,7 +66,12 @@ function Write-Dashboard {
     Write-Host "  $version   |   PowerShell $($PSVersionTable.PSVersion)   |   $([Environment]::OSVersion.Platform)" -ForegroundColor DarkGray
     Write-Host ""
     Write-Host "  HARDWARE & DIAGNOSTICS" -ForegroundColor Yellow
-    Write-Host "   01  Hardware report             Detect parts and estimate a macOS target"
+    if ($env:OS -eq "Windows_NT") {
+        Write-Host "   01  Hardware report             Export OpCore-Simplify Report.json"
+    }
+    else {
+        Write-Host "   01  Hardware report             Native macOS system_profiler inventory"
+    }
     Write-Host "   02  Scan EFI                    Inspect a folder or ZIP"
     Write-Host "   03  Validate config.plist       Check structure and common entry errors"
     Write-Host "   04  Run ocvalidate              Use the matching OpenCore validator"
@@ -92,7 +97,16 @@ while ($true) {
 
     switch ($choice.Trim()) {
         { $_ -in @("0", "00") } { Write-Host "Goodbye." -ForegroundColor Green; exit 0 }
-        { $_ -in @("1", "01") } { $result = Invoke-Assistant @("hardware") }
+        { $_ -in @("1", "01") } {
+            if ($env:OS -eq "Windows_NT") {
+                $outputDirectory = Read-Host "Report output folder [HardwareReport]"
+                if (-not $outputDirectory) { $outputDirectory = "HardwareReport" }
+                $result = Invoke-Assistant @("hardware-sniffer", "--output-dir", $outputDirectory)
+            }
+            else {
+                $result = Invoke-Assistant @("hardware")
+            }
+        }
         { $_ -in @("2", "02") } {
             $path = Read-Host "EFI folder or ZIP path"
             if ($path) { $result = Invoke-Assistant @("efi-check", $path) }

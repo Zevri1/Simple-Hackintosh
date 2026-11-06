@@ -1,30 +1,51 @@
 # Simple Hackintosh CLI
 
-A cross-platform Python assistant with a native PowerShell front-end for Windows and a double-clickable Terminal launcher on macOS. Version 2.3.0 adds PowerShell-native navigation, macOS hardware inventory, and OS-specific launchers.
+A cross-platform Python assistant with a native PowerShell front-end for Windows and a double-clickable Terminal launcher on macOS. Version 2.4.0 adds a verified OpCore-Simplify Hardware Sniffer export on Windows, a guided launch flow, and clearer Windows/macOS run instructions.
 
 **No third-party Python packages are required.** The program uses Python's standard library. Windows hardware inventory uses PowerShell/CIM; macOS inventory uses the built-in system_profiler and sw_vers commands.
 
-## Quick start
+## How to run
 
-1. Download the release ZIP and extract it.
-2. Open the extracted Simple-Hackintosh-CLI-v2.3.0 folder.
-3. Launch with the file for your system:
+### Option A — Download the ready-to-run release
 
-| System | Launch file |
+1. Download the [latest CLI ZIP](https://github.com/kiwewe09-aa/Simple-Hackintosh/releases/latest).
+2. Right-click the ZIP and choose **Extract All**.
+3. Open the extracted `Simple-Hackintosh-CLI-v2.4.0` folder. In the release ZIP, the launchers are directly beside `simple_hackintosh.py`.
+4. Start the matching launcher below.
+
+| System | Exact way to start |
 |---|---|
-| Windows CMD | Double-click run.bat |
-| Windows PowerShell | Run ./run.ps1 |
-| macOS Terminal | Double-click run.command in Finder, or run ./run.command |
-| macOS with PowerShell 7 | Run pwsh ./run.ps1 |
+| Windows CMD | Double-click `run.bat` |
+| Windows PowerShell | Open Terminal in this folder and run `./run.ps1` |
+| macOS Finder | Control-click `run.command`, choose **Open**, then confirm |
+| macOS Terminal | Open Terminal in this folder and run `chmod +x ./run.command && ./run.command` |
+| macOS with PowerShell 7 | Run `pwsh ./run.ps1` |
 
-The PowerShell front-end renders a native coloured menu and forwards operations to the shared Python core. The macOS launcher uses zsh and Python 3; it does not require PowerShell. Set NO_COLOR=1 to disable ANSI colour in the Python terminal dashboard.
+**Windows PowerShell execution-policy message:** in that same PowerShell window, run `Set-ExecutionPolicy -Scope Process Bypass`, then run `./run.ps1` again. This changes the policy for that PowerShell process only.
 
-Requirements: Python 3.10 or newer on Windows/macOS. Hardware inventory is supported on Windows and macOS; EFI and plist checks also work on Linux. Windows PowerShell 5.1 or PowerShell 7 can launch the Windows version. PowerShell 7 is also available for macOS.
+### Option B — Run from a Git checkout
+
+Open a terminal at the repository root, then enter the source folder:
+
+```powershell
+cd app/python
+./run.ps1
+```
+
+On macOS:
+
+```zsh
+cd app/python
+chmod +x ./run.command
+./run.command
+```
+
+Requirements: Python 3.10 or newer. No third-party Python packages are required. Windows PowerShell 5.1 or PowerShell 7 can launch the Windows front-end; PowerShell 7 can also run on macOS. The macOS `run.command` launcher uses zsh and does not require PowerShell.
 ## Beginner menu
 
 | Menu item | What it does |
 |---|---|
-| Detect my hardware | Lists CPU, graphics, firmware, memory, disks and PCI IDs; estimates a conservative target on Windows and reports the running macOS version on Mac |
+| Export hardware report | On Windows, launches the official Hardware Sniffer and saves its OpCore-Simplify-style `Report.json`; on macOS, uses the native `system_profiler` inventory and compatibility summary |
 | Check an EFI folder or ZIP | Scans the folder/archive without extracting or modifying it |
 | Check a config.plist | Checks plist syntax, required OpenCore sections, common entry fields, and duplicate entries |
 | Run official ocvalidate | Runs the validator included with the user's matching OpenCore release |
@@ -34,6 +55,25 @@ Requirements: Python 3.10 or newer on Windows/macOS. Hardware inventory is suppo
 | Create an EFI starter | Builds an EFI folder from a supplied OpenCore release ZIP and copies its Sample.plist as a starting point |
 | Create a support report | Produces a shareable report without raw config.plist or SMBIOS identity values |
 
+
+
+### OpCore-Simplify hardware report (Windows)
+
+The interactive menu's **01 Hardware report** option launches the official [Hardware Sniffer](https://github.com/lzhoang2801/Hardware-Sniffer) used by [OpCore-Simplify](https://github.com/lzhoang2801/OpCore-Simplify). Simple Hackintosh downloads the official `Hardware-Sniffer.exe` release on demand, checks the SHA-256 digest published by GitHub, and requires a valid Windows Authenticode signature before launch. The executable is cached under your Windows local application data folder; it is not bundled in this repository or the CLI ZIP.
+
+When its menu appears:
+1. Press `H` to export the hardware report.
+2. Press `Enter` to dismiss the save confirmation and return to the Hardware Sniffer menu.
+3. Press `Q` to quit.
+4. The report is saved to `HardwareReport/SysReport/Report.json` by default. Change the folder when prompted in the Simple Hackintosh menu.
+
+You can launch this export directly from PowerShell with:
+
+```powershell
+./run.ps1 hardware-sniffer --output-dir HardwareReport
+```
+
+Do **not** choose `A` unless you intentionally want to dump ACPI tables. The report export does not require an ACPI dump. This upstream Hardware Sniffer is Windows-only; on macOS, Simple Hackintosh continues to use the built-in `system_profiler` hardware inventory instead. Review the generated report before sharing it.
 
 ## PowerShell and macOS launchers
 
@@ -57,7 +97,7 @@ Double-click run.command in Finder, or use Terminal:
 ./run.command hardware --json
 ~~~
 
-The launcher looks for Python 3.10 or newer and does not install packages or request administrator privileges. The macOS hardware report uses system_profiler -json -detailLevel mini and sw_vers. Apple documents System Profiler's JSON and mini-detail output modes; Microsoft documents PowerShell 7 on macOS.
+The launcher looks for Python 3.10 or newer and does not install packages or request administrator privileges. To save a macOS hardware report instead of only displaying it, run `./run.command hardware --output mac-hardware-report.md`; use `--json --output mac-hardware-report.json` for JSON. The macOS report uses `system_profiler -json -detailLevel mini` and `sw_vers`. Apple documents System Information and its hardware overview.
 
 
 ## CMD commands
