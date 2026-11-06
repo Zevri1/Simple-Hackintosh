@@ -1238,7 +1238,17 @@ def render_compatibility_checker(
         elif line.startswith("      - "):
             body.extend(textwrap.wrap(line, width=76, subsequent_indent="        ") or [""])
         else:
-            body.extend(textwrap.wrap(line, width=76) or [""])
+            indent = line[: len(line) - len(line.lstrip())]
+            content = line[len(indent):]
+            available_width = max(24, 76 - len(indent))
+            body.extend(
+                textwrap.wrap(
+                    content,
+                    width=available_width,
+                    initial_indent=indent,
+                    subsequent_indent=indent,
+                ) or [indent]
+            )
 
     width = 78
     border_top = "╔" + "═" * width + "╗"
@@ -1277,14 +1287,6 @@ def build_hardware_sniffer_report_markdown(
     if sniffer_version:
         rendered += f"\n\n**Hardware Sniffer release checked:** {sniffer_version} (official GitHub SHA-256 verified)."
     return rendered, compatibility
-
-
-def build_hardware_sniffer_report_markdown(report: dict[str, Any]) -> tuple[str, dict[str, Any]]:
-    """Build a readable report and compatibility estimate without changing upstream JSON."""
-    inventory = normalize_hardware_sniffer_report(report)
-    compatibility = estimate_macos_compatibility(inventory)
-    inventory["macOSCompatibility"] = compatibility
-    return hardware_report_markdown(inventory), compatibility
 
 
 def hardware_report_markdown(data: dict[str, Any]) -> str:
