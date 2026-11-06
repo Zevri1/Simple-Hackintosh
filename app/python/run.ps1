@@ -42,6 +42,7 @@ function Invoke-Assistant {
     $CallArguments = @()
     $CallArguments += $PythonPrefix
     $CallArguments += $PythonScript
+    $CallArguments += "--no-update-check"
     if ($ArgumentsToPass) {
         $CallArguments += $ArgumentsToPass
     }
@@ -52,6 +53,14 @@ function Invoke-Assistant {
 if ($CliArguments -and $CliArguments.Count -gt 0) {
     exit (Invoke-Assistant -ArgumentsToPass $CliArguments)
 }
+
+# The native PowerShell dashboard does not enter Python's interactive menu.
+# Check the app and Hardware Sniffer once when this dashboard starts.
+$updateArgs = @()
+$updateArgs += $PythonPrefix
+$updateArgs += @($PythonScript, "check-updates")
+& $PythonCommand.Source @updateArgs
+Write-Host ""
 
 function Write-Dashboard {
     Clear-Host

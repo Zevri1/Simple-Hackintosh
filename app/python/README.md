@@ -1,6 +1,6 @@
 # Simple Hackintosh CLI
 
-A cross-platform Python assistant with a native PowerShell front-end for Windows and a double-clickable Terminal launcher on macOS. Version 3.0.0 adds a verified OpCore-Simplify Hardware Sniffer export on Windows, a guided launch flow, and clearer Windows/macOS run instructions.
+A cross-platform Python assistant with a native PowerShell front-end for Windows and a double-clickable Terminal launcher on macOS. Version 3.1.0 adds a console-style, per-component macOS Compatibility Checker and update checks for the CLI and official Hardware Sniffer tool.
 
 **No third-party Python packages are required.** The program uses Python's standard library. Windows hardware inventory uses PowerShell/CIM; macOS inventory uses the built-in system_profiler and sw_vers commands.
 
@@ -10,7 +10,7 @@ A cross-platform Python assistant with a native PowerShell front-end for Windows
 
 1. Download the [latest CLI ZIP](https://github.com/Zevri1/Simple-Hackintosh/releases/latest).
 2. Right-click the ZIP and choose **Extract All**.
-3. Open the extracted `Simple-Hackintosh-CLI-v3.0.0` folder. In the release ZIP, the launchers are directly beside `simple_hackintosh.py`.
+3. Open the extracted `Simple-Hackintosh-CLI-v3.1.0` folder. In the release ZIP, the launchers are directly beside `simple_hackintosh.py`.
 4. Start the matching launcher below.
 
 | System | Exact way to start |
@@ -57,13 +57,17 @@ Requirements: Python 3.10 or newer. No third-party Python packages are required.
 
 
 
+### Update checks
+
+At startup, the CLI checks the latest stable Simple Hackintosh release and the official Hardware Sniffer release on GitHub. Checks use short timeouts and fail open: if GitHub is unreachable or the computer is offline, the CLI continues and shows a manual release link. The CLI itself is never silently replaced. The Hardware Sniffer status distinguishes a cached executable whose SHA-256 matches the latest official release from a version that must be fetched; before each Windows report, the executable is downloaded as needed and verified against GitHub's SHA-256 digest. Use `--no-update-check` to skip startup network checks, or run `check-updates` to check both components manually.
+
 ### OpCore-Simplify hardware report (Windows)
 
 The **01 Hardware report** option uses the official [Hardware Sniffer](https://github.com/lzhoang2801/Hardware-Sniffer) used by [OpCore-Simplify](https://github.com/lzhoang2801/OpCore-Simplify). Simple Hackintosh downloads the official `Hardware-Sniffer.exe` release on demand, verifies GitHub's published SHA-256 digest, and checks Windows Authenticode when a signature is present. The upstream release is currently unsigned; a missing signature is accepted only after the exact official asset's GitHub SHA-256 digest matches. Invalid or mismatched signatures are rejected. The hash-verified executable is cached under your Windows local application data folder; it is not bundled in the CLI ZIP.
 
 The export is automated: Simple Hackintosh sends the upstream menu's `H` (export), Enter (dismiss confirmation), and `Q` (quit) choices, then checks that `SysReport/Report.json` exists and contains valid JSON. The helper's standard output remains attached to the Windows console so its Unicode progress display uses console encoding instead of a redirected `cp1252` pipe. You do not need to interact with a second menu. The **ACPI dump** option is never selected. If a report from an earlier run exists, it is preserved with a timestamped `Report.previous-*.json` name before the new report is created. If the helper exits without a valid report, the app shows its exit code and the last diagnostic output rather than silently returning a generic failure.
 
-After the JSON passes validation, Simple Hackintosh also creates `SysReport/Hardware-Report.md`. It summarizes the detected CPU, GPU and PCI IDs, network adapters, audio devices, storage controllers, firmware and chipset, then adds a source-linked macOS compatibility estimate. The estimate uses exact Intel graphics names/device IDs and the CPU model where recognized; for example, supported Comet Lake iGPU configurations receive macOS Sequoia 15 as a conservative graphics ceiling, with Tahoe 26 called out separately as experimental. Unknown or unrecognized graphics are reported as unknown rather than assigned a guessed version. The original upstream `Report.json` is kept in its expected schema for OpCore-Simplify; the compatibility analysis lives in the companion Markdown file. Wi-Fi, Bluetooth, audio, sleep, USB mapping, storage quirks, BIOS setup and display routing still require individual checks, so this is not a promise that the machine will boot.
+After the JSON passes validation, Simple Hackintosh creates `SysReport/Hardware-Report.md` and `SysReport/Hardware-Compatibility.txt`. The text file contains the boxed **Compatibility Checker** with separate CPU, GPU and connected-monitor, sound and audio-endpoint, network, storage-controller, Bluetooth, and SD-controller sections. Its console layout follows the upstream Hardware Sniffer component order. The Markdown report retains the detailed inventory, embeds the checker, and links the driver and platform references used. The graphics estimate uses exact Intel graphics names/device IDs and the CPU model where recognized; supported Comet Lake iGPU configurations receive macOS Sequoia 15 as a conservative graphics ceiling, with Tahoe 26 called out separately as experimental. Unknown or unrecognized graphics are reported as unknown rather than assigned a guessed version. The original upstream `Report.json` is kept in its expected schema. Wi-Fi, Bluetooth, audio, sleep, USB mapping, storage quirks, BIOS setup and display routing still require individual checks, so this is not a promise that the machine will boot.
 
 Run this export directly from PowerShell with:
 
