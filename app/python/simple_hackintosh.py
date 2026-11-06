@@ -1133,9 +1133,6 @@ def command_hardware_sniffer(output_dir: str = "HardwareReport") -> int:
             "Use the built-in 'hardware' command there for a system_profiler report."
         )
 
-    executable, release_tag = _download_hardware_sniffer()
-    signer = _verify_hardware_sniffer_signature(executable)
-
     working_dir = Path(output_dir).expanduser().resolve()
     report_path = working_dir / "SysReport" / "Report.json"
     if report_path.exists():
@@ -1143,6 +1140,9 @@ def command_hardware_sniffer(output_dir: str = "HardwareReport") -> int:
             f"A report already exists at {report_path}. Rename it or choose a new --output-dir."
         )
     working_dir.mkdir(parents=True, exist_ok=True)
+
+    executable, release_tag = _download_hardware_sniffer()
+    signer = _verify_hardware_sniffer_signature(executable)
 
     print(f"Launching official Hardware Sniffer {release_tag}.")
     print(f"Verified publisher: {signer}")
@@ -1682,6 +1682,11 @@ def render_menu(use_color: bool | None = None) -> str:
         return boxed(row, "item")
 
     system_line = f"  {platform.system()} {platform.release()}  |  Python {platform.python_version()}  |  v{APP_VERSION}"
+    hardware_description = (
+        "Export the OpCore-Simplify Report.json with the signed Hardware Sniffer"
+        if platform.system() == "Windows"
+        else "Inspect this Mac with the native system_profiler inventory"
+    )
     lines = [
         _paint(border, "border", enabled),
         boxed(f"  SIMPLE HACKINTOSH                                      v{APP_VERSION}", "title"),
@@ -1689,7 +1694,7 @@ def render_menu(use_color: bool | None = None) -> str:
         boxed(system_line, "muted"),
         _paint(border, "border", enabled),
         boxed("  HARDWARE & DIAGNOSTICS", "heading"),
-        menu_row("01", "Hardware report", "Windows: export OpCore-Simplify Report.json; macOS: native inventory"),
+        menu_row("01", "Hardware report", hardware_description),
         menu_row("02", "Scan EFI", "Inspect an EFI folder or ZIP without changing it"),
         menu_row("03", "Validate config.plist", "Check plist structure and common entry mistakes"),
         menu_row("04", "Run ocvalidate", "Use the validator matching your OpenCore release"),
