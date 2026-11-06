@@ -50,6 +50,7 @@ try {
 
   await page.goto(base + "/", {waitUntil: "networkidle"});
   await page.locator("#chapter-grid .chapter-card").first().waitFor();
+  await page.screenshot({path: "_site/home-desktop.png", fullPage: true});
   assert.ok(await page.locator("#chapter-grid .chapter-card").count() >= 10, "Home page should render chapter cards");
 
   await page.locator("#search-open").click();
@@ -118,6 +119,7 @@ try {
   const smallPage = await context.newPage();
   await smallPage.setViewportSize({width: 390, height: 844});
   await smallPage.goto(base + "/tools.html", {waitUntil: "networkidle"});
+  await smallPage.screenshot({path: "_site/tools-mobile.png", fullPage: true});
   const bodyWidth = await smallPage.locator("body").evaluate(node => node.scrollWidth);
   const viewportWidth = await smallPage.evaluate(() => window.innerWidth);
   assert.ok(bodyWidth <= viewportWidth + 1, "Mobile Tools page should not overflow horizontally");
