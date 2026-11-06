@@ -113,4 +113,15 @@ public sealed class SafetyAndProfileTests
     {
         Assert.False(OpenCoreReleaseService.IsWindowsValidatorPath(path));
     }
+
+    [Fact]
+    public void BuildsReadOnlyGuidedChecklistFromProfile()
+    {
+        string checklist = HardwareProfileService.BuildConfigurationChecklist(MinimalValidProfile);
+        Assert.Contains("# Guided EFI Preparation Checklist", checklist);
+        Assert.Contains("Read-only planning aid", checklist);
+        Assert.Contains("No GPU was reported", checklist);
+        Assert.Contains("Run the official ocvalidate version", checklist);
+        Assert.Contains("not proof that an EFI will boot", checklist);
+    }
 }

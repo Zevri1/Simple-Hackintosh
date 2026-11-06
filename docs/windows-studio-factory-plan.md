@@ -51,8 +51,12 @@ Keep the existing native Windows Forms application on .NET 10. Do not introduce 
 - Verify the executable's embedded OpenCore version banner before running it against the user's XML `config.plist`.
 - Capture structured success/failure output, impose a process timeout, and support cancellation.
 
+**Partially implemented in v0.4 preview**
+- Add a read-only guided EFI preparation checklist generated from an imported or locally detected Hardware Profile v1.
+- Separate reported hardware facts from information that still requires manual confirmation; do not infer compatibility or auto-enable quirks.
+
 **Remaining**
-- Add a guided hardware-specific configuration flow using the schema from the selected OpenCore version.
+- Build the actual schema-guided config.plist editor using the exact schema/sample shipped with the selected OpenCore version.
 - Add release selection so users can validate older EFI configurations against their exact OpenCore version.
 
 **Acceptance**
@@ -122,4 +126,5 @@ flowchart TD
 - [x] Official OpenCore release downloader and starter EFI builder.
 - [x] Official `ocvalidate` download, version check, and config validation (Windows executable is used only when included by the official release archive).
 - [x] Hardware profile JSON export/import (Windows runtime smoke test pending).
+- [x] Read-only guided EFI preparation checklist generated from schema-v1 hardware profiles.
 - [ ] Final QA and signed/notarized macOS counterpart coordination.

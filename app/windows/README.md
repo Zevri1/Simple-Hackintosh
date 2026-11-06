@@ -13,20 +13,17 @@ A native Windows Forms (.NET 10) desktop companion for the Simple Hackintosh fie
 
 ## Remaining Windows roadmap
 
-1. Improve Windows hardware inventory and make PCI/ACPI identification more complete without exporting sensitive identifiers.
-2. Add a guided configuration editor using the exact schema shipped with the selected OpenCore version.
-1. Add a guided configuration editor using the exact schema shipped with the selected OpenCore version.
+1. Add a guided configuration editor using the exact schema shipped with the selected OpenCore version. The hardware-based checklist is a read-only planning aid, not this editor.
 2. Add official Kext/ACPI/driver release sources with compatibility and version matching.
 3. Design a separate, heavily guarded removable-USB workflow; it must show exact disk identity and require a second erase confirmation. Internal disks remain out of scope.
 4. Improve Windows hardware inventory and PCI/ACPI identification without exporting sensitive identifiers.
-
 The official validator action uses the latest stable release available from Acidanthera. The selected `config.plist` must belong to that same OpenCore version. If the official release archive does not include a Windows `ocvalidate.exe`, the app stops and explains that it will not substitute an unofficial binary.
 
 Windows can download Apple's full installer package and prepare EFI assets. For macOS 11 Big Sur and newer, it cannot use the traditional gibMacOS Windows `MakeInstall` flow to create a complete bootable installer USB; the final media-creation step uses Apple's `createinstallmedia` on macOS. The Windows GUI should therefore support a clear handoff: download in Windows, then finish USB creation from macOS.
 
 ## Privacy and safety
 
-All current file inspection takes place locally on the Windows computer. The app does not upload EFI folders, configuration files, or hardware reports. Hardware inspection performs read-only CIM queries and does not require administrator privileges. The app never modifies an EFI, config.plist, firmware setting, partition, or boot entry.
+All current file inspection takes place locally on the Windows computer. The app does not upload EFI folders, configuration files, or hardware reports. Hardware inspection performs read-only CIM queries and does not require administrator privileges. The builder creates a new starter folder only at the destination selected by the user; it never overwrites an existing EFI, edits an existing config.plist, changes firmware settings, partitions disks, or modifies boot entries.
 
 The EFI starter uses the upstream `Sample.plist`; it does not replace the Dortania guide or a hardware-specific compatibility review. Official `ocvalidate` checks the config against its own matching OpenCore release, but a clean report is not proof that an EFI will boot.
 

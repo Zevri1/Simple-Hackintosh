@@ -199,6 +199,154 @@ internal static class HardwareProfileService
         return "Valid Hardware Profile Schema v1.";
     }
 
+    public static string BuildConfigurationChecklist(string json)
+    {
+        ValidateProfile(json);
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+        var device = root.GetProperty("device");
+        var cpu = root.GetProperty("cpu");
+        var network = root.GetProperty("network");
+        var audio = root.GetProperty("audio");
+
+        string Value(JsonElement source, string key) =>
+            source.TryGetProperty(key, out var property) && property.ValueKind == JsonValueKind.String &&
+            !string.IsNullOrWhiteSpace(property.GetString())
+                ? Clean(property.GetString())
+                : "Not reported";
+        string Clean(string? value) =>
+            string.IsNullOrWhiteSpace(value)
+                ? "Not reported"
+                : string.Join(" ", value.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)).Trim();
+        string Pci(JsonElement source)
+        {
+            string vendor = Value(source, "pciVendorId");
+            string product = Value(source, "pciDeviceId");
+            return vendor == "Not reported" && product == "Not reported"
+                ? "PCI IDs not reported"
+                : $"PCI VEN_{vendor} DEV_{product}";
+        }
+        string ArraySummary(JsonElement source, string key)
+        {
+            if (!source.TryGetProperty(key, out var array) || array.ValueKind != JsonValueKind.Array || array.GetArrayLength() == 0)
+                return "Not reported";
+            return string.Join("; ", array.EnumerateArray()
+                .Select(item => item.ValueKind == JsonValueKind.String ? Clean(item.GetString()) : "Not reported"));
+        }
+
+        var lines = new List<string>
+        {
+            "# Guided EFI Preparation Checklist",
+            "",
+            $"Profile source: {Value(root, "sourcePlatform")}",
+            $"Computer: {Value(device, "manufacturer")} / {Value(device, "model")}",
+            $"CPU: {Value(cpu, "vendor")} / {Value(cpu, "model")}",
+            $"CPU family / architecture: {Value(cpu, "family")} / {Value(cpu, "architecture")}",
+            $"Firmware mode reported by Windows: {Value(device, "firmwareMode")}",
+            "",
+            "> Read-only planning aid. This is not a compatibility verdict and does not generate or modify an EFI.",
+            "",
+            "## 1. Lock the software versions",
+            "- [ ] Choose the exact target macOS version.",
+            "- [ ] Choose one OpenCore version. Keep its EFI binaries, Sample.plist, drivers, tools, and ocvalidate on that same version.",
+            "- [ ] Confirm every selected Kext and driver supports both the target macOS and the chosen OpenCore version.",
+            "",
+            "## 2. Verify the CPU",
+            $"- Detected CPU: {Value(cpu, "model")}",
+            $"- Family / architecture: {Value(cpu, "family")} / {Value(cpu, "architecture")}",
+            "- [ ] Confirm the CPU microarchitecture and CPUID family/model using a reliable hardware reference.",
+            "- [ ] Review CPU-specific Kernel and Booter requirements for the selected macOS version.",
+            "- [ ] Do not enable CPU quirks solely from the processor marketing name.",
+            "",
+            "## 3. Verify every GPU"
+        };
+
+        var gpus = root.GetProperty("gpu");
+        if (gpus.GetArrayLength() == 0)
+            lines.Add("- No GPU was reported. Inspect Device Manager and collect the exact PCI hardware ID.");
+        else
+        {
+            int index = 0;
+            foreach (var gpu in gpus.EnumerateArray())
+            {
+                index++;
+                lines.Add($"- GPU {index}: {Value(gpu, "vendor")} / {Value(gpu, "model")} — {Pci(gpu)}");
+            }
+        }
+        lines.AddRange(new[]
+        {
+            "- [ ] Check the exact GPU generation and PCI device ID against the target macOS version.",
+            "- [ ] For an iGPU, verify framebuffer and connector requirements from the exact platform documentation.",
+            "- [ ] For a discrete GPU, confirm native support and version-specific limitations before planning to use it.",
+            "",
+            "## 4. Verify networking"
+        });
+
+        AddNetwork("Wi-Fi", "wifiAdapters");
+        AddNetwork("Ethernet", "ethernetAdapters");
+        lines.Add("- Bluetooth reported: " + ArraySummary(network, "bluetoothAdapters"));
+        lines.Add("- [ ] Identify the wireless chipset by hardware ID; the Windows display name alone is not enough.");
+        lines.Add("- [ ] Check official Kext documentation for macOS-version support and required dependencies.");
+        lines.Add("- [ ] Review Bluetooth firmware requirements separately from Wi-Fi.");
+        lines.Add("");
+
+        lines.Add("## 5. Verify audio");
+        lines.Add("- Controllers: " + ArraySummary(audio, "controllers"));
+        lines.Add("- Codec: " + Value(audio, "codec"));
+        lines.Add("- [ ] Identify the exact codec ID before selecting an AppleALC layout.");
+        lines.Add("");
+
+        lines.Add("## 6. Verify storage and firmware");
+        var storage = root.GetProperty("storage");
+        if (storage.GetArrayLength() == 0)
+            lines.Add("- No storage devices were reported.");
+        else
+        {
+            int index = 0;
+            foreach (var disk in storage.EnumerateArray())
+                lines.Add($"- Storage {++index}: {Value(disk, "model")} — {Value(disk, "interface")} — {Value(disk, "capacityBytes")} bytes");
+        }
+        lines.Add("- [ ] Identify the actual storage controller and BIOS mode; a Windows disk-interface label does not prove AHCI or RAID mode.");
+        lines.Add("- [ ] Review UEFI, Secure Boot, CSM, CFG Lock, and other firmware settings on the target computer before deciding whether any change is appropriate.");
+        lines.Add("- [ ] Back up the existing EFI and important files.");
+        lines.Add("");
+
+        lines.Add("## 7. Assemble and validate");
+        lines.Add("- [ ] Select ACPI tables for this exact board or laptop model; do not copy another computer's ACPI folder.");
+        lines.Add("- [ ] Add only required Kexts and their dependencies from official project releases.");
+        lines.Add("- [ ] Check enabled ACPI, Kext, and UEFI driver paths against the actual EFI folder.");
+        lines.Add("- [ ] Generate unique SMBIOS identifiers privately for the target computer; never copy another person's serials.");
+        lines.Add("- [ ] Run the official ocvalidate version matching the config.plist.");
+        lines.Add("- [ ] Test from removable media while preserving existing internal boot files.");
+        lines.Add("");
+
+        lines.Add("## Information still needed");
+        lines.Add("- Exact target macOS and OpenCore versions.");
+        lines.Add("- Confirmed CPU CPUID/microarchitecture, GPU IDs, wireless/Bluetooth chipset, Ethernet controller, and audio codec.");
+        lines.Add("- Storage-controller mode, required ACPI tables, and relevant firmware settings.");
+        lines.Add("");
+        lines.Add("## Official references");
+        lines.Add("- Dortania OpenCore Install Guide: https://dortania.github.io/OpenCore-Install-Guide/");
+        lines.Add("- GPU Buyers Guide: https://dortania.github.io/GPU-Buyers-Guide/");
+        lines.Add("- Wireless Buyers Guide: https://dortania.github.io/Wireless-Buyers-Guide/");
+        lines.Add("- Acidanthera OpenCore releases: https://github.com/acidanthera/OpenCorePkg/releases");
+        lines.Add("");
+        lines.Add("A completed checklist is not proof that an EFI will boot. Validate and test each change on the actual target hardware.");
+        return string.Join(Environment.NewLine, lines);
+
+        void AddNetwork(string label, string key)
+        {
+            if (!network.TryGetProperty(key, out var adapters) || adapters.ValueKind != JsonValueKind.Array || adapters.GetArrayLength() == 0)
+            {
+                lines.Add($"- {label}: no adapter was classified by the current Windows query.");
+                return;
+            }
+            int index = 0;
+            foreach (var adapter in adapters.EnumerateArray())
+                lines.Add($"- {label} {++index}: {Value(adapter, "vendor")} / {Value(adapter, "model")} — {Pci(adapter)}");
+        }
+    }
+
     public static string BuildSummary(string json)
     {
         ValidateProfile(json);

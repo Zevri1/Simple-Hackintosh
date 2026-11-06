@@ -50,6 +50,7 @@ internal sealed class MainForm : Form
     private readonly Label _status = new() { AutoSize = true, ForeColor = TextSoft, Font = new Font("Segoe UI", 8), Anchor = AnchorStyles.Top | AnchorStyles.Right };
     private readonly Dictionary<string, Button> _nav = new();
     private string _selectedSource = "";
+    private string? _currentHardwareProfileJson;
     private TextBox? _hardwareReportBox;
     private CancellationTokenSource? _installerDownloadCts;
     private CancellationTokenSource? _opencoreBuildCts;
@@ -595,6 +596,7 @@ internal sealed class MainForm : Form
         var save = MakeButton("Save Markdown", false, new Point(312, 48), new Size(140, 36));
         var exportProfile = MakeButton("Export profile JSON", false, new Point(465, 48), new Size(150, 36));
         var importProfile = MakeButton("Import profile JSON", false, new Point(625, 48), new Size(150, 36));
+        var checklist = MakeButton("Guided EFI checklist", false, new Point(785, 48), new Size(135, 36));
         _hardwareReportBox = new TextBox
         {
             Multiline = true, ReadOnly = true, WordWrap = false, ScrollBars = ScrollBars.Both,
@@ -604,7 +606,7 @@ internal sealed class MainForm : Form
             Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
         };
         _hardwareReportBox.Text = "Select “Detect this PC” to collect hardware details.\r\n\r\nThe Windows hardware query is read-only. Some device details may be unavailable without vendor-specific tools.";
-        page.Controls.AddRange(new Control[] { detect, copy, save, exportProfile, importProfile, _hardwareReportBox });
+        page.Controls.AddRange(new Control[] { detect, copy, save, exportProfile, importProfile, checklist, _hardwareReportBox });
 
         detect.Click += async (_, _) =>
         {
@@ -643,6 +645,7 @@ internal sealed class MainForm : Form
             try
             {
                 string json = await HardwareProfileService.CollectProfileAsync();
+                _currentHardwareProfileJson = json;
                 using var dialog = new SaveFileDialog
                 {
                     Filter = "Hardware profile JSON (*.json)|*.json",
@@ -687,6 +690,7 @@ internal sealed class MainForm : Form
                 if (info.Length > 2 * 1024 * 1024) throw new InvalidDataException("The selected profile exceeds the 2 MB safety limit.");
                 string json = File.ReadAllText(dialog.FileName, Encoding.UTF8);
                 string validation = HardwareProfileService.ValidateProfile(json);
+                _currentHardwareProfileJson = json;
                 _hardwareReportBox.Text = HardwareProfileService.BuildSummary(json) + Environment.NewLine + Environment.NewLine +
                     validation + Environment.NewLine + "Imported from: " + dialog.FileName;
                 _status.Text = "●  PROFILE IMPORTED / SCHEMA V1";
@@ -698,6 +702,27 @@ internal sealed class MainForm : Form
                 _status.ForeColor = Yellow;
                 MessageBox.Show(this, ex.Message, "Invalid hardware profile", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
+        };
+
+        checklist.Click += async (_, _) =>
+        {
+            checklist.Enabled = false;
+            _status.Text = "●  BUILDING GUIDED EFI CHECKLIST";
+            _status.ForeColor = Blue;
+            try
+            {
+                _currentHardwareProfileJson ??= await HardwareProfileService.CollectProfileAsync();
+                _hardwareReportBox.Text = HardwareProfileService.BuildConfigurationChecklist(_currentHardwareProfileJson);
+                _status.Text = "●  GUIDED CHECKLIST READY";
+                _status.ForeColor = Green;
+            }
+            catch (Exception ex)
+            {
+                _status.Text = "●  CHECKLIST GENERATION FAILED";
+                _status.ForeColor = Yellow;
+                MessageBox.Show(this, ex.Message, "Could not build the guided checklist", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            finally { checklist.Enabled = true; }
         };
 
         save.Click += (_, _) =>
