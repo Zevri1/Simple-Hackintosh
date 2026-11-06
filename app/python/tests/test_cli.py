@@ -16,6 +16,7 @@ from simple_hackintosh import (
     build_support_report,
     command_backup_efi,
     command_macrecovery,
+    build_parser,
     check_config_file,
     check_efi_path,
     hardware_report_markdown,
@@ -33,6 +34,16 @@ def valid_config():
 
 
 class MacRecoveryIntegrationTests(unittest.TestCase):
+    def test_cli_parser_passes_download_options_through(self):
+        parsed = build_parser().parse_args([
+            "macrecovery", "download", "--os-type", "latest",
+            "--outdir", "recovery-output",
+        ])
+        self.assertEqual(
+            parsed.arguments,
+            ["download", "--os-type", "latest", "--outdir", "recovery-output"],
+        )
+
     def test_command_forwards_arguments_to_bundled_upstream_script(self):
         with patch("simple_hackintosh.subprocess.run") as mocked_run:
             mocked_run.return_value.returncode = 7
