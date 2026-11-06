@@ -18,6 +18,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import zipfile
+from datetime import datetime
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Iterable
@@ -1141,7 +1142,7 @@ def command_hardware_sniffer(output_dir: str = "HardwareReport") -> int:
 
     # Preserve a previous report instead of forcing users to choose a new folder.
     if report_path.is_file():
-        stamp = __import__("datetime").datetime.now().strftime("%Y%m%d-%H%M%S")
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         archived = report_path.with_name(f"Report.previous-{stamp}.json")
         suffix = 2
         while archived.exists():
