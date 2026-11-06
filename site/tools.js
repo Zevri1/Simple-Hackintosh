@@ -8,23 +8,69 @@ const toast = message => {
   clearTimeout(toast.timer);
   toast.timer = setTimeout(() => node.classList.remove("show"), 2600);
 };
-const normalizePath = value => String(value || "").replace(/\\/g,"/").replace(/^\/+/, "").split("/").filter(part => part && part !== ".").join("/");
+const normalizePath = value => {
+  const raw = String(value || "").replace(/\\/g, "/");
+  if (raw.startsWith("/") || /^[a-z]:\//i.test(raw) || raw.startsWith("//")) {
+    throw new Error("The package contains an absolute file path.");
+  }
+  const parts = raw.split("/").filter(part => part && part !== ".");
+  if (parts.some(part => part === ".." || part.includes(":"))) {
+    throw new Error("The package contains an unsafe file path.");
+  }
+  return parts.join("/");
+};
 let selectedEfi = null;
 
-document.querySelectorAll("[data-tool-target]").forEach(button => {
-  button.addEventListener("click", () => {
-    document.querySelectorAll("[data-tool-target]").forEach(item => {
-      const active = item === button;
-      item.classList.toggle("active", active);
-      item.setAttribute("aria-selected", String(active));
-    });
-    document.querySelectorAll("[data-tool-panel]").forEach(panel => {
-      const active = panel.dataset.toolPanel === button.dataset.toolTarget;
-      panel.hidden = !active;
-      panel.classList.toggle("active", active);
-    });
+const toolTabs = Array.from(document.querySelectorAll("[data-tool-target]"));
+const toolPanels = Array.from(document.querySelectorAll("[data-tool-panel]"));
+
+function activateToolTab(button, focusButton) {
+  const target = button.dataset.toolTarget;
+  toolTabs.forEach(item => {
+    const active = item === button;
+    item.classList.toggle("active", active);
+    item.setAttribute("aria-selected", String(active));
+    item.tabIndex = active ? 0 : -1;
+  });
+  toolPanels.forEach(panel => {
+    const active = panel.dataset.toolPanel === target;
+    panel.hidden = !active;
+    panel.classList.toggle("active", active);
+    panel.setAttribute("aria-hidden", String(!active));
+  });
+  if (focusButton) button.focus();
+}
+
+toolTabs.forEach(button => {
+  button.addEventListener("click", () => activateToolTab(button, false));
+  button.addEventListener("keydown", event => {
+    const index = toolTabs.indexOf(button);
+    let nextIndex = index;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") nextIndex = (index + 1) % toolTabs.length;
+    else if (event.key === "ArrowLeft" || event.key === "ArrowUp") nextIndex = (index - 1 + toolTabs.length) % toolTabs.length;
+    else if (event.key === "Home") nextIndex = 0;
+    else if (event.key === "End") nextIndex = toolTabs.length - 1;
+    else return;
+    event.preventDefault();
+    activateToolTab(toolTabs[nextIndex], true);
   });
 });
+
+const themeButton = $("tools-theme-toggle");
+function updateToolsThemeButton() {
+  const light = document.documentElement.dataset.theme === "light";
+  themeButton.textContent = light ? "☾" : "☼";
+  themeButton.setAttribute("aria-label", light ? "Switch to dark theme" : "Switch to light theme");
+  themeButton.title = light ? "Switch to dark theme" : "Switch to light theme";
+  themeButton.setAttribute("aria-pressed", String(!light));
+}
+themeButton.addEventListener("click", () => {
+  const next = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem("simple-hackintosh-theme", next); } catch (error) {}
+  updateToolsThemeButton();
+});
+updateToolsThemeButton();
 
 function addCheck(container, kind, title, detail) {
   const row = document.createElement("div");
@@ -326,7 +372,7 @@ $("hardware-run").addEventListener("click",()=>{
   const download=document.createElement("button");download.className="action-button primary";download.type="button";download.textContent="Download Markdown report";
   download.addEventListener("click",()=>{
     const blob=new Blob([text],{type:"text/markdown;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");
-    a.href=url;a.download="simple-hackintosh-hardware-report.md";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);toast("Hardware report downloaded.");
+    a.href=url;a.download="simple-hackintosh-hardware-report.md";document.body.appendChild(a);a.click();a.remove();window.setTimeout(()=>URL.revokeObjectURL(url),1000);toast("Hardware report downloaded.");
   });
   const copy=document.createElement("button");copy.className="download-button";copy.type="button";copy.textContent="Copy report";
   copy.addEventListener("click",async()=>{
