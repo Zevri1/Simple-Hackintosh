@@ -17,14 +17,14 @@
 > [!IMPORTANT]
 > This is an educational guide, not a one-click installer and not a guarantee that macOS will work on a particular computer. Compatibility depends on the exact CPU, graphics processor, firmware, wireless card, storage controller, and macOS release. Never copy another computer's EFI folder without understanding and adapting every component.
 
-## Desktop companion app
+## Python command-line utility
 
-A native Windows utility is being developed alongside this guide. The first release includes an EFI folder/ZIP checker, an XML config.plist structure review, and a local hardware report generator.
+The repository includes a standalone Python CLI for Windows CMD and PowerShell. It runs locally; it is not a website wrapper and requires no third-party Python packages.
 
-- [Windows desktop app source and build instructions](app/windows/README.md)
-- [Windows x64 build workflow](https://github.com/kiwewe09-aa/Simple-Hackintosh/actions/workflows/windows-app.yml)
+- [Python CLI source, CMD launcher, commands, and tests](app/python/README.md)
+- [Python CLI test workflow](.github/workflows/python-cli.yml)
 
-The desktop utilities process selected files locally. Their structural checks do not replace OpenCore's official validation tools or a hardware-specific compatibility assessment.
+From the `app/python` folder, run `run.bat --help` or `py -3 simple_hackintosh.py --help`. The program can inventory Windows hardware, inspect an EFI folder or ZIP, and perform a basic config.plist structure check. It does not upload files or modify disks, EFI files, or firmware. Its checks do not replace official OpenCore validation or hardware-specific compatibility research.
 
 ## What this project is
 
