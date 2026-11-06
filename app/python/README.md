@@ -35,6 +35,7 @@ Requirements: Python 3.10 or newer. Windows 10/11 is required for automatic hard
 | Run official ocvalidate | Runs the validator included with the user's matching OpenCore release |
 | Compare two EFI folders/ZIPs | Compares file paths and SHA-256 content hashes to find additions, removals, and changed files |
 | Back up an EFI folder | Creates a new ZIP backup without modifying or overwriting the source |
+| Download macOS Recovery | Runs the bundled OpenCore macrecovery tool to download and verify Recovery files from Apple |
 | Create a support report | Produces a shareable report without raw config.plist or SMBIOS identity values |
 
 ## CMD commands
@@ -100,6 +101,29 @@ run.bat compare-efi "E:\EFI" "F:\EFI-backup" --json --output comparison.json
 ```
 
 Compares file paths and SHA-256 hashes. It reports added, removed, and modified files without copying, replacing, deleting, or editing anything.
+
+### Download Apple macOS Recovery
+
+The repository includes the upstream **OpenCore macrecovery** utility in `macrecovery/`, with its original Python source, Windows launcher, board database, and BSD-3-Clause license notice.
+
+From CMD:
+
+```cmd
+run.bat macrecovery -h
+run.bat macrecovery download --os-type latest --outdir com.apple.recovery.boot
+```
+
+Or run the bundled Windows launcher directly:
+
+```cmd
+macrecovery\macrecovery.bat download --os-type latest
+```
+
+The interactive menu also provides option **9**. The utility downloads the Recovery image and its chunklist from Apple's Recovery servers, then verifies the downloaded image against the chunklist. Its default output directory is `com.apple.recovery.boot`.
+
+**Important:** this downloads Recovery files only. It does not create a bootable USB, partition or format a disk, install macOS, or configure a bootloader. The downloaded image is provided by Apple; it is not stored in this Git repository.
+
+Upstream source: [acidanthera/OpenCorePkg — Utilities/macrecovery](https://github.com/acidanthera/OpenCorePkg/tree/master/Utilities/macrecovery). The copied source retains its original attribution and is accompanied by the upstream BSD-3-Clause license text in `macrecovery/LICENSE.txt`.
 
 ### Build a support report
 
