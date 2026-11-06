@@ -173,7 +173,7 @@ def check_efi_path(source: Path) -> tuple[list[Finding], dict[str, Any] | None]:
 
     config_key, config_original = sorted(config_candidates, key=lambda pair: len(pair[0]))[0]
     oc_prefix = config_key[: -len("oc/config.plist")]
-    efi_prefix = oc_prefix.rsplit("/", 1)[0] + "/" if "/" in oc_prefix.rstrip("/") else ""
+    efi_prefix = oc_prefix
 
     findings: list[Finding] = []
     expected_files = (
