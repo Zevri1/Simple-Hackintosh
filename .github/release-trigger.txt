@@ -1,2 +1,2 @@
-Publish the Simple Hackintosh CLI v2.5.0 release from the main branch.
-The release ZIP includes the CMD, PowerShell and macOS Terminal launchers, cross-platform native hardware inventory, automated Windows OpCore-Simplify Hardware Sniffer report export with SHA-256 and Authenticode verification, EFI checks, and the macrecovery downloader source only; Apple Recovery payloads are not included.
+Publish the Simple Hackintosh CLI v2.5.1 release from the main branch.
+The release ZIP includes the CMD, PowerShell and macOS Terminal launchers, cross-platform native hardware inventory, automated Windows OpCore-Simplify Hardware Sniffer report export with official GitHub SHA-256 verification and optional Authenticode checking, EFI checks, and the macrecovery downloader source only; Apple Recovery payloads are not included.
