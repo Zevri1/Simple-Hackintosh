@@ -54,6 +54,21 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: ./app/python/run.ps1 doctor
+      - name: Smoke test official Hardware Sniffer UTF-8 report export
+        if: runner.os == 'Windows' && matrix.python-version == '3.12'
+        shell: pwsh
+        run: |
+          $output = Join-Path $env:RUNNER_TEMP "SimpleHackintosh-HardwareReport"
+          python app/python/simple_hackintosh.py hardware-sniffer --output-dir $output
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $reportPath = Join-Path $output "SysReport\Report.json"
+          if (-not (Test-Path -LiteralPath $reportPath -PathType Leaf)) {
+            throw "Hardware Sniffer did not create Report.json."
+          }
+          $report = Get-Content -LiteralPath $reportPath -Raw -Encoding UTF8 | ConvertFrom-Json
+          if ($null -eq $report) { throw "Report.json could not be parsed." }
+          Write-Host "Official Hardware Sniffer produced a valid UTF-8-compatible JSON report."
+
       - name: Smoke test macOS inventory and Terminal launcher
         if: runner.os == 'macOS'
         run: |
