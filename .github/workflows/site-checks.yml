@@ -53,11 +53,14 @@ jobs:
                   self.ids = []
                   self.data_attributes = set()
                   self.hrefs = []
+                  self.roles = []
               def handle_starttag(self, tag, attrs):
                   values = dict(attrs)
                   if values.get("id"):
                       self.ids.append(values["id"])
                   self.data_attributes.update(key for key in values if key.startswith("data-"))
+                  if values.get("role"):
+                      self.roles.append(values["role"])
                   if values.get("href"):
                       self.hrefs.append(values["href"])
 
@@ -78,8 +81,13 @@ jobs:
               duplicates = sorted({item for item in parser.ids if parser.ids.count(item) > 1})
               missing_ids = sorted(contract["ids"].difference(parser.ids))
               missing_data = sorted(contract["data"].difference(parser.data_attributes))
-              if duplicates or missing_ids or missing_data:
-                  raise SystemExit(f"{filename}: duplicates={duplicates}, missing IDs={missing_ids}, missing data attributes={missing_data}")
+              missing_roles = {
+                  role: (parser.roles.count(role), expected)
+                  for role, expected in contract.get("roles", {}).items()
+                  if parser.roles.count(role) != expected
+              }
+              if duplicates or missing_ids or missing_data or missing_roles:
+                  raise SystemExit(f"{filename}: duplicates={duplicates}, missing IDs={missing_ids}, missing data attributes={missing_data}, role counts={missing_roles}")
               if release_asset not in parser.hrefs:
                   raise SystemExit(f"{filename}: the v2.5.2 CLI download link is missing")
           for filename in ("site/styles.css", "site/tools.css"):
