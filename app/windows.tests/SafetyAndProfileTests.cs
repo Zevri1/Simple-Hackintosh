@@ -381,7 +381,7 @@ public sealed class SafetyAndProfileTests
         var session = ConfigPlistEditorSession.Load(xml);
         var showPicker = Assert.Single(session.Entries, item => item.Path == "Misc/Boot/ShowPicker");
         var timeout = Assert.Single(session.Entries, item => item.Path == "Misc/Boot/Timeout");
-        var kextPath = Assert.Single(session.Entries, item => item.Path == "Kernel/Add[0]/BundlePath"));
+        var kextPath = Assert.Single(session.Entries, item => item.Path == "Kernel/Add[0]/BundlePath");
         Assert.Equal("boolean", showPicker.Type);
         Assert.Equal("integer", timeout.Type);
         Assert.Equal("string", kextPath.Type);
