@@ -1,0 +1,2 @@
+Publish the Simple Hackintosh CLI v2.1.0 release from the main branch.
+The workflow builds a ZIP containing the CLI and downloader source only; Apple Recovery payloads are not included.
