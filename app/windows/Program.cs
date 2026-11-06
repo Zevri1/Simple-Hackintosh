@@ -51,6 +51,7 @@ internal sealed class MainForm : Form
     private readonly Dictionary<string, Button> _nav = new();
     private string _selectedSource = "";
     private TextBox? _hardwareReportBox;
+    private CancellationTokenSource? _installerDownloadCts;
 
     public MainForm()
     {
