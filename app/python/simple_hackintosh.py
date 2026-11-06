@@ -1230,7 +1230,8 @@ def render_compatibility_checker(
     border_top = "╔" + "═" * width + "╗"
     border_bottom = "╚" + "═" * width + "╝"
     title = "Compatibility Checker".center(width)
-    boxed = [border_top, "║" + title + "║", border_bottom]
+    divider = "╠" + "═" * width + "╣"
+    boxed = [border_top, "║" + title + "║", divider]
     boxed.extend("║ " + line[:width - 2].ljust(width - 2) + " ║" for line in body)
     boxed.append(border_bottom)
     return "\n".join(boxed)
@@ -1652,7 +1653,10 @@ def _verify_hardware_sniffer_signature(executable: Path) -> str:
     raise RuntimeError("PowerShell did not return a recognized Authenticode status; the executable was not launched.")
 
 
-def command_hardware_sniffer(output_dir: str = "HardwareReport") -> int:
+def command_hardware_sniffer(
+    output_dir: str = "HardwareReport",
+    app_update: dict[str, Any] | None = None,
+) -> int:
     """Run the official OpCore-Simplify Hardware Sniffer and export Report.json on Windows."""
     if platform.system() != "Windows":
         if platform.system() == "Darwin":
@@ -1736,7 +1740,11 @@ def command_hardware_sniffer(output_dir: str = "HardwareReport") -> int:
 
     compatibility_path = report_path.with_name("Hardware-Report.md")
     try:
-        rendered_report, compatibility = build_hardware_sniffer_report_markdown(report)
+        rendered_report, compatibility = build_hardware_sniffer_report_markdown(
+            report,
+            sniffer_version=release_tag,
+            app_update=app_update,
+        )
         if compatibility_path.is_file():
             stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
             archived = compatibility_path.with_name(f"Hardware-Report.previous-{stamp}.md")
@@ -1749,10 +1757,26 @@ def command_hardware_sniffer(output_dir: str = "HardwareReport") -> int:
         temporary_report = compatibility_path.with_name(".Hardware-Report.md.tmp")
         temporary_report.write_text(rendered_report.rstrip() + "\n", encoding="utf-8")
         temporary_report.replace(compatibility_path)
-        print(f"[PASS] Human-readable hardware and macOS estimate saved to: {compatibility_path}")
-        print(f"[INFO] Conservative macOS target: {compatibility.get('target', 'Unknown')}")
-        if compatibility.get("experimental_target"):
-            print(f"[INFO] Experimental possibility: {compatibility['experimental_target']}")
+
+        checker_path = report_path.with_name("Hardware-Compatibility.txt")
+        if checker_path.is_file():
+            stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+            archived_checker = checker_path.with_name(f"Hardware-Compatibility.previous-{stamp}.txt")
+            suffix = 2
+            while archived_checker.exists():
+                archived_checker = checker_path.with_name(f"Hardware-Compatibility.previous-{stamp}-{suffix}.txt")
+                suffix += 1
+            checker_path.replace(archived_checker)
+        temporary_checker = checker_path.with_name(".Hardware-Compatibility.txt.tmp")
+        temporary_checker.write_text(
+            render_compatibility_checker(report, release_tag, app_update) + "\n",
+            encoding="utf-8",
+        )
+        temporary_checker.replace(checker_path)
+        print(f"[PASS] Human-readable hardware report saved to: {compatibility_path}")
+        print(f"[PASS] Compatibility Checker saved to: {checker_path}")
+        print("")
+        print(render_compatibility_checker(report, release_tag, app_update))
     except Exception as exc:
         print(f"[WARN] Could not create the macOS compatibility companion report: {exc}")
 
@@ -2308,7 +2332,10 @@ def render_menu(use_color: bool | None = None) -> str:
     return "\n".join(lines)
 
 
-def interactive_menu() -> int:
+def interactive_menu(update_status: dict[str, Any] | None = None) -> int:
+    if update_status is None:
+        update_status = check_for_app_update()
+    print_update_notice(update_status)
     while True:
         use_color = _ansi_enabled()
         if use_color:
@@ -2323,7 +2350,7 @@ def interactive_menu() -> int:
                 try:
                     if platform.system() == "Windows":
                         output_dir = input("Report output folder [HardwareReport]: ").strip().strip('"') or "HardwareReport"
-                        command_hardware_sniffer(output_dir)
+                        command_hardware_sniffer(output_dir, update_status)
                     else:
                         command_hardware(None)
                 except (RuntimeError, OSError, subprocess.TimeoutExpired) as exc:
@@ -2396,7 +2423,14 @@ def build_parser() -> argparse.ArgumentParser:
         epilog="No browser, account, upload, or third-party Python package is required.",
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {APP_VERSION}")
+    parser.add_argument(
+        "--no-update-check",
+        action="store_true",
+        help="Skip the optional GitHub release check at startup.",
+    )
     commands = parser.add_subparsers(dest="command")
+
+    commands.add_parser("check-updates", help="Check the latest Simple Hackintosh release.")
 
     commands.add_parser("wizard", help="Open the beginner-friendly interactive menu.")
     commands.add_parser("doctor", help="Check Python, Windows tools, and optional ocvalidate.")
@@ -2470,15 +2504,22 @@ def main(argv: list[str] | None = None) -> int:
         return interactive_menu()
     parser = build_parser()
     args = parser.parse_args(actual_argv)
+    if args.command == "check-updates":
+        print_update_notice(check_for_app_update())
+        return 0
+    update_status = None
+    if not args.no_update_check:
+        update_status = check_for_app_update()
+        print_update_notice(update_status)
     try:
         if args.command == "wizard":
-            return interactive_menu()
+            return interactive_menu(update_status)
         if args.command == "doctor":
             return command_doctor()
         if args.command in ("hardware", "inspect-hardware"):
             return command_hardware(args.output, args.json)
         if args.command == "hardware-sniffer":
-            return command_hardware_sniffer(args.output_dir)
+            return command_hardware_sniffer(args.output_dir, update_status)
         if args.command in ("efi-check", "scan-efi"):
             return command_efi(args.path, args.output, args.json)
         if args.command in ("config-check", "lint"):
