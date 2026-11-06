@@ -12,12 +12,13 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import zipfile
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
-APP_VERSION = "2.0.0"
+APP_VERSION = "2.1.0"
 SECTIONS = (
     "ACPI", "Booter", "DeviceProperties", "Kernel",
     "Misc", "NVRAM", "PlatformInfo", "UEFI",
@@ -701,6 +702,167 @@ def command_backup_efi(path: str, output: str) -> int:
     return 0
 
 
+
+def command_create_efi(release_zip: str, output: str = "EFI") -> int:
+    """Create a starter EFI directory from a user-supplied official OpenCore release ZIP.
+
+    The resulting config.plist is OpenCore's Sample.plist, not a hardware-configured
+    configuration. The function never writes to a disk or EFI System Partition.
+    """
+    source = Path(release_zip).expanduser()
+    destination = Path(output).expanduser()
+
+    if not source.is_file() or not zipfile.is_zipfile(source):
+        print(f"[ERROR] OpenCore release ZIP not found or invalid: {source}", file=sys.stderr)
+        return 2
+    if destination.exists():
+        print(f"[ERROR] Output already exists; refusing to overwrite: {destination}", file=sys.stderr)
+        return 2
+
+    try:
+        with zipfile.ZipFile(source) as archive:
+            infos = archive.infolist()
+            if len(infos) > 30000:
+                print("[ERROR] The ZIP contains too many entries to process safely.", file=sys.stderr)
+                return 2
+            total_size = sum(info.file_size for info in infos if not info.is_dir())
+            if total_size > 2 * 1024 * 1024 * 1024:
+                print("[ERROR] The uncompressed archive is larger than the 2 GiB safety limit.", file=sys.stderr)
+                return 2
+
+            safe_infos: list[tuple[zipfile.ZipInfo, str]] = []
+            roots: dict[str, list[str]] = {}
+            for info in infos:
+                if info.is_dir():
+                    continue
+                safe = _safe_archive_name(info.filename)
+                if safe is None:
+                    continue
+                mode = (info.external_attr >> 16) & 0o170000
+                if mode == 0o120000:
+                    continue
+                safe_infos.append((info, safe))
+                parts = safe.split("/")
+                for index in range(len(parts) - 2):
+                    if (
+                        parts[index].casefold() == "efi"
+                        and parts[index + 1].casefold() == "boot"
+                        and parts[index + 2].casefold() == "bootx64.efi"
+                    ):
+                        root_parts = parts[:index + 1]
+                        root_key = "/".join(root_parts).casefold()
+                        roots[root_key] = root_parts
+                        break
+
+            if len(roots) != 1:
+                print(
+                    "[ERROR] Could not identify one unambiguous X64/EFI tree containing "
+                    "BOOT/BOOTx64.efi. Use the official OpenCore release package ZIP.",
+                    file=sys.stderr,
+                )
+                return 2
+
+            root_parts = next(iter(roots.values()))
+            root_key = "/".join(root_parts).casefold()
+            prefix = root_key + "/"
+            efi_members: dict[str, tuple[str, zipfile.ZipInfo]] = {}
+            for info, safe in safe_infos:
+                safe_key = safe.casefold()
+                if safe_key.startswith(prefix):
+                    relative = safe[len("/".join(root_parts)) + 1:]
+                    if relative:
+                        efi_members.setdefault(relative.casefold(), (relative, info))
+
+            required = ("boot/bootx64.efi", "oc/opencore.efi")
+            missing = [item for item in required if item not in efi_members]
+            if missing:
+                print("[ERROR] OpenCore ZIP is missing required EFI file(s): " + ", ".join(missing), file=sys.stderr)
+                return 2
+
+            sample_candidates = [
+                (safe, info) for info, safe in safe_infos
+                if safe.casefold().endswith("/docs/sample.plist")
+                or safe.casefold() == "docs/sample.plist"
+            ]
+            if not sample_candidates:
+                sample_candidates = [
+                    (safe, info) for info, safe in safe_infos
+                    if safe.casefold().endswith("/sample.plist")
+                    or safe.casefold() == "sample.plist"
+                ]
+            if not sample_candidates:
+                print("[ERROR] Sample.plist was not found in the OpenCore release ZIP.", file=sys.stderr)
+                return 2
+            sample_candidates.sort(key=lambda item: (
+                0 if item[0].casefold().endswith("/docs/sample.plist") else 1,
+                len(item[0]),
+            ))
+            sample_info = sample_candidates[0][1]
+            if sample_info.file_size > 16 * 1024 * 1024:
+                print("[ERROR] Sample.plist is unexpectedly large.", file=sys.stderr)
+                return 2
+            sample_bytes = archive.read(sample_info)
+            try:
+                sample_data = plistlib.loads(sample_bytes)
+            except Exception as exc:
+                print(f"[ERROR] Sample.plist could not be parsed: {exc}", file=sys.stderr)
+                return 2
+            if not isinstance(sample_data, dict):
+                print("[ERROR] Sample.plist does not contain a property-list dictionary.", file=sys.stderr)
+                return 2
+
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            stage = Path(tempfile.mkdtemp(
+                prefix=f".{destination.name or 'EFI'}.staging-",
+                dir=str(destination.parent.resolve()),
+            ))
+            try:
+                for relative, info in efi_members.values():
+                    if relative.casefold() == "oc/config.plist":
+                        continue
+                    target = stage / Path(*relative.split("/"))
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    with archive.open(info, "r") as src, target.open("wb") as dst:
+                        shutil.copyfileobj(src, dst)
+
+                for folder in (
+                    "OC/ACPI", "OC/Drivers", "OC/Kexts", "OC/Tools", "OC/Resources",
+                ):
+                    (stage / folder).mkdir(parents=True, exist_ok=True)
+
+                (stage / "OC" / "config.plist").write_bytes(sample_bytes)
+                (stage / "SETUP_REQUIRED.txt").write_text(
+                    "EFI starter created from an OpenCore release ZIP.\n"
+                    "\n"
+                    "IMPORTANT: This is not a hardware-configured or ready-to-boot EFI.\n"
+                    "- OC/config.plist is the upstream Sample.plist.\n"
+                    "- Add only ACPI tables, drivers, and kexts appropriate for your exact hardware.\n"
+                    "- Configure every relevant config.plist section for the target computer.\n"
+                    "- Generate your own SMBIOS identity values; do not reuse another person's values.\n"
+                    "- Validate config.plist with ocvalidate from this exact OpenCore release.\n"
+                    "- This utility only creates a folder. It does not mount, format, or write to a disk.\n",
+                    encoding="utf-8",
+                )
+
+                if destination.exists():
+                    raise FileExistsError(f"Output appeared while creating EFI: {destination}")
+                stage.rename(destination)
+            except Exception:
+                shutil.rmtree(stage, ignore_errors=True)
+                raise
+
+    except (OSError, zipfile.BadZipFile, RuntimeError) as exc:
+        print(f"[ERROR] Could not create EFI starter: {exc}", file=sys.stderr)
+        return 2
+
+    copied = len(efi_members) - (1 if "oc/config.plist" in efi_members else 0)
+    print(f"[PASS] EFI starter created: {destination.resolve()}")
+    print(f"Files copied from OpenCore release: {copied}")
+    print("Sample.plist copied to OC/config.plist.")
+    print("[WARN] This is a starter only. Hardware-specific configuration and validation are still required.")
+    print("No disk or EFI System Partition was modified.")
+    return 0
+
 def command_ocvalidate(config_path: str, tool_path: str, expected_version: str | None = None) -> int:
     config = Path(config_path).expanduser()
     tool = Path(tool_path).expanduser()
@@ -843,6 +1005,7 @@ def interactive_menu() -> int:
         print("  7. Check this program (doctor)")
         print("  8. Back up an EFI folder to ZIP")
         print("  9. Download Apple macOS Recovery (OpenCore macrecovery)")
+        print(" 10. Create an EFI starter from an OpenCore release ZIP")
         print("  0. Exit")
         try:
             choice = input("\nChoose an option: ").strip()
@@ -898,6 +1061,13 @@ def interactive_menu() -> int:
                     continue
                 output = input("Output folder [com.apple.recovery.boot]: ").strip().strip('"') or "com.apple.recovery.boot"
                 command_macrecovery(["download", "--os-type", os_type, "--outdir", output])
+            elif choice == "10":
+                print("Creates an EFI folder from an OpenCore release ZIP.")
+                print("The generated config.plist is a sample and is NOT hardware-configured.")
+                release_zip = input("Path to the official OpenCore release ZIP: ").strip().strip('"')
+                output = input("New EFI folder path [EFI]: ").strip().strip('"') or "EFI"
+                if release_zip:
+                    command_create_efi(release_zip, output)
             else:
                 print("Please choose one of the listed numbers.")
         except (KeyboardInterrupt, EOFError):
@@ -946,6 +1116,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Arguments passed to macrecovery.py; use -h to see its options.",
     )
 
+    create_efi = commands.add_parser(
+        "create-efi",
+        help="Create an EFI starter folder from a user-supplied OpenCore release ZIP.",
+    )
+    create_efi.add_argument("release_zip", help="Official OpenCore release ZIP containing X64/EFI and Docs/Sample.plist.")
+    create_efi.add_argument("--output", "-o", default="EFI", help="New EFI output folder; existing folders are never overwritten.")
+
     backup = commands.add_parser("backup-efi", help="Create a new ZIP backup from an EFI folder without changing the source.")
     backup.add_argument("path", help="Extracted EFI folder to back up.")
     backup.add_argument("--output", "-o", default="EFI-backup.zip", help="New ZIP path; existing files are never overwritten.")
@@ -985,6 +1162,8 @@ def main(argv: list[str] | None = None) -> int:
             return command_ocvalidate(args.config, args.tool, args.expect_version)
         if args.command == "macrecovery":
             return command_macrecovery(args.arguments)
+        if args.command == "create-efi":
+            return command_create_efi(args.release_zip, args.output)
         if args.command == "backup-efi":
             return command_backup_efi(args.path, args.output)
         if args.command == "compare-efi":

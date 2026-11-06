@@ -36,6 +36,7 @@ Requirements: Python 3.10 or newer. Windows 10/11 is required for automatic hard
 | Compare two EFI folders/ZIPs | Compares file paths and SHA-256 content hashes to find additions, removals, and changed files |
 | Back up an EFI folder | Creates a new ZIP backup without modifying or overwriting the source |
 | Download macOS Recovery | Runs the bundled OpenCore macrecovery tool to download and verify Recovery files from Apple |
+| Create an EFI starter | Builds an EFI folder from a supplied OpenCore release ZIP and copies its Sample.plist as a starting point |
 | Create a support report | Produces a shareable report without raw config.plist or SMBIOS identity values |
 
 ## CMD commands
@@ -92,6 +93,18 @@ run.bat backup-efi "E:\EFI" --output "C:\Backups\EFI-before-changes.zip"
 ```
 
 Creates a ZIP from an extracted EFI folder. The source is read-only, the destination must be outside that source folder, and an existing backup file is never overwritten. This backs up only the folder you select; it does not mount or locate hidden EFI system partitions.
+
+### Create an EFI starter folder
+
+Use an official OpenCore release ZIP downloaded from the OpenCore project. The tool builds a new EFI directory, copies the x64 boot files and OpenCore files, creates the usual ACPI/Drivers/Kexts/Tools folders, and places the release's `Docs/Sample.plist` at `EFI/OC/config.plist`.
+
+```cmd
+run.bat create-efi "C:\Users\YourName\Downloads\OpenCore-RELEASE.zip" --output "C:\Users\YourName\Desktop\EFI"
+```
+
+The interactive menu provides option **10**. The output folder must not already exist; existing files are never overwritten.
+
+**Important:** this creates a starter folder, not a hardware-configured or ready-to-boot EFI. The sample config must be configured for the exact target hardware, with appropriate ACPI tables, drivers, and kexts, then checked with the matching `ocvalidate`. The program does not mount, format, or write to an EFI System Partition.
 
 ### Compare EFI backups
 
