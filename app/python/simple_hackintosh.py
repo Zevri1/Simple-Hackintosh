@@ -14,12 +14,15 @@ import subprocess
 import sys
 import tempfile
 import textwrap
+import urllib.error
+import urllib.parse
+import urllib.request
 import zipfile
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
-APP_VERSION = "2.3.0"
+APP_VERSION = "2.4.0"
 SECTIONS = (
     "ACPI", "Booter", "DeviceProperties", "Kernel",
     "Misc", "NVRAM", "PlatformInfo", "UEFI",
@@ -957,6 +960,222 @@ def command_doctor() -> int:
     return 0
 
 
+HARDWARE_SNIFFER_RELEASE_API = "https://api.github.com/repos/lzhoang2801/Hardware-Sniffer/releases/latest"
+HARDWARE_SNIFFER_ASSET_NAME = "Hardware-Sniffer.exe"
+HARDWARE_SNIFFER_MAX_BYTES = 32 * 1024 * 1024
+
+
+def _hardware_sniffer_cache_dir() -> Path:
+    local_data = os.environ.get("LOCALAPPDATA")
+    base = Path(local_data).expanduser() if local_data else Path.home() / ".cache"
+    return base / "SimpleHackintosh" / "tools"
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _download_hardware_sniffer() -> tuple[Path, str]:
+    """Download the official interactive Hardware Sniffer release and verify its GitHub digest."""
+    metadata_request = urllib.request.Request(
+        HARDWARE_SNIFFER_RELEASE_API,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "User-Agent": f"Simple-Hackintosh/{APP_VERSION}",
+        },
+    )
+    try:
+        with urllib.request.urlopen(metadata_request, timeout=25) as response:
+            metadata_bytes = response.read(2 * 1024 * 1024 + 1)
+        if len(metadata_bytes) > 2 * 1024 * 1024:
+            raise RuntimeError("Hardware Sniffer release metadata is unexpectedly large.")
+        release = json.loads(metadata_bytes.decode("utf-8"))
+    except (urllib.error.URLError, TimeoutError, OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"Could not retrieve the official Hardware Sniffer release information: {exc}") from exc
+
+    if not isinstance(release, dict) or release.get("draft") or release.get("prerelease"):
+        raise RuntimeError("GitHub did not return a published stable Hardware Sniffer release.")
+    tag = str(release.get("tag_name") or "").strip()
+    if not re.fullmatch(r"[A-Za-z0-9._-]{1,40}", tag):
+        raise RuntimeError("The Hardware Sniffer release has an invalid version tag.")
+
+    assets = release.get("assets")
+    if not isinstance(assets, list):
+        raise RuntimeError("The Hardware Sniffer release did not include an asset list.")
+    asset = next(
+        (item for item in assets if isinstance(item, dict) and item.get("name") == HARDWARE_SNIFFER_ASSET_NAME),
+        None,
+    )
+    if asset is None:
+        raise RuntimeError(f"The official release does not contain {HARDWARE_SNIFFER_ASSET_NAME}.")
+
+    digest_value = str(asset.get("digest") or "")
+    digest_match = re.fullmatch(r"sha256:([0-9a-fA-F]{64})", digest_value)
+    if not digest_match:
+        raise RuntimeError("GitHub did not provide a valid SHA-256 digest for Hardware Sniffer.")
+    expected_digest = digest_match.group(1).lower()
+
+    download_url = str(asset.get("browser_download_url") or "")
+    parsed_url = urllib.parse.urlparse(download_url)
+    if (
+        parsed_url.scheme != "https"
+        or parsed_url.netloc.lower() != "github.com"
+        or not parsed_url.path.startswith("/lzhoang2801/Hardware-Sniffer/releases/download/")
+    ):
+        raise RuntimeError("The Hardware Sniffer download URL is not an official GitHub release asset.")
+
+    expected_size = asset.get("size")
+    if not isinstance(expected_size, int) or expected_size <= 0 or expected_size > HARDWARE_SNIFFER_MAX_BYTES:
+        raise RuntimeError("The Hardware Sniffer release asset has an unexpected file size.")
+
+    cache_dir = _hardware_sniffer_cache_dir()
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    destination = cache_dir / f"Hardware-Sniffer-{tag}.exe"
+    if destination.is_file():
+        try:
+            if _sha256_file(destination) == expected_digest:
+                return destination, tag
+        except OSError:
+            pass
+        destination.unlink(missing_ok=True)
+
+    download_request = urllib.request.Request(
+        download_url,
+        headers={
+            "Accept": "application/octet-stream",
+            "User-Agent": f"Simple-Hackintosh/{APP_VERSION}",
+        },
+    )
+    temporary_path: Path | None = None
+    digest = hashlib.sha256()
+    total_bytes = 0
+    try:
+        with urllib.request.urlopen(download_request, timeout=120) as response:
+            with tempfile.NamedTemporaryFile(
+                prefix=".hardware-sniffer-",
+                suffix=".download",
+                dir=cache_dir,
+                delete=False,
+            ) as temporary:
+                temporary_path = Path(temporary.name)
+                while True:
+                    chunk = response.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    total_bytes += len(chunk)
+                    if total_bytes > HARDWARE_SNIFFER_MAX_BYTES or total_bytes > expected_size:
+                        raise RuntimeError("The Hardware Sniffer download exceeded its declared size.")
+                    digest.update(chunk)
+                    temporary.write(chunk)
+        if total_bytes != expected_size:
+            raise RuntimeError(
+                f"Hardware Sniffer download size mismatch: expected {expected_size}, received {total_bytes}."
+            )
+        if digest.hexdigest() != expected_digest:
+            raise RuntimeError("Hardware Sniffer SHA-256 verification failed; the executable was not installed.")
+        os.replace(temporary_path, destination)
+        temporary_path = None
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        raise RuntimeError(f"Could not download Hardware Sniffer: {exc}") from exc
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+
+    return destination, tag
+
+
+def _verify_hardware_sniffer_signature(executable: Path) -> str:
+    """Require a valid Windows Authenticode signature before launching the downloaded helper."""
+    powershell = _powershell_executable()
+    if not powershell:
+        raise RuntimeError("PowerShell is required to verify the Hardware Sniffer digital signature.")
+    environment = os.environ.copy()
+    environment["SIMPLE_HACKINTOSH_SNIFFER_PATH"] = str(executable.resolve())
+    script = (
+        "$ErrorActionPreference = 'Stop'; "
+        "$signature = Get-AuthenticodeSignature -LiteralPath $env:SIMPLE_HACKINTOSH_SNIFFER_PATH; "
+        "if ($signature.Status -ne 'Valid') { "
+        "[Console]::Error.WriteLine('Authenticode status: ' + $signature.Status); exit 1 }; "
+        "[Console]::Out.WriteLine($signature.SignerCertificate.Subject)"
+    )
+    try:
+        result = subprocess.run(
+            [powershell, "-NoProfile", "-NonInteractive", "-Command", script],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=25,
+            check=False,
+            env=environment,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise RuntimeError(f"Could not verify the Hardware Sniffer digital signature: {exc}") from exc
+    signer = result.stdout.strip()
+    if result.returncode != 0 or not signer:
+        detail = (result.stderr or result.stdout).strip()
+        raise RuntimeError(
+            "The downloaded Hardware Sniffer did not pass Windows Authenticode verification. "
+            + (detail or "The executable was not launched.")
+        )
+    return signer
+
+
+def command_hardware_sniffer(output_dir: str = "HardwareReport") -> int:
+    """Launch the official interactive Hardware Sniffer to export Report.json on Windows."""
+    if platform.system() != "Windows":
+        raise RuntimeError(
+            "OpCore-Simplify's Hardware Sniffer is not supported on macOS. "
+            "Use the built-in 'hardware' command there for a system_profiler report."
+        )
+
+    executable, release_tag = _download_hardware_sniffer()
+    signer = _verify_hardware_sniffer_signature(executable)
+
+    working_dir = Path(output_dir).expanduser().resolve()
+    report_path = working_dir / "SysReport" / "Report.json"
+    if report_path.exists():
+        raise RuntimeError(
+            f"A report already exists at {report_path}. Rename it or choose a new --output-dir."
+        )
+    working_dir.mkdir(parents=True, exist_ok=True)
+
+    print(f"Launching official Hardware Sniffer {release_tag}.")
+    print(f"Verified publisher: {signer}")
+    print("")
+    print("In Hardware Sniffer, choose H to export the hardware report, then Q to quit.")
+    print("Do not choose A unless you explicitly want to dump ACPI tables.")
+    print(f"Expected report location: {report_path}")
+    print("")
+
+    try:
+        process = subprocess.run([str(executable)], cwd=str(working_dir), check=False)
+    except OSError as exc:
+        raise RuntimeError(f"Could not launch Hardware Sniffer: {exc}") from exc
+
+    if not report_path.is_file():
+        print("[ERROR] Report.json was not created. In Hardware Sniffer, press H to export, then Q to quit.", file=sys.stderr)
+        return process.returncode or 1
+    try:
+        if report_path.stat().st_size > 8 * 1024 * 1024:
+            raise RuntimeError("The generated Report.json is unexpectedly large.")
+        with report_path.open("r", encoding="utf-8-sig") as stream:
+            report = json.load(stream)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"Hardware Sniffer created an unreadable Report.json: {exc}") from exc
+    if not isinstance(report, dict) or not report:
+        raise RuntimeError("Hardware Sniffer Report.json does not contain a hardware report object.")
+
+    print("")
+    print(f"[PASS] OpCore-Simplify hardware report saved to: {report_path}")
+    print("Review the report before sharing it; device names and IDs can identify your hardware.")
+    return 0
+
+
 def command_hardware(output: str | None, as_json: bool = False) -> int:
     data = collect_hardware()
     rendered = json.dumps(data, indent=2, ensure_ascii=False) if as_json else hardware_report_markdown(data)
@@ -1470,7 +1689,7 @@ def render_menu(use_color: bool | None = None) -> str:
         boxed(system_line, "muted"),
         _paint(border, "border", enabled),
         boxed("  HARDWARE & DIAGNOSTICS", "heading"),
-        menu_row("01", "Hardware report", "Detect components and estimate a macOS target"),
+        menu_row("01", "Hardware report", "Windows: export OpCore-Simplify Report.json; macOS: native inventory"),
         menu_row("02", "Scan EFI", "Inspect an EFI folder or ZIP without changing it"),
         menu_row("03", "Validate config.plist", "Check plist structure and common entry mistakes"),
         menu_row("04", "Run ocvalidate", "Use the validator matching your OpenCore release"),
@@ -1505,7 +1724,11 @@ def interactive_menu() -> int:
                 return 0
             if choice == "1":
                 try:
-                    command_hardware(None)
+                    if platform.system() == "Windows":
+                        output_dir = input("Report output folder [HardwareReport]: ").strip().strip('"') or "HardwareReport"
+                        command_hardware_sniffer(output_dir)
+                    else:
+                        command_hardware(None)
                 except (RuntimeError, OSError, subprocess.TimeoutExpired) as exc:
                     print(f"[ERROR] {exc}")
             elif choice == "2":
@@ -1585,6 +1808,16 @@ def build_parser() -> argparse.ArgumentParser:
     hardware.add_argument("--output", "-o", help="Save a report.")
     hardware.add_argument("--json", action="store_true", help="Print/save JSON instead of Markdown.")
 
+    sniffer = commands.add_parser(
+        "hardware-sniffer",
+        help="Launch the official OpCore-Simplify Hardware Sniffer to export Report.json (Windows only).",
+    )
+    sniffer.add_argument(
+        "--output-dir",
+        default="HardwareReport",
+        help="Working/output folder. Report.json is saved under SysReport inside it.",
+    )
+
     efi = commands.add_parser("efi-check", aliases=["scan-efi"], help="Scan an EFI folder or ZIP.")
     efi.add_argument("path", help="EFI folder or ZIP file.")
     efi.add_argument("--output", "-o", help="Save machine-readable JSON findings.")
@@ -1647,6 +1880,8 @@ def main(argv: list[str] | None = None) -> int:
             return command_doctor()
         if args.command in ("hardware", "inspect-hardware"):
             return command_hardware(args.output, args.json)
+        if args.command == "hardware-sniffer":
+            return command_hardware_sniffer(args.output_dir)
         if args.command in ("efi-check", "scan-efi"):
             return command_efi(args.path, args.output, args.json)
         if args.command in ("config-check", "lint"):
