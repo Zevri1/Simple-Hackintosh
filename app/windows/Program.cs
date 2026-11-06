@@ -88,19 +88,19 @@ internal sealed class MainForm : Form
         sidebar.Controls.Add(new Label { AutoSize = true, Text = "WORKSPACE", ForeColor = TextSoft, Font = new Font("Consolas", 8, FontStyle.Bold), Location = new Point(22, 127) });
 
         AddNav(sidebar, "home", "⌂   Overview", 154);
-        AddNav(sidebar, "efi", "01   EFI Checker", 202);
-        AddNav(sidebar, "config", "02   Config Validator", 250);
-        AddNav(sidebar, "hardware", "03   Hardware Inspector", 298);
-        AddNav(sidebar, "opencore", "04   OpenCore Builder", 346);
-        AddNav(sidebar, "installer", "05   macOS Downloader", 394);
-        AddNav(sidebar, "kexts", "06   Kext Manager", 442);
-        AddNav(sidebar, "components", "06   Kext Library", 442);
-        AddNav(sidebar, "editor", "07   Config Editor", 490);
+        AddNav(sidebar, "efi", "01   EFI Checker", 196);
+        AddNav(sidebar, "config", "02   Config Validator", 238);
+        AddNav(sidebar, "hardware", "03   Hardware Inspector", 280);
+        AddNav(sidebar, "opencore", "04   OpenCore Builder", 322);
+        AddNav(sidebar, "installer", "05   macOS Downloader", 364);
+        AddNav(sidebar, "kexts", "06   Kext Manager", 406);
+        AddNav(sidebar, "components", "07   Official Kext Library", 448);
+        AddNav(sidebar, "editor", "08   Config Editor", 490);
 
         var privacy = new Panel { BackColor = Panel, BorderStyle = BorderStyle.FixedSingle, Location = new Point(18, 556), Size = new Size(194, 116), Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom };
         privacy.Controls.Add(new Label { Text = "●  LOCAL PROCESSING", ForeColor = Green, Font = new Font("Consolas", 8, FontStyle.Bold), Location = new Point(12, 13), AutoSize = true });
         privacy.Controls.Add(new Label { Text = "Your EFI and hardware reports stay local.\r\nOfficial downloads come from upstream.", ForeColor = TextMuted, Font = new Font("Segoe UI", 8), Location = new Point(12, 39), Size = new Size(164, 43) });
-        privacy.Controls.Add(new Label { Text = "SIMPLE HACKINTOSH  ·  0.4.0", ForeColor = TextSoft, Font = new Font("Consolas", 7), Location = new Point(12, 88), AutoSize = true });
+        privacy.Controls.Add(new Label { Text = "SIMPLE HACKINTOSH  ·  0.5.0", ForeColor = TextSoft, Font = new Font("Consolas", 7), Location = new Point(12, 88), AutoSize = true });
         sidebar.Controls.Add(privacy);
 
         var main = new Panel { Dock = DockStyle.Fill, BackColor = Background };
@@ -314,7 +314,8 @@ internal sealed class MainForm : Form
         var cancelOfficialButton = MakeButton("Cancel", false, new Point(600, 0), new Size(90, 36));
         var loadVersionsButton = MakeButton("Load OpenCore versions", false, new Point(700, 0), new Size(220, 36));
         var versionPicker = new ComboBox { Location = new Point(0, 54), Size = new Size(300, 34), DropDownStyle = ComboBoxStyle.DropDownList, Enabled = false };
-        var versionHint = new Label { Text = "Select the exact OpenCore version used by this config.plist. The latest stable release is used if none is selected.", ForeColor = TextSoft, Font = new Font("Segoe UI", 8), Location = new Point(312, 58), Size = new Size(608, 34) };
+        var importOfflineButton = MakeButton("Import offline ZIP", false, new Point(312, 54), new Size(180, 34));
+        var versionHint = new Label { Text = "Select the exact OpenCore version used by this config.plist. You can also import a local official ZIP with its published SHA-256 digest.", ForeColor = TextSoft, Font = new Font("Segoe UI", 8), Location = new Point(500, 58), Size = new Size(420, 34) };
         cancelOfficialButton.Enabled = false;
         var input = new TextBox
         {
@@ -330,7 +331,7 @@ internal sealed class MainForm : Form
             ForeColor = TextSoft, Font = new Font("Segoe UI", 8), Location = new Point(2, 446), Size = new Size(920, 32)
         };
         var results = NewResultsPanel(new Point(0, 484), new Size(920, 380));
-        page.Controls.AddRange(new Control[] { fileButton, validateButton, officialValidateButton, cancelOfficialButton, loadVersionsButton, versionPicker, versionHint, input, hint, results });
+        page.Controls.AddRange(new Control[] { fileButton, validateButton, officialValidateButton, cancelOfficialButton, loadVersionsButton, versionPicker, importOfflineButton, versionHint, input, hint, results });
 
         fileButton.Click += (_, _) =>
         {
@@ -362,6 +363,67 @@ internal sealed class MainForm : Form
                 RenderResults(results, new List<CheckResult> { new("error", "Invalid XML property list", ex.Message) }, "Configuration review");
                 _status.Text = "●  INVALID INPUT";
                 _status.ForeColor = Red;
+            }
+        };
+
+        importOfflineButton.Click += async (_, _) =>
+        {
+            using var dialog = new OpenFileDialog
+            {
+                Filter = "Official OpenCore release ZIP (OpenCore-*-RELEASE.zip)|OpenCore-*-RELEASE.zip",
+                Title = "Select the official Acidanthera OpenCore RELEASE ZIP"
+            };
+            if (dialog.ShowDialog(this) != DialogResult.OK) return;
+
+            string version;
+            try { version = OpenCoreReleaseService.ParseOfflineReleaseVersion(dialog.FileName); }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, ex.Message, "Unsupported OpenCore archive name", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            string? publishedDigest = PromptForPublishedSha256(version);
+            if (publishedDigest is null) return;
+
+            importOfflineButton.Enabled = false;
+            loadVersionsButton.Enabled = false;
+            officialValidateButton.Enabled = false;
+            validateButton.Enabled = false;
+            fileButton.Enabled = false;
+            input.ReadOnly = true;
+            _status.Text = "●  VERIFYING OFFLINE OPENCORE ARCHIVE";
+            _status.ForeColor = Blue;
+            try
+            {
+                var imported = await OpenCoreReleaseService.ImportOfflineReleaseAsync(dialog.FileName, publishedDigest);
+                var available = (versionPicker.DataSource as IEnumerable<OpenCoreReleaseInfo>)?.ToList()
+                    ?? new List<OpenCoreReleaseInfo>();
+                available.RemoveAll(item => string.Equals(item.Version, imported.Version, StringComparison.OrdinalIgnoreCase));
+                available.Add(imported);
+                versionPicker.DataSource = null;
+                versionPicker.DataSource = available;
+                versionPicker.DisplayMember = nameof(OpenCoreReleaseInfo.Version);
+                versionPicker.SelectedItem = imported;
+                versionPicker.Enabled = true;
+                versionHint.Text = $"OpenCore {imported.Version} was imported and SHA-256 verified locally. Its validator is cached for offline validation.";
+                _status.Text = $"●  OPENCORE {imported.Version} IMPORTED / SHA-256 VERIFIED";
+                _status.ForeColor = Green;
+            }
+            catch (Exception ex)
+            {
+                _status.Text = "●  OFFLINE RELEASE IMPORT FAILED";
+                _status.ForeColor = Yellow;
+                MessageBox.Show(this, ex.Message, "Could not import offline OpenCore release", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            finally
+            {
+                importOfflineButton.Enabled = true;
+                loadVersionsButton.Enabled = true;
+                officialValidateButton.Enabled = true;
+                validateButton.Enabled = true;
+                fileButton.Enabled = true;
+                input.ReadOnly = false;
             }
         };
 
@@ -404,6 +466,7 @@ internal sealed class MainForm : Form
             validateButton.Enabled = false;
             officialValidateButton.Enabled = false;
             cancelOfficialButton.Enabled = true;
+            importOfflineButton.Enabled = false;
             loadVersionsButton.Enabled = false;
             versionPicker.Enabled = false;
             input.ReadOnly = true;
@@ -452,6 +515,7 @@ internal sealed class MainForm : Form
                 validateButton.Enabled = true;
                 officialValidateButton.Enabled = true;
                 cancelOfficialButton.Enabled = false;
+                importOfflineButton.Enabled = true;
                 loadVersionsButton.Enabled = true;
                 versionPicker.Enabled = versionPicker.Items.Count > 0;
                 input.ReadOnly = false;
@@ -1325,6 +1389,42 @@ internal sealed class MainForm : Form
             }
         };
         return page;
+    }
+
+    private string? PromptForPublishedSha256(string version)
+    {
+        using var prompt = new Form
+        {
+            Text = $"Verify official OpenCore {version} archive",
+            StartPosition = FormStartPosition.CenterParent,
+            FormBorderStyle = FormBorderStyle.FixedDialog,
+            MinimizeBox = false,
+            MaximizeBox = false,
+            ShowInTaskbar = false,
+            ClientSize = new Size(620, 190),
+            BackColor = Panel,
+            ForeColor = TextMain,
+            Font = new Font("Segoe UI", 9)
+        };
+        var explanation = new Label
+        {
+            Text = "Paste the SHA-256 digest shown by GitHub for this exact OpenCore RELEASE ZIP. It may start with sha256:. Do not use a digest from another version or an untrusted mirror.",
+            ForeColor = TextMuted, Location = new Point(18, 18), Size = new Size(580, 48)
+        };
+        var digest = new TextBox
+        {
+            Location = new Point(18, 75), Size = new Size(580, 28),
+            BackColor = Color.FromArgb(8, 13, 18), ForeColor = TextMain,
+            BorderStyle = BorderStyle.FixedSingle, Font = new Font("Consolas", 9)
+        };
+        var verify = MakeButton("Verify and import", true, new Point(340, 130), new Size(150, 34));
+        verify.DialogResult = DialogResult.OK;
+        var cancel = MakeButton("Cancel", false, new Point(500, 130), new Size(98, 34));
+        cancel.DialogResult = DialogResult.Cancel;
+        prompt.Controls.AddRange(new Control[] { explanation, digest, verify, cancel });
+        prompt.AcceptButton = verify;
+        prompt.CancelButton = cancel;
+        return prompt.ShowDialog(this) == DialogResult.OK ? digest.Text : null;
     }
 
     private static FlowLayoutPanel NewResultsPanel(Point location, Size size)

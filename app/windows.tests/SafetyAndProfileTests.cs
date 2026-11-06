@@ -1,5 +1,6 @@
 using System.IO;
 using System.IO.Compression;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using SimpleHackintosh.App;
@@ -439,5 +440,85 @@ public sealed class SafetyAndProfileTests
         finally { Directory.Delete(directory, true); }
     }
 
+
+    [Theory]
+    [InlineData(@"C:\Downloads\OpenCore-1.0.8-RELEASE.zip", "1.0.8")]
+    [InlineData("OpenCore-1.0.8.1-RELEASE.zip", "1.0.8.1")]
+    public void ParsesOfflineReleaseZipVersion(string path, string expected)
+    {
+        Assert.Equal(expected, OpenCoreReleaseService.ParseOfflineReleaseVersion(path));
+    }
+
+    [Theory]
+    [InlineData("OpenCore-1.0.8.zip")]
+    [InlineData("OpenCore-1.0.8-DEBUG.zip")]
+    [InlineData("OpenCore-../1.0.8-RELEASE.zip")]
+    public void RejectsNonOfficialOfflineZipName(string path)
+    {
+        Assert.Throws<InvalidDataException>(() => OpenCoreReleaseService.ParseOfflineReleaseVersion(path));
+    }
+
+    [Fact]
+    public void NormalizesOfficialSha256DigestPrefix()
+    {
+        string digest = new string('A', 64);
+        Assert.Equal(digest.ToLowerInvariant(), OpenCoreReleaseService.NormalizePublishedSha256("sha256:" + digest));
+        Assert.Equal(digest.ToLowerInvariant(), OpenCoreReleaseService.NormalizePublishedSha256(digest));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("sha256:1234")]
+    [InlineData("g000000000000000000000000000000000000000000000000000000000000000")]
+    public void RejectsInvalidPublishedSha256Digest(string digest)
+    {
+        Assert.Throws<InvalidDataException>(() => OpenCoreReleaseService.NormalizePublishedSha256(digest));
+    }
+
+    [Fact]
+    public async Task ImportsOfflineReleaseOnlyAfterPublishedDigestMatches()
+    {
+        const string version = "9.9.99";
+        string root = Path.Combine(Path.GetTempPath(), "sh-offline-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        string zipPath = Path.Combine(root, $"OpenCore-{version}-RELEASE.zip");
+        string cache = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "SimpleHackintosh", "Tools", "OpenCore-" + version);
+        try
+        {
+            using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+            {
+                foreach (string entryName in new[]
+                {
+                    "X64/EFI/BOOT/BOOTx64.efi",
+                    "X64/EFI/OC/OpenCore.efi",
+                    "Docs/Sample.plist",
+                    "Utilities/ocvalidate/ocvalidate.exe"
+                })
+                {
+                    var entry = archive.CreateEntry(entryName);
+                    await using var stream = entry.Open();
+                    await stream.WriteAsync(new byte[] { 0x53, 0x48, 0x54, 0x31 });
+                }
+            }
+
+            string digest;
+            await using (var input = File.OpenRead(zipPath))
+                digest = Convert.ToHexString(await SHA256.HashDataAsync(input)).ToLowerInvariant();
+
+            var imported = await OpenCoreReleaseService.ImportOfflineReleaseAsync(zipPath, "sha256:" + digest);
+            Assert.Equal(version, imported.Version);
+            Assert.True(File.Exists(Path.Combine(cache, "ocvalidate.exe")));
+            Assert.True(File.Exists(Path.Combine(cache, "ocvalidate.exe.sha256")));
+
+            await Assert.ThrowsAsync<InvalidDataException>(() =>
+                OpenCoreReleaseService.ImportOfflineReleaseAsync(zipPath, new string('0', 64)));
+        }
+        finally
+        {
+            try { if (Directory.Exists(cache)) Directory.Delete(cache, true); } catch { }
+            try { if (Directory.Exists(root)) Directory.Delete(root, true); } catch { }
+        }
+    }
 
 }

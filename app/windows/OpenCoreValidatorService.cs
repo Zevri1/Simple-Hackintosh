@@ -77,6 +77,134 @@ internal static partial class OpenCoreReleaseService
         finally { try { if (Directory.Exists(workRoot)) Directory.Delete(workRoot, true); } catch { } }
     }
 
+    public static async Task<OpenCoreReleaseInfo> ImportOfflineReleaseAsync(
+        string archivePath, string publishedSha256, IProgress<OpenCoreProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        string version = ParseOfflineReleaseVersion(archivePath);
+        string expectedHash = NormalizePublishedSha256(publishedSha256);
+        var info = new FileInfo(archivePath);
+        if (!info.Exists || info.Length <= 0 || info.Length > 100L * 1024 * 1024)
+            throw new InvalidDataException("The selected OpenCore archive is missing, empty, or larger than 100 MB.");
+
+        await using var archiveFile = new FileStream(archivePath, FileMode.Open, FileAccess.Read, FileShare.Read,
+            256 * 1024, FileOptions.Asynchronous | FileOptions.RandomAccess);
+        string actualHash = Convert.ToHexString(await SHA256.HashDataAsync(archiveFile, cancellationToken)).ToLowerInvariant();
+        if (!CryptographicOperations.FixedTimeEquals(Convert.FromHexString(actualHash), Convert.FromHexString(expectedHash)))
+            throw new InvalidDataException("The local ZIP SHA-256 does not match the digest copied from the official Acidanthera GitHub release. Nothing was imported.");
+
+        progress?.Report(new OpenCoreProgress($"Verifying offline OpenCore {version} archive…", archiveFile.Length, archiveFile.Length));
+        archiveFile.Position = 0;
+        using (var archive = new ZipArchive(archiveFile, ZipArchiveMode.Read, leaveOpen: true))
+        {
+            if (archive.Entries.Count == 0 || archive.Entries.Count > 20000)
+                throw new InvalidDataException("The selected ZIP has an unexpected number of entries.");
+
+            var seen = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            long expandedBytes = 0;
+            bool hasBoot = false;
+            bool hasOpenCore = false;
+            bool hasSample = false;
+            ZipArchiveEntry? validatorEntry = null;
+            foreach (var entry in archive.Entries)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                string normalized = ValidateArchivePath(entry.FullName);
+                if (!seen.Add(normalized)) throw new InvalidDataException("The selected ZIP contains duplicate paths.");
+                expandedBytes += entry.Length;
+                if (entry.Length < 0 || expandedBytes > 300L * 1024 * 1024)
+                    throw new InvalidDataException("The selected ZIP exceeds the 300 MB expanded-size safety limit.");
+                int unixType = (int)((entry.ExternalAttributes >> 16) & 0xF000);
+                if (unixType == 0xA000 || (entry.ExternalAttributes & 0x400) != 0)
+                    throw new InvalidDataException("The selected ZIP contains a symbolic link or reparse-point entry.");
+
+                hasBoot |= normalized.Equals("X64/EFI/BOOT/BOOTx64.efi", StringComparison.OrdinalIgnoreCase);
+                hasOpenCore |= normalized.Equals("X64/EFI/OC/OpenCore.efi", StringComparison.OrdinalIgnoreCase);
+                hasSample |= normalized.Equals("Docs/Sample.plist", StringComparison.OrdinalIgnoreCase) ||
+                    normalized.Equals("X64/Docs/Sample.plist", StringComparison.OrdinalIgnoreCase);
+                if (!string.IsNullOrEmpty(entry.Name) && IsWindowsValidatorPath(normalized))
+                {
+                    if (validatorEntry is not null)
+                        throw new InvalidDataException("The archive contains multiple Windows ocvalidate candidates.");
+                    if (entry.Length <= 0 || entry.Length > 64L * 1024 * 1024)
+                        throw new InvalidDataException("The Windows ocvalidate entry has an unexpected size.");
+                    validatorEntry = entry;
+                }
+            }
+
+            if (!hasBoot || !hasOpenCore || !hasSample)
+                throw new InvalidDataException("The archive is missing the expected official x64 EFI payload or matching Docs/Sample.plist.");
+            if (validatorEntry is null)
+                throw new NotSupportedException("The official OpenCore ZIP does not include Windows ocvalidate.exe. No unofficial executable will be substituted.");
+
+            string localRoot = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            if (string.IsNullOrWhiteSpace(localRoot))
+                throw new DirectoryNotFoundException("Windows Local AppData could not be located.");
+            string cacheDirectory = Path.Combine(localRoot, "SimpleHackintosh", "Tools", "OpenCore-" + version);
+            Directory.CreateDirectory(cacheDirectory);
+            string executablePath = Path.Combine(cacheDirectory, "ocvalidate.exe");
+            string hashPath = executablePath + ".sha256";
+            string temporaryExe = executablePath + "." + Guid.NewGuid().ToString("N") + ".partial";
+            string temporaryHash = hashPath + "." + Guid.NewGuid().ToString("N") + ".partial";
+            try
+            {
+                await using (var input = validatorEntry.Open())
+                await using (var output = new FileStream(temporaryExe, FileMode.CreateNew, FileAccess.Write, FileShare.None,
+                    128 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan))
+                {
+                    var buffer = new byte[128 * 1024];
+                    long copied = 0;
+                    int count;
+                    while ((count = await input.ReadAsync(buffer, cancellationToken)) > 0)
+                    {
+                        copied += count;
+                        if (copied > validatorEntry.Length || copied > 64L * 1024 * 1024)
+                            throw new InvalidDataException("The extracted validator exceeded its declared size.");
+                        await output.WriteAsync(buffer.AsMemory(0, count), cancellationToken);
+                    }
+                    await output.FlushAsync(cancellationToken);
+                    if (copied != validatorEntry.Length)
+                        throw new InvalidDataException("The extracted validator size did not match the ZIP entry.");
+                }
+
+                string exeHash = await HashFileAsync(temporaryExe, cancellationToken);
+                await File.WriteAllTextAsync(temporaryHash, exeHash + Environment.NewLine, new UTF8Encoding(false), cancellationToken);
+                File.Move(temporaryExe, executablePath, true);
+                File.Move(temporaryHash, hashPath, true);
+            }
+            finally
+            {
+                try { if (File.Exists(temporaryExe)) File.Delete(temporaryExe); } catch { }
+                try { if (File.Exists(temporaryHash)) File.Delete(temporaryHash); } catch { }
+            }
+        }
+
+        var downloadUri = new Uri($"https://github.com/acidanthera/OpenCorePkg/releases/download/{version}/OpenCore-{version}-RELEASE.zip");
+        return new OpenCoreReleaseInfo(version, downloadUri, expectedHash, archiveFile.Length, $"OpenCore-{version}-RELEASE.zip");
+    }
+
+    internal static string ParseOfflineReleaseVersion(string archivePath)
+    {
+        if (string.IsNullOrWhiteSpace(archivePath)) throw new InvalidDataException("Select an official OpenCore RELEASE ZIP.");
+        string fileName = Path.GetFileName(archivePath);
+        var match = Regex.Match(fileName,
+            @"^OpenCore-(?<version>[0-9]+(?:\.[0-9]+){1,3})-RELEASE\.zip$",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        if (!match.Success)
+            throw new InvalidDataException("The file must be named OpenCore-X.Y.Z-RELEASE.zip and match the official Acidanthera release asset.");
+        return match.Groups["version"].Value;
+    }
+
+    internal static string NormalizePublishedSha256(string value)
+    {
+        string normalized = (value ?? "").Trim();
+        if (normalized.StartsWith("sha256:", StringComparison.OrdinalIgnoreCase))
+            normalized = normalized["sha256:".Length..].Trim();
+        if (!IsSha256(normalized))
+            throw new InvalidDataException("Paste the 64-character SHA-256 digest published for this exact OpenCore release asset.");
+        return normalized.ToLowerInvariant();
+    }
+
     internal static string? ParseValidatorVersionBanner(string output)
     {
         if (string.IsNullOrWhiteSpace(output)) return null;

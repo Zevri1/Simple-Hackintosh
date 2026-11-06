@@ -43,7 +43,7 @@ The native SwiftUI app has a graphical workspace for Apple's full-installer cata
 - [Desktop app roadmap and shared hardware profile](docs/17-desktop-studio-roadmap.md)
 - [Hardware profile JSON Schema v1](schemas/hardware-profile-v1.schema.json)
 
-The Windows desktop app is a native .NET 10 Windows Forms utility with EFI Checker, Config Validator and version-matched official ocvalidate, Hardware Inspector, direct Apple full-installer downloads, a SHA-256-verified OpenCore x64 starter builder, Hardware Profile v1 JSON import/export, a read-only hardware-guided EFI checklist, and a curated Official Kext Library with digest-verified downloads and safe Kext-only extraction. Kexts are staged separately and are never injected into an existing EFI automatically. Its EFI output is a starter template, not a ready-to-boot configuration.
+The Windows desktop app is a native .NET 10 Windows Forms utility with EFI Checker, Config Validator and version-matched official ocvalidate, Hardware Inspector, direct Apple full-installer downloads, a SHA-256-verified OpenCore x64 starter builder, Hardware Profile v1 JSON import/export, a read-only hardware-guided EFI checklist, and a curated Official Kext Library with digest-verified downloads and safe Kext-only extraction, plus an XML Config Editor and offline OpenCore validator import guarded by the release's published SHA-256. Kexts are staged separately and are never injected into an existing EFI automatically. Its EFI output is a starter template, not a ready-to-boot configuration.
 
 ## What this project is
 

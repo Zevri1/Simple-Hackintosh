@@ -66,10 +66,16 @@ Keep the existing native Windows Forms application on .NET 10. Do not introduce 
 - Support property-path filtering and save-as-new-file; never overwrite the source file.
 - Keep arrays, dictionaries, binary Data and Date values read-only until their versioned schema rules are implemented.
 
+**Implemented in v0.5 preview**
+- Import an exact official OpenCore RELEASE ZIP for offline validation.
+- Require the SHA-256 digest copied from the corresponding Acidanthera GitHub release asset; compare it before parsing or extracting the validator.
+- Keep the selected archive open read-only while hashing and extracting, preventing file replacement between verification and use.
+- Validate expected x64 EFI and Sample.plist entries, the exact Windows validator path, duplicate paths, links, traversal, archive entry count and expanded size.
+- Cache the extracted validator with a SHA-256 sidecar and add the imported release to the Config Validator version selector.
+
 **Remaining**
-- Expand this into a complete schema-guided editor using the exact schema/sample shipped with the selected OpenCore version.
+- Expand the scalar Config Editor into a complete schema-guided editor using the exact schema shipped with the selected OpenCore version.
 - Add per-component macOS compatibility metadata and OpenCore dependency guidance based on upstream documentation.
-- Add import of a local official OpenCore release package for offline validation when internet access is unavailable.
 
 **Acceptance**
 - No existing EFI folder is overwritten.
@@ -144,4 +150,7 @@ flowchart TD
 - [x] Read-only guided EFI preparation checklist generated from schema-v1 hardware profiles.
 - [x] Official Kext Library with digest-required download and safe Kext-only extraction.
 - [x] Non-destructive scalar Config Editor with save-as-new-file behavior.
+- [x] Offline OpenCore release import UI, digest verification and validator cache tests.
+- [ ] Live Apple catalog smoke test on Windows.
+- [ ] Windows runtime smoke tests for profile, Kext and EFI flows.
 - [ ] Final QA and signed/notarized macOS counterpart coordination.
