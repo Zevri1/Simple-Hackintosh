@@ -4,14 +4,13 @@ on:
   push:
     branches:
       - main
-      - chatgpt/python-cmd-cli-20261106
   pull_request:
     paths:
       - "app/python/**"
       - ".github/workflows/python-cli.yml"
 
 concurrency:
-  group: python-cli-${{ github.event.pull_request.head.ref || github.ref_name }}
+  group: python-cli-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
