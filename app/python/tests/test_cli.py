@@ -302,6 +302,8 @@ class HardwareSnifferIntegrationTests(unittest.TestCase):
             self.assertTrue(captured["capture_output"])
             self.assertTrue(captured["text"])
             self.assertEqual(captured["timeout"], 180)
+            self.assertEqual(captured["env"]["PYTHONIOENCODING"], "utf-8:replace")
+            self.assertEqual(captured["env"]["PYTHONUTF8"], "1")
             self.assertTrue((root / "output" / "SysReport" / "Report.json").is_file())
             self.assertFalse((root / "output" / "SysReport" / "ACPI").exists())
 
