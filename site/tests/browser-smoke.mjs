@@ -115,7 +115,8 @@ try {
   assert.equal(await page.locator("#efi-results").isVisible(), true, "Folder-based EFI inspection should render results");
   assert.match(await page.locator("#efi-results").innerText(), /OpenCore\.efi/);
 
-  const smallPage = await context.newPage({viewport: {width: 390, height: 844}});
+  const smallPage = await context.newPage();
+  await smallPage.setViewportSize({width: 390, height: 844});
   await smallPage.goto(base + "/tools.html", {waitUntil: "networkidle"});
   const bodyWidth = await smallPage.locator("body").evaluate(node => node.scrollWidth);
   const viewportWidth = await smallPage.evaluate(() => window.innerWidth);
