@@ -63,8 +63,9 @@ The interactive menu's **01 Hardware report** option launches the official [Hard
 
 When its menu appears:
 1. Press `H` to export the hardware report.
-2. Press `Q` to quit.
-3. The report is saved to `HardwareReport/SysReport/Report.json` by default. Change the folder when prompted in the Simple Hackintosh menu.
+2. Press `Enter` to dismiss the save confirmation and return to the Hardware Sniffer menu.
+3. Press `Q` to quit.
+4. The report is saved to `HardwareReport/SysReport/Report.json` by default. Change the folder when prompted in the Simple Hackintosh menu.
 
 You can launch this export directly from PowerShell with:
 
