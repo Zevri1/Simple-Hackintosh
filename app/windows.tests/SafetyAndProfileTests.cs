@@ -349,4 +349,93 @@ public sealed class SafetyAndProfileTests
         Assert.Equal("1.7.2", KextCatalogService.ParseLatestRelease(project, document.RootElement).Version);
     }
 
+
+    [Fact]
+    public void ConfigEditorListsAndEditsOnlyExistingScalarValues()
+    {
+        const string xml = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+          <dict>
+            <key>Misc</key>
+            <dict>
+              <key>Boot</key>
+              <dict>
+                <key>ShowPicker</key><true/>
+                <key>Timeout</key><integer>5</integer>
+                <key>PickerMode</key><string>Builtin</string>
+              </dict>
+            </dict>
+            <key>Kernel</key>
+            <dict>
+              <key>Add</key>
+              <array>
+                <dict><key>Enabled</key><false/><key>BundlePath</key><string>Lilu.kext</string></dict>
+              </array>
+            </dict>
+          </dict>
+        </plist>
+        """;
+
+        var session = ConfigPlistEditorSession.Load(xml);
+        var showPicker = Assert.Single(session.Entries.Where(item => item.Path == "Misc/Boot/ShowPicker"));
+        var timeout = Assert.Single(session.Entries.Where(item => item.Path == "Misc/Boot/Timeout"));
+        var kextPath = Assert.Single(session.Entries.Where(item => item.Path == "Kernel/Add[0]/BundlePath"));
+        Assert.Equal("boolean", showPicker.Type);
+        Assert.Equal("integer", timeout.Type);
+        Assert.Equal("string", kextPath.Type);
+
+        session.SetValue(showPicker, "false");
+        session.SetValue(timeout, "10");
+        session.SetValue(kextPath, "VirtualSMC.kext");
+
+        Assert.Equal("false", Assert.Single(session.Entries.Where(item => item.Path == showPicker.Path)).Value);
+        Assert.Equal("10", Assert.Single(session.Entries.Where(item => item.Path == timeout.Path)).Value);
+        Assert.Equal("VirtualSMC.kext", Assert.Single(session.Entries.Where(item => item.Path == kextPath.Path)).Value);
+    }
+
+    [Theory]
+    [InlineData("integer", "not-a-number")]
+    [InlineData("real", "NaN")]
+    [InlineData("boolean", "yes")]
+    public void ConfigEditorRejectsInvalidScalarValues(string type, string value)
+    {
+        string xml = type switch
+        {
+            "integer" => "<plist><dict><key>Value</key><integer>1</integer></dict></plist>",
+            "real" => "<plist><dict><key>Value</key><real>1.5</real></dict></plist>",
+            _ => "<plist><dict><key>Value</key><true/></dict></plist>"
+        };
+        var session = ConfigPlistEditorSession.Load(xml);
+        var entry = Assert.Single(session.Entries);
+        Assert.Equal(type, entry.Type == "true" ? "boolean" : entry.Type);
+        Assert.Throws<InvalidDataException>(() => session.SetValue(entry, value));
+    }
+
+    [Fact]
+    public void ConfigEditorSavesNewCopyAndNeverOverwritesExistingFile()
+    {
+        const string xml = "<plist><dict><key>Timeout</key><integer>5</integer></dict></plist>";
+        var session = ConfigPlistEditorSession.Load(xml);
+        string directory = Path.Combine(Path.GetTempPath(), "sh-config-edit-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        string existing = Path.Combine(directory, "existing.plist");
+        string output = Path.Combine(directory, "new-config.plist");
+        try
+        {
+            File.WriteAllText(existing, "keep-this-file");
+            Assert.Throws<IOException>(() => session.SaveAsNewFile(existing));
+            Assert.Equal("keep-this-file", File.ReadAllText(existing));
+
+            session.SetValue(Assert.Single(session.Entries), "9");
+            session.SaveAsNewFile(output);
+            var saved = SafePlistXml.Load(File.ReadAllText(output));
+            Assert.Equal("9", saved.Root?.Element("dict")?.Element("integer")?.Value);
+            Assert.NotNull(saved.DocumentType);
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+
 }

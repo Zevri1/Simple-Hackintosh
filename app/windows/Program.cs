@@ -95,8 +95,9 @@ internal sealed class MainForm : Form
         AddNav(sidebar, "installer", "05   macOS Downloader", 394);
         AddNav(sidebar, "kexts", "06   Kext Manager", 442);
         AddNav(sidebar, "components", "06   Kext Library", 442);
+        AddNav(sidebar, "editor", "07   Config Editor", 490);
 
-        var privacy = new Panel { BackColor = Panel, BorderStyle = BorderStyle.FixedSingle, Location = new Point(18, 500), Size = new Size(194, 116), Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom };
+        var privacy = new Panel { BackColor = Panel, BorderStyle = BorderStyle.FixedSingle, Location = new Point(18, 556), Size = new Size(194, 116), Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom };
         privacy.Controls.Add(new Label { Text = "●  LOCAL PROCESSING", ForeColor = Green, Font = new Font("Consolas", 8, FontStyle.Bold), Location = new Point(12, 13), AutoSize = true });
         privacy.Controls.Add(new Label { Text = "Your EFI and hardware reports stay local.\r\nOfficial downloads come from upstream.", ForeColor = TextMuted, Font = new Font("Segoe UI", 8), Location = new Point(12, 39), Size = new Size(164, 43) });
         privacy.Controls.Add(new Label { Text = "SIMPLE HACKINTOSH  ·  0.4.0", ForeColor = TextSoft, Font = new Font("Consolas", 7), Location = new Point(12, 88), AutoSize = true });
@@ -182,6 +183,11 @@ internal sealed class MainForm : Form
                 _pageTitle.Text = "Official Kext Library";
                 _pageSubtitle.Text = "Browse and verify stable Kext releases from selected upstream GitHub repositories.";
                 page = BuildComponentsPage();
+                break;
+            case "editor":
+                _pageTitle.Text = "Config Editor";
+                _pageSubtitle.Text = "Edit existing scalar config.plist values and save a separate copy for version-matched validation.";
+                page = BuildConfigEditorPage();
                 break;
             default:
                 _pageTitle.Text = "Simple Hackintosh";
@@ -949,6 +955,226 @@ internal sealed class MainForm : Form
                 progress.Style = ProgressBarStyle.Continuous;
             }
         };
+        return page;
+    }
+
+    private Control BuildConfigEditorPage()
+    {
+        var page = NewPage();
+        var open = MakeButton("Open config.plist", true, new Point(0, 10), new Size(160, 36));
+        var saveAs = MakeButton("Save as new file", false, new Point(170, 10), new Size(165, 36));
+        saveAs.Enabled = false;
+        var search = new TextBox
+        {
+            Location = new Point(350, 14), Size = new Size(360, 28),
+            PlaceholderText = "Filter by property path…",
+            BackColor = Color.FromArgb(8, 13, 18), ForeColor = TextMain,
+            BorderStyle = BorderStyle.FixedSingle
+        };
+        var sourceLabel = new Label
+        {
+            Text = "No config.plist loaded. The source file is never overwritten.",
+            ForeColor = TextMuted, Font = new Font("Segoe UI", 8),
+            Location = new Point(0, 55), Size = new Size(920, 24), AutoEllipsis = true
+        };
+        var entries = new ListBox
+        {
+            Location = new Point(0, 88), Size = new Size(420, 500),
+            BackColor = Color.FromArgb(8, 13, 18), ForeColor = TextMain,
+            BorderStyle = BorderStyle.FixedSingle, Font = new Font("Consolas", 8),
+            HorizontalScrollbar = true, IntegralHeight = false
+        };
+        var selectedPath = new Label
+        {
+            Text = "Select a property on the left.",
+            ForeColor = TextMain, Font = new Font("Segoe UI", 9, FontStyle.Bold),
+            Location = new Point(440, 88), Size = new Size(470, 42), AutoEllipsis = true
+        };
+        var typeLabel = new Label
+        {
+            Text = "Type: —", ForeColor = TextMuted, Font = new Font("Consolas", 8),
+            Location = new Point(440, 134), Size = new Size(470, 20)
+        };
+        var value = new TextBox
+        {
+            Multiline = true, AcceptsReturn = true, AcceptsTab = true, WordWrap = true,
+            ScrollBars = ScrollBars.Vertical, Font = new Font("Consolas", 9),
+            BackColor = Color.FromArgb(8, 13, 18), ForeColor = TextMain,
+            BorderStyle = BorderStyle.FixedSingle, Location = new Point(440, 164),
+            Size = new Size(470, 170), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+        };
+        var booleanValue = new CheckBox
+        {
+            Text = "Enabled / true", ForeColor = TextMain, Font = new Font("Segoe UI", 9),
+            Location = new Point(440, 164), AutoSize = true, Visible = false
+        };
+        var apply = MakeButton("Apply value", true, new Point(440, 348), new Size(135, 36));
+        apply.Enabled = false;
+        var status = new Label
+        {
+            Text = "Only existing String, Integer, Real, and Boolean values can be edited.",
+            ForeColor = TextSoft, Font = new Font("Segoe UI", 8),
+            Location = new Point(440, 395), Size = new Size(470, 42)
+        };
+        var guidance = new Panel
+        {
+            Location = new Point(440, 452), Size = new Size(470, 136),
+            BackColor = Panel, Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+        };
+        guidance.Controls.Add(new Label
+        {
+            Text = "SAFE EDITING BOUNDARIES",
+            ForeColor = Accent, Font = new Font("Consolas", 8, FontStyle.Bold),
+            Location = new Point(14, 13), AutoSize = true
+        });
+        guidance.Controls.Add(new Label
+        {
+            Text = "This editor changes existing scalar values only. It does not add/remove keys, edit arrays or dictionaries, or modify binary Data/Date fields. Save to a new file, then run the matching official ocvalidate for the exact OpenCore release. A valid plist is not necessarily a bootable EFI.",
+            ForeColor = TextMuted, Font = new Font("Segoe UI", 8),
+            Location = new Point(14, 38), Size = new Size(440, 88)
+        });
+        page.Controls.AddRange(new Control[] { open, saveAs, search, sourceLabel, entries, selectedPath, typeLabel, value, booleanValue, apply, status, guidance });
+
+        ConfigPlistEditorSession? session = null;
+        string? sourcePath = null;
+        PlistEditableEntry? selectedEntry = null;
+        IReadOnlyList<PlistEditableEntry> allEntries = Array.Empty<PlistEditableEntry>();
+        bool modified = false;
+
+        void ShowSelectedEntry()
+        {
+            selectedEntry = entries.SelectedItem as PlistEditableEntry;
+            bool hasSelection = selectedEntry is not null;
+            apply.Enabled = hasSelection;
+            value.Visible = hasSelection && selectedEntry!.Type != "boolean";
+            booleanValue.Visible = hasSelection && selectedEntry!.Type == "boolean";
+            if (!hasSelection)
+            {
+                selectedPath.Text = "Select a property on the left.";
+                typeLabel.Text = "Type: —";
+                value.Clear();
+                booleanValue.Checked = false;
+                return;
+            }
+
+            selectedPath.Text = selectedEntry!.Path;
+            typeLabel.Text = "Type: " + selectedEntry.Type;
+            if (selectedEntry.Type == "boolean")
+                booleanValue.Checked = bool.Parse(selectedEntry.Value);
+            else
+                value.Text = selectedEntry.Value;
+        }
+
+        void RefreshEntries(string? preservePath = null)
+        {
+            entries.BeginUpdate();
+            entries.Items.Clear();
+            string query = search.Text.Trim();
+            foreach (var entry in allEntries)
+                if (query.Length == 0 || entry.Path.Contains(query, StringComparison.OrdinalIgnoreCase))
+                    entries.Items.Add(entry);
+            entries.EndUpdate();
+
+            int selectedIndex = -1;
+            if (!string.IsNullOrEmpty(preservePath))
+                for (int index = 0; index < entries.Items.Count; index++)
+                    if (entries.Items[index] is PlistEditableEntry item && item.Path == preservePath)
+                    {
+                        selectedIndex = index;
+                        break;
+                    }
+            entries.SelectedIndex = selectedIndex >= 0 ? selectedIndex : (entries.Items.Count > 0 ? 0 : -1);
+            ShowSelectedEntry();
+        }
+
+        open.Click += (_, _) =>
+        {
+            using var dialog = new OpenFileDialog
+            {
+                Filter = "XML property list (*.plist;*.xml)|*.plist;*.xml|All files (*.*)|*.*",
+                Title = "Open an XML config.plist"
+            };
+            if (dialog.ShowDialog(this) != DialogResult.OK) return;
+            try
+            {
+                var info = new FileInfo(dialog.FileName);
+                if (info.Length > 5 * 1024 * 1024)
+                    throw new InvalidDataException("The selected config.plist exceeds the 5 MB safety limit.");
+                string xml = File.ReadAllText(dialog.FileName, Encoding.UTF8);
+                session = ConfigPlistEditorSession.Load(xml);
+                sourcePath = dialog.FileName;
+                allEntries = session.Entries;
+                modified = false;
+                sourceLabel.Text = $"Loaded: {sourcePath}  ·  {allEntries.Count} editable scalar value(s)";
+                status.Text = "Changes remain in memory until you save a new file.";
+                saveAs.Enabled = true;
+                RefreshEntries();
+            }
+            catch (Exception ex)
+            {
+                session = null;
+                sourcePath = null;
+                allEntries = Array.Empty<PlistEditableEntry>();
+                entries.Items.Clear();
+                ShowSelectedEntry();
+                saveAs.Enabled = false;
+                MessageBox.Show(this, ex.Message, "Could not open config.plist", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        };
+
+        search.TextChanged += (_, _) => RefreshEntries(selectedEntry?.Path);
+        entries.SelectedIndexChanged += (_, _) => ShowSelectedEntry();
+        apply.Click += (_, _) =>
+        {
+            if (session is null || selectedEntry is null) return;
+            try
+            {
+                string newValue = selectedEntry.Type == "boolean"
+                    ? (booleanValue.Checked ? "true" : "false")
+                    : value.Text;
+                string changedPath = selectedEntry.Path;
+                session.SetValue(selectedEntry, newValue);
+                allEntries = session.Entries;
+                modified = true;
+                status.Text = "Value updated in memory. Save a separate copy when the review is complete.";
+                status.ForeColor = Green;
+                RefreshEntries(changedPath);
+            }
+            catch (Exception ex)
+            {
+                status.Text = "Value was not changed: " + ex.Message;
+                status.ForeColor = Yellow;
+            }
+        };
+        saveAs.Click += (_, _) =>
+        {
+            if (session is null || sourcePath is null) return;
+            using var dialog = new SaveFileDialog
+            {
+                Filter = "XML property list (*.plist)|*.plist",
+                FileName = Path.GetFileNameWithoutExtension(sourcePath) + "-edited.plist",
+                InitialDirectory = Path.GetDirectoryName(sourcePath),
+                OverwritePrompt = false,
+                Title = "Save edited config.plist as a new file"
+            };
+            if (dialog.ShowDialog(this) != DialogResult.OK) return;
+            try
+            {
+                session.SaveAsNewFile(dialog.FileName);
+                modified = false;
+                status.Text = "Saved new file: " + dialog.FileName;
+                status.ForeColor = Green;
+                MessageBox.Show(this,
+                    "A new config.plist copy was saved. The source file was left unchanged.\r\n\r\nRun the official ocvalidate that matches this config's OpenCore version before testing it.",
+                    "Config copy saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                status.Text = "Save failed: " + ex.Message;
+                status.ForeColor = Yellow;
+            }
+        };
+
         return page;
     }
 

@@ -61,8 +61,13 @@ Keep the existing native Windows Forms application on .NET 10. Do not introduce 
 - Extract only Kext bundles from verified archives into a new, non-overwriting staging folder. Never edit an existing EFI or `config.plist`.
 - Refuse to download release assets that do not publish a verifiable SHA-256 digest; leave the official release page available for manual review.
 
+**Partially implemented in v0.4 preview**
+- Add a non-destructive scalar editor for existing String, Integer, Real, and Boolean values in XML config.plist files.
+- Support property-path filtering and save-as-new-file; never overwrite the source file.
+- Keep arrays, dictionaries, binary Data and Date values read-only until their versioned schema rules are implemented.
+
 **Remaining**
-- Build the actual schema-guided config.plist editor using the exact schema/sample shipped with the selected OpenCore version.
+- Expand this into a complete schema-guided editor using the exact schema/sample shipped with the selected OpenCore version.
 - Add per-component macOS compatibility metadata and OpenCore dependency guidance based on upstream documentation.
 - Add import of a local official OpenCore release package for offline validation when internet access is unavailable.
 
@@ -138,4 +143,5 @@ flowchart TD
 - [x] Hardware profile JSON export/import (Windows runtime smoke test pending).
 - [x] Read-only guided EFI preparation checklist generated from schema-v1 hardware profiles.
 - [x] Official Kext Library with digest-required download and safe Kext-only extraction.
+- [x] Non-destructive scalar Config Editor with save-as-new-file behavior.
 - [ ] Final QA and signed/notarized macOS counterpart coordination.

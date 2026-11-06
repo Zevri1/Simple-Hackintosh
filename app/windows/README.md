@@ -12,10 +12,11 @@ A native Windows Forms (.NET 10) desktop companion for the Simple Hackintosh fie
 - **Hardware Profile v1:** exports detected Windows hardware as JSON compatible with the shared schema and imports/validates schema-v1 profiles. PCI vendor/device IDs are retained, while serial numbers, UUIDs, SMBIOS identifiers and network MAC addresses are not exported.
 - **Kext Manager:** checks the latest stable releases from a built-in allowlist of official Acidanthera projects, requires GitHub's SHA-256 asset digest, verifies the release ZIP, and extracts only Kext bundles into a new versioned folder. It does not modify an EFI or config.plist.
 - **Official Kext Library:** checks stable releases from a curated set of upstream Acidanthera repositories, requires a GitHub-published SHA-256 digest before downloading, verifies the archive, and extracts only `.kext` bundles into a new staging folder. Existing EFI folders and `config.plist` files are never changed.
+- **Config Editor:** edits existing String, Integer, Real and Boolean values in an XML config.plist, supports search by property path, and saves to a new file without overwriting the source. Arrays, dictionaries, Data and Date values remain read-only; run version-matched `ocvalidate` after editing.
 
 ## Remaining Windows roadmap
 
-1. Add a guided configuration editor using the exact schema shipped with the selected OpenCore version. The hardware-based checklist is a read-only planning aid, not this editor.
+1. Expand the scalar Config Editor into a complete schema-guided editor using the exact schema shipped with the selected OpenCore version. The current editor deliberately leaves arrays, dictionaries, Data and Date values read-only.
 2. Add per-component macOS compatibility metadata and release-to-OpenCore dependency guidance. The current library verifies upstream archives but does not infer compatibility or automatically install components.
 3. Design a separate, heavily guarded removable-USB workflow; it must show exact disk identity and require a second erase confirmation. Internal disks remain out of scope.
 4. Improve Windows hardware inventory and PCI/ACPI identification without exporting sensitive identifiers.
