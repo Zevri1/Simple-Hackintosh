@@ -17,14 +17,14 @@
 > [!IMPORTANT]
 > This is an educational guide, not a one-click installer and not a guarantee that macOS will work on a particular computer. Compatibility depends on the exact CPU, graphics processor, firmware, wireless card, storage controller, and macOS release. Never copy another computer's EFI folder without understanding and adapting every component.
 
-## Desktop companion app
+## Python command-line assistant
 
-A native Windows utility is being developed alongside this guide. The first release includes an EFI folder/ZIP checker, an XML config.plist structure review, and a local hardware report generator.
+The repository includes a standalone Python assistant for Windows CMD and PowerShell. It opens an interactive numbered menu when launched without arguments and requires no third-party Python packages.
 
-- [Windows desktop app source and build instructions](app/windows/README.md)
-- [Windows x64 build workflow](https://github.com/kiwewe09-aa/Simple-Hackintosh/actions/workflows/windows-app.yml)
+- [Python CLI source, beginner guide, commands, and tests](app/python/README.md)
+- [Python CLI test workflow](.github/workflows/python-cli.yml)
 
-The desktop utilities process selected files locally. Their structural checks do not replace OpenCore's official validation tools or a hardware-specific compatibility assessment.
+Features include hardware inventory with PCI IDs, EFI and Kext reference checks, config.plist linting, official version-matched `ocvalidate` integration, the bundled OpenCore `macrecovery` utility for downloading and verifying Apple Recovery files, safe ZIP backups, SHA-256 comparison of EFI copies, and privacy-conscious support reports. Run `app/python/run.bat` to open the menu. The built-in operations are read-only and do not upload files or modify disks, EFI files, or firmware.
 
 ## What this project is
 
