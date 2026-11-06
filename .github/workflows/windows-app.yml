@@ -5,14 +5,17 @@ on:
     branches:
       - main
       - chatgpt/windows-desktop-app-v1
+      - chatgpt/windows-desktop-app-v2
     paths:
       - "app/windows/**"
+      - "app/windows.tests/**"
       - ".github/workflows/windows-app.yml"
   pull_request:
     branches:
       - main
     paths:
       - "app/windows/**"
+      - "app/windows.tests/**"
       - ".github/workflows/windows-app.yml"
   workflow_dispatch:
 
@@ -33,6 +36,9 @@ jobs:
 
       - name: Restore
         run: dotnet restore app/windows/SimpleHackintosh.App.csproj
+
+      - name: Run Windows safety and profile tests
+        run: dotnet test app/windows.tests/SimpleHackintosh.Tests.csproj -c Release
 
       - name: Publish self-contained Windows x64 app
         run: dotnet publish app/windows/SimpleHackintosh.App.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o artifacts/windows-x64

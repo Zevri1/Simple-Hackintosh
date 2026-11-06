@@ -35,6 +35,16 @@ Features include Windows/macOS hardware inventory, a Windows OpCore-Simplify-sty
 
 Python 3.10 or newer is required. From a repository checkout rather than the release ZIP, run `cd app/python` first. The Windows Hardware Sniffer report option is Windows-only; macOS uses the native `system_profiler` inventory. The Windows report is exported automatically; macOS uses its native inventory. See [the CLI guide](app/python/README.md) for details.
 
+## Native macOS desktop app (preview)
+
+The native SwiftUI app has a graphical workspace for Apple's full-installer catalog, direct InstallAssistant package downloads to a chosen drive, hardware inventory, and a checksum-verified OpenCore starter EFI. The EFI result is deliberately labelled as a starter, not a ready-to-boot configuration.
+
+- [macOS Studio preview and build instructions](app/macos/README.md)
+- [Desktop app roadmap and shared hardware profile](docs/17-desktop-studio-roadmap.md)
+- [Hardware profile JSON Schema v1](schemas/hardware-profile-v1.schema.json)
+
+The Windows desktop app is a native .NET 10 Windows Forms utility with EFI Checker, Config Validator and version-matched official ocvalidate, Hardware Inspector, direct Apple full-installer downloads, a SHA-256-verified OpenCore x64 starter builder, Hardware Profile v1 JSON import/export with PCI and HDAUDIO codec IDs, a read-only hardware-guided EFI checklist, a curated Official Kext Library with digest-verified downloads and source-linked dependency notes, a conservative Hardware-to-Kext Review, plus a scalar XML Config Editor and offline OpenCore validator import guarded by the release's published SHA-256. Kexts are staged separately and are never injected into an existing EFI automatically. Its EFI output is a starter template, not a ready-to-boot configuration.
+
 ## What this project is
 
 Simple Hackintosh teaches the concepts and workflow behind installing and maintaining macOS on non-Apple x86-64 hardware with OpenCore. The goal is to explain *why* each part of an EFI exists, how to check whether hardware is supported, and how to validate a configuration before relying on it.

@@ -50,7 +50,15 @@ internal sealed class MainForm : Form
     private readonly Label _status = new() { AutoSize = true, ForeColor = TextSoft, Font = new Font("Segoe UI", 8), Anchor = AnchorStyles.Top | AnchorStyles.Right };
     private readonly Dictionary<string, Button> _nav = new();
     private string _selectedSource = "";
+    private string? _currentHardwareProfileJson;
+    private string _currentPageKey = "home";
+    private bool _configEditorHasUnsavedChanges;
     private TextBox? _hardwareReportBox;
+    private CancellationTokenSource? _installerDownloadCts;
+    private CancellationTokenSource? _opencoreBuildCts;
+    private CancellationTokenSource? _ocvalidateCts;
+    private CancellationTokenSource? _kextDownloadCts;
+    private CancellationTokenSource? _componentDownloadCts;
 
     public MainForm()
     {
@@ -82,14 +90,19 @@ internal sealed class MainForm : Form
         sidebar.Controls.Add(new Label { AutoSize = true, Text = "WORKSPACE", ForeColor = TextSoft, Font = new Font("Consolas", 8, FontStyle.Bold), Location = new Point(22, 127) });
 
         AddNav(sidebar, "home", "⌂   Overview", 154);
-        AddNav(sidebar, "efi", "01   EFI Checker", 202);
-        AddNav(sidebar, "config", "02   Config Validator", 250);
-        AddNav(sidebar, "hardware", "03   Hardware Inspector", 298);
+        AddNav(sidebar, "efi", "01   EFI Checker", 196);
+        AddNav(sidebar, "config", "02   Config Validator", 238);
+        AddNav(sidebar, "hardware", "03   Hardware Inspector", 280);
+        AddNav(sidebar, "opencore", "04   OpenCore Builder", 322);
+        AddNav(sidebar, "installer", "05   macOS Downloader", 364);
+        AddNav(sidebar, "kexts", "06   Kext Manager", 406);
+        AddNav(sidebar, "components", "07   Official Kext Library", 448);
+        AddNav(sidebar, "editor", "08   Config Editor", 490);
 
-        var privacy = new Panel { BackColor = Panel, BorderStyle = BorderStyle.FixedSingle, Location = new Point(18, 390), Size = new Size(194, 116), Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom };
+        var privacy = new Panel { BackColor = Panel, BorderStyle = BorderStyle.FixedSingle, Location = new Point(18, 556), Size = new Size(194, 116), Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom };
         privacy.Controls.Add(new Label { Text = "●  LOCAL PROCESSING", ForeColor = Green, Font = new Font("Consolas", 8, FontStyle.Bold), Location = new Point(12, 13), AutoSize = true });
-        privacy.Controls.Add(new Label { Text = "Files are inspected on this PC.\r\nNothing is uploaded by this app.", ForeColor = TextMuted, Font = new Font("Segoe UI", 8), Location = new Point(12, 39), Size = new Size(164, 43) });
-        privacy.Controls.Add(new Label { Text = "SIMPLE HACKINTOSH  ·  0.1.0", ForeColor = TextSoft, Font = new Font("Consolas", 7), Location = new Point(12, 88), AutoSize = true });
+        privacy.Controls.Add(new Label { Text = "Your EFI and hardware reports stay local.\r\nOfficial downloads come from upstream.", ForeColor = TextMuted, Font = new Font("Segoe UI", 8), Location = new Point(12, 39), Size = new Size(164, 43) });
+        privacy.Controls.Add(new Label { Text = "SIMPLE HACKINTOSH  ·  0.6.0", ForeColor = TextSoft, Font = new Font("Consolas", 7), Location = new Point(12, 88), AutoSize = true });
         sidebar.Controls.Add(privacy);
 
         var main = new Panel { Dock = DockStyle.Fill, BackColor = Background };
@@ -124,8 +137,24 @@ internal sealed class MainForm : Form
         parent.Controls.Add(button);
     }
 
+    private bool ConfirmDiscardConfigEditorChanges()
+    {
+        if (!_configEditorHasUnsavedChanges) return true;
+        return MessageBox.Show(this,
+            "The Config Editor contains changes that have not been saved to a new file. Discard those in-memory changes?",
+            "Unsaved config.plist changes", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes;
+    }
+
     private void ShowPage(string key)
     {
+        bool isLeavingEditor = _currentPageKey == "editor" && key != "editor";
+        bool isReloadingEditor = _currentPageKey == "editor" && key == "editor";
+        if (_configEditorHasUnsavedChanges && (isLeavingEditor || isReloadingEditor))
+        {
+            if (!ConfirmDiscardConfigEditorChanges()) return;
+            _configEditorHasUnsavedChanges = false;
+        }
+        _currentPageKey = key;
         foreach (var item in _nav)
         {
             bool active = item.Key == key;
@@ -152,6 +181,31 @@ internal sealed class MainForm : Form
                 _pageTitle.Text = "Hardware Inspector";
                 _pageSubtitle.Text = "Collect local system information and export a hardware report.";
                 page = BuildHardwarePage();
+                break;
+            case "opencore":
+                _pageTitle.Text = "OpenCore Builder";
+                _pageSubtitle.Text = "Download the official release, verify its SHA-256 digest, and create a safe starter EFI.";
+                page = BuildOpenCoreBuilderPage();
+                break;
+            case "kexts":
+                _pageTitle.Text = "Kext Manager";
+                _pageSubtitle.Text = "Fetch verified Kext bundles from selected official upstream releases.";
+                page = BuildKextManagerPage();
+                break;
+            case "installer":
+                _pageTitle.Text = "macOS Downloader";
+                _pageSubtitle.Text = "Download Apple's full InstallAssistant package directly to a selected drive.";
+                page = BuildMacOSDownloaderPage();
+                break;
+            case "components":
+                _pageTitle.Text = "Official Kext Library";
+                _pageSubtitle.Text = "Browse and verify stable Kext releases from selected upstream GitHub repositories.";
+                page = BuildComponentsPage();
+                break;
+            case "editor":
+                _pageTitle.Text = "Config Editor";
+                _pageSubtitle.Text = "Edit existing scalar config.plist values and save a separate copy for version-matched validation.";
+                page = BuildConfigEditorPage();
                 break;
             default:
                 _pageTitle.Text = "Simple Hackintosh";
@@ -274,17 +328,28 @@ internal sealed class MainForm : Form
         var page = NewPage();
         var fileButton = MakeButton("Open config.plist", false, new Point(0, 0), new Size(160, 36));
         var validateButton = MakeButton("Validate configuration  →", true, new Point(170, 0), new Size(220, 36));
+        var officialValidateButton = MakeButton("Official ocvalidate", false, new Point(400, 0), new Size(190, 36));
+        var cancelOfficialButton = MakeButton("Cancel", false, new Point(600, 0), new Size(90, 36));
+        var loadVersionsButton = MakeButton("Load OpenCore versions", false, new Point(700, 0), new Size(220, 36));
+        var versionPicker = new ComboBox { Location = new Point(0, 54), Size = new Size(300, 34), DropDownStyle = ComboBoxStyle.DropDownList, Enabled = false };
+        var importOfflineButton = MakeButton("Import offline ZIP", false, new Point(312, 54), new Size(180, 34));
+        var versionHint = new Label { Text = "Select the exact OpenCore version used by this config.plist. You can also import a local official ZIP with its published SHA-256 digest.", ForeColor = TextSoft, Font = new Font("Segoe UI", 8), Location = new Point(500, 58), Size = new Size(420, 34) };
+        cancelOfficialButton.Enabled = false;
         var input = new TextBox
         {
             Multiline = true, AcceptsReturn = true, AcceptsTab = true, WordWrap = false,
             ScrollBars = ScrollBars.Both, Font = new Font("Consolas", 9),
             BackColor = Color.FromArgb(8, 13, 18), ForeColor = Color.FromArgb(215, 228, 233),
-            BorderStyle = BorderStyle.FixedSingle, Location = new Point(0, 54),
+            BorderStyle = BorderStyle.FixedSingle, Location = new Point(0, 98),
             Size = new Size(920, 340), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
         };
-        var hint = new Label { Text = "XML property lists are supported. Binary plist files must first be exported as XML. This is a structural helper, not the official OpenCore schema validator.", ForeColor = TextSoft, Font = new Font("Segoe UI", 8), Location = new Point(2, 402), Size = new Size(920, 34) };
-        var results = NewResultsPanel(new Point(0, 448), new Size(920, 380));
-        page.Controls.AddRange(new Control[] { fileButton, validateButton, input, hint, results });
+        var hint = new Label
+        {
+            Text = "The local check is structural. Official ocvalidate is version-specific; select the same OpenCore release used by this config.plist.",
+            ForeColor = TextSoft, Font = new Font("Segoe UI", 8), Location = new Point(2, 446), Size = new Size(920, 32)
+        };
+        var results = NewResultsPanel(new Point(0, 484), new Size(920, 380));
+        page.Controls.AddRange(new Control[] { fileButton, validateButton, officialValidateButton, cancelOfficialButton, loadVersionsButton, versionPicker, importOfflineButton, versionHint, input, hint, results });
 
         fileButton.Click += (_, _) =>
         {
@@ -318,6 +383,941 @@ internal sealed class MainForm : Form
                 _status.ForeColor = Red;
             }
         };
+
+        importOfflineButton.Click += async (_, _) =>
+        {
+            using var dialog = new OpenFileDialog
+            {
+                Filter = "Official OpenCore release ZIP (OpenCore-*-RELEASE.zip)|OpenCore-*-RELEASE.zip",
+                Title = "Select the official Acidanthera OpenCore RELEASE ZIP"
+            };
+            if (dialog.ShowDialog(this) != DialogResult.OK) return;
+
+            string version;
+            try { version = OpenCoreReleaseService.ParseOfflineReleaseVersion(dialog.FileName); }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, ex.Message, "Unsupported OpenCore archive name", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            string? publishedDigest = PromptForPublishedSha256(version);
+            if (publishedDigest is null) return;
+
+            importOfflineButton.Enabled = false;
+            loadVersionsButton.Enabled = false;
+            officialValidateButton.Enabled = false;
+            validateButton.Enabled = false;
+            fileButton.Enabled = false;
+            input.ReadOnly = true;
+            _status.Text = "●  VERIFYING OFFLINE OPENCORE ARCHIVE";
+            _status.ForeColor = Blue;
+            try
+            {
+                var imported = await OpenCoreReleaseService.ImportOfflineReleaseAsync(dialog.FileName, publishedDigest);
+                var available = (versionPicker.DataSource as IEnumerable<OpenCoreReleaseInfo>)?.ToList()
+                    ?? new List<OpenCoreReleaseInfo>();
+                available.RemoveAll(item => string.Equals(item.Version, imported.Version, StringComparison.OrdinalIgnoreCase));
+                available.Add(imported);
+                versionPicker.DataSource = null;
+                versionPicker.DataSource = available;
+                versionPicker.DisplayMember = nameof(OpenCoreReleaseInfo.Version);
+                versionPicker.SelectedItem = imported;
+                versionPicker.Enabled = true;
+                versionHint.Text = $"OpenCore {imported.Version} was imported and SHA-256 verified locally. Its validator is cached for offline validation.";
+                _status.Text = $"●  OPENCORE {imported.Version} IMPORTED / SHA-256 VERIFIED";
+                _status.ForeColor = Green;
+            }
+            catch (Exception ex)
+            {
+                _status.Text = "●  OFFLINE RELEASE IMPORT FAILED";
+                _status.ForeColor = Yellow;
+                MessageBox.Show(this, ex.Message, "Could not import offline OpenCore release", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            finally
+            {
+                importOfflineButton.Enabled = true;
+                loadVersionsButton.Enabled = true;
+                officialValidateButton.Enabled = true;
+                validateButton.Enabled = true;
+                fileButton.Enabled = true;
+                input.ReadOnly = false;
+            }
+        };
+
+        loadVersionsButton.Click += async (_, _) =>
+        {
+            loadVersionsButton.Enabled = false;
+            versionHint.Text = "Loading stable Acidanthera releases from GitHub…";
+            _status.Text = "●  LOADING OPENCORE RELEASES";
+            _status.ForeColor = Blue;
+            try
+            {
+                var releases = await OpenCoreReleaseService.GetStableReleasesAsync(20);
+                versionPicker.DataSource = releases.ToList();
+                versionPicker.DisplayMember = nameof(OpenCoreReleaseInfo.Version);
+                versionPicker.Enabled = releases.Count > 0;
+                versionHint.Text = releases.Count == 0
+                    ? "No stable release with a verifiable official RELEASE ZIP digest was found."
+                    : "Choose the exact version used by this EFI. Only stable releases with a published SHA-256 digest are listed.";
+                _status.Text = $"●  {releases.Count} STABLE RELEASES LOADED";
+                _status.ForeColor = releases.Count > 0 ? Green : Yellow;
+            }
+            catch (Exception ex)
+            {
+                versionPicker.DataSource = null;
+                versionPicker.Enabled = false;
+                versionHint.Text = "Could not load the official release list.";
+                _status.Text = "●  RELEASE LIST UNAVAILABLE";
+                _status.ForeColor = Yellow;
+                MessageBox.Show(this, ex.Message, "OpenCore release list unavailable", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            finally { loadVersionsButton.Enabled = true; }
+        };
+
+        cancelOfficialButton.Click += (_, _) => _ocvalidateCts?.Cancel();
+        officialValidateButton.Click += async (_, _) =>
+        {
+            if (string.IsNullOrWhiteSpace(input.Text) || _ocvalidateCts is not null) return;
+            _ocvalidateCts = new CancellationTokenSource();
+            fileButton.Enabled = false;
+            validateButton.Enabled = false;
+            officialValidateButton.Enabled = false;
+            cancelOfficialButton.Enabled = true;
+            importOfflineButton.Enabled = false;
+            loadVersionsButton.Enabled = false;
+            versionPicker.Enabled = false;
+            input.ReadOnly = true;
+            _status.Text = "●  PREPARING OFFICIAL VALIDATOR";
+            _status.ForeColor = Blue;
+            var reporter = new Progress<OpenCoreProgress>(value =>
+            {
+                _status.Text = "●  " + value.Stage;
+                _status.ForeColor = Blue;
+            });
+            try
+            {
+                var selectedRelease = versionPicker.SelectedItem as OpenCoreReleaseInfo;
+                var result = selectedRelease is null
+                    ? await OpenCoreReleaseService.ValidateWithLatestOfficialAsync(input.Text, reporter, _ocvalidateCts.Token)
+                    : await OpenCoreReleaseService.ValidateWithReleaseAsync(input.Text, selectedRelease, reporter, _ocvalidateCts.Token);
+                var details = $"OpenCore version: {result.Version}\r\nValidator exit code: {result.ExitCode}\r\n\r\n{result.Output}";
+                RenderResults(results,
+                    new List<CheckResult>
+                    {
+                        new(result.Success ? "ok" : "error",
+                            result.Success ? "Official ocvalidate: no issues found" : "Official ocvalidate: configuration needs attention",
+                            details)
+                    },
+                    "Official OpenCore validation");
+                _status.Text = result.Success ? "●  OFFICIAL VALIDATION PASSED" : "●  OFFICIAL VALIDATION FOUND ISSUES";
+                _status.ForeColor = result.Success ? Green : Yellow;
+            }
+            catch (OperationCanceledException)
+            {
+                _status.Text = "●  OFFICIAL VALIDATION CANCELLED";
+                _status.ForeColor = TextSoft;
+                RenderResults(results, new List<CheckResult> { new("warning", "Validation cancelled", "The download or validator process was cancelled. Temporary files were removed.") }, "Official OpenCore validation");
+            }
+            catch (Exception ex)
+            {
+                _status.Text = "●  OFFICIAL VALIDATOR UNAVAILABLE";
+                _status.ForeColor = Yellow;
+                RenderResults(results, new List<CheckResult> { new("error", "Official validation could not run", ex.Message) }, "Official OpenCore validation");
+            }
+            finally
+            {
+                _ocvalidateCts.Dispose();
+                _ocvalidateCts = null;
+                fileButton.Enabled = true;
+                validateButton.Enabled = true;
+                officialValidateButton.Enabled = true;
+                cancelOfficialButton.Enabled = false;
+                importOfflineButton.Enabled = true;
+                loadVersionsButton.Enabled = true;
+                versionPicker.Enabled = versionPicker.Items.Count > 0;
+                input.ReadOnly = false;
+            }
+        };
+        return page;
+    }
+
+    private Control BuildMacOSDownloaderPage()
+    {
+        var page = NewPage();
+        var versions = new ComboBox { Location = new Point(0, 20), Size = new Size(550, 34), DropDownStyle = ComboBoxStyle.DropDownList };
+        var refresh = MakeButton("Load Apple catalog", true, new Point(565, 18), new Size(180, 36));
+        var choose = MakeButton("Choose drive/folder", false, new Point(0, 72), new Size(180, 36));
+        var download = MakeButton("Download full installer", true, new Point(190, 72), new Size(200, 36));
+        var cancel = MakeButton("Cancel", false, new Point(400, 72), new Size(100, 36));
+        var destination = new Label { Text = "No destination selected", ForeColor = TextMuted, Location = new Point(0, 122), Size = new Size(850, 24), AutoEllipsis = true };
+        var progress = new ProgressBar { Location = new Point(0, 154), Size = new Size(850, 18), Minimum = 0, Maximum = 100 };
+        var status = new Label { Text = "Downloads Apple's full InstallAssistant.pkg directly to your selected drive. No Recovery image.", ForeColor = TextMuted, Location = new Point(0, 184), Size = new Size(850, 52) };
+        page.Controls.AddRange(new Control[] { versions, refresh, choose, download, cancel, destination, progress, status });
+        string? folder = null;
+        download.Enabled = false;
+        cancel.Enabled = false;
+
+        choose.Click += (_, _) =>
+        {
+            using var dialog = new FolderBrowserDialog { Description = "Select the drive or folder for the macOS installer package." };
+            if (dialog.ShowDialog(this) == DialogResult.OK)
+            {
+                folder = dialog.SelectedPath;
+                destination.Text = folder;
+                download.Enabled = versions.SelectedItem is AppleInstallerOption;
+            }
+        };
+        refresh.Click += async (_, _) =>
+        {
+            refresh.Enabled = false;
+            status.Text = "Reading Apple's public full-installer catalog…";
+            try
+            {
+                var entries = await AppleInstallerCatalog.GetInstallersAsync();
+                versions.DataSource = entries.ToList();
+                versions.DisplayMember = nameof(AppleInstallerOption.Title);
+                versions.ValueMember = nameof(AppleInstallerOption.ProductId);
+                status.Text = $"Loaded {entries.Count} full installer(s) from Apple.";
+                download.Enabled = entries.Count > 0 && folder is not null;
+            }
+            catch (Exception ex) { status.Text = "Catalog error: " + ex.Message; }
+            finally { refresh.Enabled = true; }
+        };
+        versions.SelectedIndexChanged += (_, _) => download.Enabled = versions.SelectedItem is AppleInstallerOption && folder is not null && _installerDownloadCts is null;
+        cancel.Click += (_, _) => _installerDownloadCts?.Cancel();
+        download.Click += async (_, _) =>
+        {
+            if (versions.SelectedItem is not AppleInstallerOption selected || folder is null) return;
+            _installerDownloadCts = new CancellationTokenSource();
+            download.Enabled = false; refresh.Enabled = false; choose.Enabled = false; cancel.Enabled = true;
+            var reporter = new Progress<(long Received, long? Expected)>(value =>
+            {
+                if (value.Expected is > 0)
+                {
+                    progress.Style = ProgressBarStyle.Continuous;
+                    progress.Value = (int)Math.Clamp(value.Received * 100L / value.Expected.Value, 0, 100);
+                    status.Text = $"{value.Received / 1073741824d:0.00} GB / {value.Expected.Value / 1073741824d:0.00} GB";
+                }
+                else { progress.Style = ProgressBarStyle.Marquee; status.Text = $"{value.Received / 1073741824d:0.00} GB downloaded"; }
+            });
+            try
+            {
+                var path = await AppleInstallerCatalog.DownloadAsync(selected, folder, reporter, _installerDownloadCts.Token);
+                status.Text = "Saved to " + path;
+                MessageBox.Show(this, "Full installer package saved to:\n\n" + path, "Download complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (OperationCanceledException) { status.Text = "Download cancelled. Partial data was removed."; }
+            catch (Exception ex) { status.Text = "Download failed: " + ex.Message; }
+            finally
+            {
+                _installerDownloadCts.Dispose(); _installerDownloadCts = null;
+                download.Enabled = versions.SelectedItem is AppleInstallerOption && folder is not null;
+                refresh.Enabled = true; choose.Enabled = true; cancel.Enabled = false;
+                progress.Style = ProgressBarStyle.Continuous;
+            }
+        };
+        return page;
+    }
+
+    private Control BuildOpenCoreBuilderPage()
+    {
+        var page = NewPage();
+        var intro = new Label
+        {
+            Text = "Fetch the latest stable OpenCore RELEASE from Acidanthera's official GitHub repository. The archive digest is checked before any EFI folder is created.",
+            ForeColor = TextMuted, Font = new Font("Segoe UI", 9), Location = new Point(0, 8), Size = new Size(900, 42)
+        };
+        var check = MakeButton("Check official release", false, new Point(0, 64), new Size(180, 36));
+        var choose = MakeButton("Choose destination", false, new Point(190, 64), new Size(170, 36));
+        var build = MakeButton("Download + build starter", true, new Point(370, 64), new Size(205, 36));
+        var cancel = MakeButton("Cancel", false, new Point(585, 64), new Size(100, 36));
+        var selected = new Label { Text = "No destination selected", ForeColor = TextSoft, Font = new Font("Consolas", 8), Location = new Point(0, 112), Size = new Size(880, 24), AutoEllipsis = true };
+        var releaseLabel = new Label { Text = "Release not checked yet", ForeColor = TextMuted, Font = new Font("Segoe UI", 9), Location = new Point(0, 146), Size = new Size(900, 52), AutoEllipsis = true };
+        var progress = new ProgressBar { Location = new Point(0, 208), Size = new Size(880, 18), Minimum = 0, Maximum = 100 };
+        var status = new Label
+        {
+            Text = "The app will not overwrite an existing EFI and will not modify partitions, firmware settings or boot entries.",
+            ForeColor = TextMuted, Font = new Font("Segoe UI", 9), Location = new Point(0, 238), Size = new Size(900, 64)
+        };
+        var warning = new Panel { Location = new Point(0, 320), Size = new Size(880, 150), BackColor = Panel };
+        warning.Controls.Add(new Label { Text = "STARTER EFI — NOT READY TO BOOT", ForeColor = Yellow, Font = new Font("Consolas", 9, FontStyle.Bold), Location = new Point(18, 18), AutoSize = true });
+        warning.Controls.Add(new Label
+        {
+            Text = "The builder copies the official x64 EFI folder and the matching Sample.plist. It does not choose ACPI, Kexts, SMBIOS, kernel quirks or firmware drivers for your hardware. Configure the result for the target PC and run the matching ocvalidate before testing from removable media.",
+            ForeColor = TextMuted, Font = new Font("Segoe UI", 9), Location = new Point(18, 48), Size = new Size(835, 82)
+        });
+        page.Controls.AddRange(new Control[] { intro, check, choose, build, cancel, selected, releaseLabel, progress, status, warning });
+
+        string? destination = null;
+        OpenCoreReleaseInfo? latest = null;
+        build.Enabled = false;
+        cancel.Enabled = false;
+
+        choose.Click += (_, _) =>
+        {
+            using var dialog = new FolderBrowserDialog { Description = "Choose an existing folder where a new EFI folder can be created." };
+            if (dialog.ShowDialog(this) == DialogResult.OK)
+            {
+                destination = dialog.SelectedPath;
+                selected.Text = destination;
+                build.Enabled = latest is not null && _opencoreBuildCts is null;
+            }
+        };
+
+        check.Click += async (_, _) =>
+        {
+            check.Enabled = false;
+            status.Text = "Checking the official Acidanthera release metadata…";
+            try
+            {
+                latest = await OpenCoreReleaseService.GetLatestReleaseAsync();
+                releaseLabel.Text = $"Latest stable release: OpenCore {latest.Version}   ·   {latest.AssetName}\r\nSHA-256: {latest.Sha256}";
+                status.Text = "Official GitHub release metadata loaded. The digest will be checked again against the downloaded archive.";
+                build.Enabled = destination is not null && _opencoreBuildCts is null;
+            }
+            catch (Exception ex)
+            {
+                latest = null;
+                releaseLabel.Text = "Could not verify official release metadata.";
+                status.Text = "Release check failed: " + ex.Message;
+                build.Enabled = false;
+            }
+            finally { check.Enabled = true; }
+        };
+
+        cancel.Click += (_, _) => _opencoreBuildCts?.Cancel();
+
+        build.Click += async (_, _) =>
+        {
+            if (destination is null || latest is null || _opencoreBuildCts is not null) return;
+            _opencoreBuildCts = new CancellationTokenSource();
+            build.Enabled = false; check.Enabled = false; choose.Enabled = false; cancel.Enabled = true;
+            progress.Style = ProgressBarStyle.Continuous;
+            progress.Value = 0;
+            var reporter = new Progress<OpenCoreProgress>(value =>
+            {
+                status.Text = value.Stage;
+                if (value.Stage.Contains("Extracting", StringComparison.OrdinalIgnoreCase) || value.Expected is not > 0)
+                {
+                    progress.Style = ProgressBarStyle.Marquee;
+                }
+                else
+                {
+                    progress.Style = ProgressBarStyle.Continuous;
+                    progress.Value = (int)Math.Clamp(value.Received * 100L / value.Expected.Value, 0, 100);
+                }
+            });
+            try
+            {
+                var result = await OpenCoreReleaseService.BuildStarterAsync(destination, reporter, _opencoreBuildCts.Token);
+                releaseLabel.Text = $"Created OpenCore {result.Version} starter EFI   ·   SHA-256: {result.Sha256}";
+                status.Text = "Starter created at: " + result.EfiPath;
+                MessageBox.Show(this,
+                    "The verified OpenCore starter was created at:\r\n\r\n" + result.EfiPath +
+                    "\r\n\r\nIt is a template, not a ready-to-boot EFI. Read EFI/READ-ME-FIRST.txt.",
+                    "OpenCore starter created", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (OperationCanceledException) { status.Text = "Build cancelled. Temporary files were removed; no EFI was created."; }
+            catch (Exception ex) { status.Text = "OpenCore build failed: " + ex.Message; }
+            finally
+            {
+                _opencoreBuildCts.Dispose();
+                _opencoreBuildCts = null;
+                build.Enabled = destination is not null && latest is not null;
+                check.Enabled = true; choose.Enabled = true; cancel.Enabled = false;
+                progress.Style = ProgressBarStyle.Continuous;
+            }
+        };
+        return page;
+    }
+
+    private Control BuildComponentsPage()
+    {
+        var page = NewPage();
+        var sourcePicker = new ComboBox
+        {
+            Location = new Point(0, 12), Size = new Size(300, 34),
+            DropDownStyle = ComboBoxStyle.DropDownList, DisplayMember = nameof(OfficialComponentSource.Name)
+        };
+        sourcePicker.DataSource = OfficialComponentService.Sources.ToList();
+        var load = MakeButton("Load official release", true, new Point(312, 10), new Size(180, 36));
+        var openRelease = MakeButton("Release notes", false, new Point(502, 10), new Size(142, 36));
+        var openDocs = MakeButton("Upstream documentation", false, new Point(652, 10), new Size(200, 36));
+        var analyzeHardware = MakeButton("Analyze detected hardware", false, new Point(0, 168), new Size(190, 36));
+        var choose = MakeButton("Choose output folder", false, new Point(0, 344), new Size(175, 36));
+        var download = MakeButton("Verify & extract Kexts", true, new Point(185, 344), new Size(190, 36));
+        var cancel = MakeButton("Cancel", false, new Point(385, 344), new Size(100, 36));
+        cancel.Enabled = false;
+        download.Enabled = false;
+        openRelease.Enabled = false;
+        openDocs.Enabled = true;
+
+        var purpose = new Label
+        {
+            ForeColor = TextMuted, Font = new Font("Segoe UI", 9), Location = new Point(0, 56),
+            Size = new Size(900, 32), AutoEllipsis = true
+        };
+        var dependencies = new Label
+        {
+            ForeColor = TextMain, Font = new Font("Segoe UI", 8), Location = new Point(0, 91),
+            Size = new Size(920, 25), AutoEllipsis = true
+        };
+        var compatibility = new Label
+        {
+            ForeColor = TextMuted, Font = new Font("Segoe UI", 8), Location = new Point(0, 118),
+            Size = new Size(920, 42), AutoEllipsis = true
+        };
+        var targetMacOS = new TextBox
+        {
+            Location = new Point(205, 173), Size = new Size(260, 28),
+            PlaceholderText = "Target macOS (optional, e.g. 26 Tahoe)",
+            BackColor = Color.FromArgb(8, 13, 18), ForeColor = TextMain,
+            BorderStyle = BorderStyle.FixedSingle
+        };
+        var compatibilityReport = new TextBox
+        {
+            Multiline = true, ReadOnly = true, WordWrap = true, ScrollBars = ScrollBars.Vertical,
+            Location = new Point(0, 210), Size = new Size(920, 118),
+            BackColor = Color.FromArgb(8, 13, 18), ForeColor = TextMuted,
+            BorderStyle = BorderStyle.FixedSingle, Font = new Font("Consolas", 8)
+        };
+        compatibilityReport.Text = "Select “Analyze detected hardware” to compare your local read-only hardware profile with the curated Kext guidance. Unknown values will remain unknown.";
+        var releaseInfo = new Label
+        {
+            ForeColor = TextMain, Font = new Font("Segoe UI", 9, FontStyle.Bold),
+            Location = new Point(0, 474), Size = new Size(920, 42), AutoEllipsis = true
+        };
+        var destination = new Label
+        {
+            Text = "No output folder selected", ForeColor = TextMuted,
+            Location = new Point(0, 518), Size = new Size(920, 24), AutoEllipsis = true
+        };
+        var progress = new ProgressBar
+        {
+            Location = new Point(0, 550), Size = new Size(920, 18),
+            Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+            Style = ProgressBarStyle.Continuous, Minimum = 0, Maximum = 100
+        };
+        var status = new Label
+        {
+            Text = "Choose a component and load its official stable release.",
+            ForeColor = TextSoft, Font = new Font("Segoe UI", 9),
+            Location = new Point(0, 580), Size = new Size(920, 46), AutoEllipsis = true
+        };
+        var caution = new Panel
+        {
+            Location = new Point(0, 638), Size = new Size(920, 148),
+            BackColor = Panel, Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+        };
+        caution.Controls.Add(new Label
+        {
+            Text = "SOURCE-VERIFIED DOWNLOADS — NOT AUTOMATIC EFI INSTALLATION",
+            ForeColor = Yellow, Font = new Font("Consolas", 9, FontStyle.Bold),
+            Location = new Point(18, 16), AutoSize = true
+        });
+        caution.Controls.Add(new Label
+        {
+            Text = "Only selected official GitHub repositories are listed. The app requires a GitHub-published SHA-256 digest before downloading, verifies the archive, rejects unsafe ZIP paths, and extracts only Kext bundles into a new folder. It does not edit config.plist or copy files into an existing EFI. Check the target macOS version, exact hardware, dependencies, and upstream release notes before using any component.",
+            ForeColor = TextMuted, Font = new Font("Segoe UI", 9),
+            Location = new Point(18, 45), Size = new Size(870, 88)
+        });
+        page.Controls.AddRange(new Control[] { sourcePicker, load, openRelease, openDocs, purpose, dependencies, compatibility, analyzeHardware, targetMacOS, compatibilityReport, choose, download, cancel, releaseInfo, destination, progress, status, caution });
+
+        OfficialComponentRelease? selectedRelease = null;
+        string? outputFolder = null;
+        void UpdateButtons()
+        {
+            bool busy = _componentDownloadCts is not null;
+            download.Enabled = !busy && outputFolder is not null && selectedRelease?.Sha256 is not null;
+            choose.Enabled = !busy;
+            load.Enabled = !busy;
+            sourcePicker.Enabled = !busy;
+            analyzeHardware.Enabled = !busy;
+            targetMacOS.Enabled = !busy;
+            openRelease.Enabled = !busy && selectedRelease is not null;
+            openDocs.Enabled = !busy && sourcePicker.SelectedItem is OfficialComponentSource;
+            cancel.Enabled = busy;
+        }
+        void UpdatePurpose()
+        {
+            if (sourcePicker.SelectedItem is OfficialComponentSource source)
+            {
+                purpose.Text = source.Purpose;
+                dependencies.Text = "Dependencies: " + source.Dependencies;
+                compatibility.Text = "Upstream compatibility note: " + source.Compatibility + "  " + source.Guidance;
+            }
+        }
+        sourcePicker.SelectedIndexChanged += (_, _) =>
+        {
+            selectedRelease = null;
+            releaseInfo.Text = "Release metadata not loaded.";
+            status.Text = "Load the official stable release for the selected source.";
+            progress.Value = 0;
+            UpdatePurpose();
+            UpdateButtons();
+        };
+        UpdatePurpose();
+
+        analyzeHardware.Click += async (_, _) =>
+        {
+            analyzeHardware.Enabled = false;
+            status.Text = "Reading a local hardware profile and comparing known device evidence…";
+            try
+            {
+                _currentHardwareProfileJson ??= await HardwareProfileService.CollectProfileAsync();
+                compatibilityReport.Text = HardwareKextCompatibilityService.Analyze(
+                    _currentHardwareProfileJson, targetMacOS.Text);
+                status.Text = "Hardware review ready. Potential matches still require exact device and macOS verification.";
+                status.ForeColor = Green;
+            }
+            catch (Exception ex)
+            {
+                status.Text = "Hardware review could not be completed: " + ex.Message;
+                status.ForeColor = Yellow;
+            }
+            finally { analyzeHardware.Enabled = true; }
+        };
+
+        load.Click += async (_, _) =>
+        {
+            if (sourcePicker.SelectedItem is not OfficialComponentSource source) return;
+            selectedRelease = null;
+            releaseInfo.Text = "Contacting the official GitHub releases API…";
+            status.Text = "Only stable releases and the exact upstream RELEASE ZIP will be considered.";
+            progress.Style = ProgressBarStyle.Marquee;
+            UpdateButtons();
+            try
+            {
+                selectedRelease = await OfficialComponentService.GetLatestStableReleaseAsync(source);
+                releaseInfo.Text = $"{source.Name} {selectedRelease.Version}  ·  {selectedRelease.ExpectedBytes:N0} bytes  ·  " +
+                    (selectedRelease.Sha256 is null ? "No published SHA-256 — download disabled" : "SHA-256 digest published");
+                status.Text = selectedRelease.Sha256 is null
+                    ? "The official asset has no published digest. Open the upstream release page; this app will not download an unverifiable ZIP."
+                    : "Official release metadata loaded. The archive digest will be verified before extraction.";
+                progress.Value = 0;
+            }
+            catch (Exception ex)
+            {
+                releaseInfo.Text = "Could not load a verified stable release.";
+                status.Text = ex.Message;
+            }
+            finally
+            {
+                progress.Style = ProgressBarStyle.Continuous;
+                UpdateButtons();
+            }
+        };
+
+        openDocs.Click += (_, _) =>
+        {
+            if (sourcePicker.SelectedItem is not OfficialComponentSource source ||
+                !Uri.TryCreate(source.DocumentationUrl, UriKind.Absolute, out var uri) ||
+                uri.Scheme != Uri.UriSchemeHttps ||
+                !uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase)) return;
+            Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
+        };
+
+        openRelease.Click += (_, _) =>
+        {
+            if (selectedRelease is null) return;
+            var uri = selectedRelease.ReleasePageUri;
+            if (uri.Scheme == Uri.UriSchemeHttps && uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase))
+                Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
+        };
+
+        choose.Click += (_, _) =>
+        {
+            using var dialog = new FolderBrowserDialog { Description = "Choose where a new verified component folder will be created." };
+            if (dialog.ShowDialog(this) == DialogResult.OK)
+            {
+                outputFolder = dialog.SelectedPath;
+                destination.Text = outputFolder;
+                UpdateButtons();
+            }
+        };
+
+        cancel.Click += (_, _) => _componentDownloadCts?.Cancel();
+        download.Click += async (_, _) =>
+        {
+            if (selectedRelease is null || outputFolder is null || _componentDownloadCts is not null) return;
+            _componentDownloadCts = new CancellationTokenSource();
+            UpdateButtons();
+            progress.Value = 0;
+            progress.Style = ProgressBarStyle.Continuous;
+            var reporter = new Progress<ComponentDownloadProgress>(value =>
+            {
+                status.Text = value.Stage;
+                if (value.Stage.Contains("Extracting", StringComparison.OrdinalIgnoreCase) || value.Expected is not > 0)
+                    progress.Style = ProgressBarStyle.Marquee;
+                else
+                {
+                    progress.Style = ProgressBarStyle.Continuous;
+                    progress.Value = (int)Math.Clamp(value.Received * 100L / value.Expected.Value, 0, 100);
+                }
+            });
+            try
+            {
+                var result = await OfficialComponentService.DownloadAndExtractKextsAsync(
+                    selectedRelease, outputFolder, reporter, _componentDownloadCts.Token);
+                releaseInfo.Text = $"{result.ComponentName} {result.Version} verified  ·  SHA-256: {result.Sha256}";
+                status.Text = $"Extracted {result.KextNames.Count} Kext bundle(s) to: {result.OutputDirectory}";
+                progress.Value = 100;
+                MessageBox.Show(this,
+                    "The official release archive passed SHA-256 verification.\r\n\r\n" +
+                    string.Join("\r\n", result.KextNames) +
+                    "\r\n\r\nNo existing EFI or config.plist was changed. Read READ-ME-FIRST.txt in the output folder.",
+                    "Verified component downloaded", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (OperationCanceledException)
+            {
+                status.Text = "Download cancelled. Temporary files were removed; no component folder was installed.";
+                progress.Value = 0;
+            }
+            catch (Exception ex)
+            {
+                status.Text = "Component download failed: " + ex.Message;
+                progress.Value = 0;
+            }
+            finally
+            {
+                _componentDownloadCts.Dispose();
+                _componentDownloadCts = null;
+                UpdateButtons();
+                progress.Style = ProgressBarStyle.Continuous;
+            }
+        };
+
+        return page;
+    }
+
+    private Control BuildKextManagerPage()
+    {
+        var page = NewPage();
+        var projectPicker = new ComboBox { Location = new Point(0, 20), Size = new Size(330, 34), DropDownStyle = ComboBoxStyle.DropDownList };
+        projectPicker.DataSource = KextCatalogService.GetSupportedProjects().ToList();
+        projectPicker.DisplayMember = nameof(KextProjectInfo.Name);
+        var load = MakeButton("Check official release", true, new Point(345, 18), new Size(190, 36));
+        var releaseLabel = new Label { Text = "Select a project and check its latest stable official release.", ForeColor = TextMuted, Location = new Point(0, 62), Size = new Size(900, 20) };
+        var choose = MakeButton("Choose destination", false, new Point(0, 88), new Size(170, 36));
+        var download = MakeButton("Verify and extract", true, new Point(182, 88), new Size(180, 36));
+        var cancel = MakeButton("Cancel", false, new Point(375, 88), new Size(100, 36));
+        var destination = new Label { Text = "No destination selected", ForeColor = TextMuted, Location = new Point(0, 132), Size = new Size(900, 24), AutoEllipsis = true };
+        var progress = new ProgressBar { Location = new Point(0, 168), Size = new Size(900, 18), Minimum = 0, Maximum = 100 };
+        var status = new Label
+        {
+            Text = "Only official RELEASE archives with a published SHA-256 digest are offered.",
+            ForeColor = TextMuted, Location = new Point(0, 198), Size = new Size(900, 46)
+        };
+        var warning = new Panel { Location = new Point(0, 254), Size = new Size(900, 135), BackColor = Panel };
+        warning.Controls.Add(new Label { Text = "NO AUTOMATIC EFI CHANGES", ForeColor = Yellow, Font = new Font("Consolas", 9, FontStyle.Bold), Location = new Point(18, 16), AutoSize = true });
+        warning.Controls.Add(new Label
+        {
+            Text = "Verified Kext bundles are extracted into a new versioned folder. Review upstream documentation and macOS compatibility before copying a required .kext into EFI/OC/Kexts. This page does not edit config.plist, add Kext entries, overwrite existing bundles, or change a disk.",
+            ForeColor = TextMuted, Font = new Font("Segoe UI", 9), Location = new Point(18, 45), Size = new Size(850, 70)
+        });
+        page.Controls.AddRange(new Control[] { projectPicker, load, releaseLabel, choose, download, cancel, destination, progress, status, warning });
+
+        KextReleaseInfo? latest = null;
+        string? selectedFolder = null;
+        download.Enabled = false;
+        cancel.Enabled = false;
+
+        projectPicker.SelectedIndexChanged += (_, _) =>
+        {
+            latest = null;
+            download.Enabled = false;
+            releaseLabel.Text = "Check the selected project's official stable release.";
+        };
+        load.Click += async (_, _) =>
+        {
+            if (projectPicker.SelectedItem is not KextProjectInfo project || _kextDownloadCts is not null) return;
+            load.Enabled = false;
+            projectPicker.Enabled = false;
+            status.Text = "Fetching official GitHub release metadata and checking its SHA-256 digest…";
+            try
+            {
+                latest = await KextCatalogService.GetLatestStableReleaseAsync(project);
+                releaseLabel.Text = $"{latest.Project}  ·  {latest.Version}  ·  {latest.AssetName}  ·  SHA-256 verified in metadata";
+                status.Text = "Official release metadata verified. Archive contents will be checked after download.";
+                download.Enabled = selectedFolder is not null;
+            }
+            catch (Exception ex)
+            {
+                latest = null;
+                releaseLabel.Text = "No verified official release is available for this project.";
+                status.Text = ex.Message;
+                download.Enabled = false;
+            }
+            finally { load.Enabled = true; projectPicker.Enabled = true; }
+        };
+        choose.Click += (_, _) =>
+        {
+            using var dialog = new FolderBrowserDialog { Description = "Choose a folder where a new Kext package folder will be created." };
+            if (dialog.ShowDialog(this) == DialogResult.OK)
+            {
+                selectedFolder = dialog.SelectedPath;
+                destination.Text = selectedFolder;
+                download.Enabled = latest is not null;
+            }
+        };
+        cancel.Click += (_, _) => _kextDownloadCts?.Cancel();
+        download.Click += async (_, _) =>
+        {
+            if (latest is null || selectedFolder is null || _kextDownloadCts is not null) return;
+            _kextDownloadCts = new CancellationTokenSource();
+            projectPicker.Enabled = false; load.Enabled = false; choose.Enabled = false;
+            download.Enabled = false; cancel.Enabled = true;
+            progress.Value = 0;
+            var reporter = new Progress<KextDownloadProgress>(value =>
+            {
+                status.Text = value.Stage;
+                if (value.Expected is > 0)
+                {
+                    progress.Style = ProgressBarStyle.Continuous;
+                    progress.Value = (int)Math.Clamp(value.Received * 100L / value.Expected.Value, 0, 100);
+                }
+                else progress.Style = ProgressBarStyle.Marquee;
+            });
+            try
+            {
+                var result = await KextCatalogService.DownloadAndExtractAsync(latest, selectedFolder, reporter, _kextDownloadCts.Token);
+                progress.Style = ProgressBarStyle.Continuous;
+                progress.Value = 100;
+                status.Text = $"Extracted {result.KextNames.Count} bundle(s): {string.Join(", ", result.KextNames)}";
+                releaseLabel.Text = $"{result.Project} {result.Version} · SHA-256 verified";
+                MessageBox.Show(this,
+                    $"Verified Kext package created at:\r\n\r\n{result.Destination}\r\n\r\nBundles: {string.Join(", ", result.KextNames)}\r\n\r\nReview the upstream compatibility notes before using any bundle.",
+                    "Kext package ready", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (OperationCanceledException) { status.Text = "Download cancelled. Temporary files were removed; no Kext package was created."; }
+            catch (Exception ex) { status.Text = "Kext download or extraction failed: " + ex.Message; }
+            finally
+            {
+                _kextDownloadCts.Dispose();
+                _kextDownloadCts = null;
+                projectPicker.Enabled = true; load.Enabled = true; choose.Enabled = true;
+                download.Enabled = latest is not null && selectedFolder is not null;
+                cancel.Enabled = false;
+                progress.Style = ProgressBarStyle.Continuous;
+            }
+        };
+        return page;
+    }
+
+    private Control BuildConfigEditorPage()
+    {
+        var page = NewPage();
+        var open = MakeButton("Open config.plist", true, new Point(0, 10), new Size(160, 36));
+        var saveAs = MakeButton("Save as new file", false, new Point(170, 10), new Size(165, 36));
+        saveAs.Enabled = false;
+        var search = new TextBox
+        {
+            Location = new Point(350, 14), Size = new Size(360, 28),
+            PlaceholderText = "Filter by property path…",
+            BackColor = Color.FromArgb(8, 13, 18), ForeColor = TextMain,
+            BorderStyle = BorderStyle.FixedSingle
+        };
+        var sourceLabel = new Label
+        {
+            Text = "No config.plist loaded. The source file is never overwritten.",
+            ForeColor = TextMuted, Font = new Font("Segoe UI", 8),
+            Location = new Point(0, 55), Size = new Size(920, 24), AutoEllipsis = true
+        };
+        var entries = new ListBox
+        {
+            Location = new Point(0, 88), Size = new Size(420, 500),
+            BackColor = Color.FromArgb(8, 13, 18), ForeColor = TextMain,
+            BorderStyle = BorderStyle.FixedSingle, Font = new Font("Consolas", 8),
+            HorizontalScrollbar = true, IntegralHeight = false
+        };
+        var selectedPath = new Label
+        {
+            Text = "Select a property on the left.",
+            ForeColor = TextMain, Font = new Font("Segoe UI", 9, FontStyle.Bold),
+            Location = new Point(440, 88), Size = new Size(470, 42), AutoEllipsis = true
+        };
+        var typeLabel = new Label
+        {
+            Text = "Type: —", ForeColor = TextMuted, Font = new Font("Consolas", 8),
+            Location = new Point(440, 134), Size = new Size(470, 20)
+        };
+        var value = new TextBox
+        {
+            Multiline = true, AcceptsReturn = true, AcceptsTab = true, WordWrap = true,
+            ScrollBars = ScrollBars.Vertical, Font = new Font("Consolas", 9),
+            BackColor = Color.FromArgb(8, 13, 18), ForeColor = TextMain,
+            BorderStyle = BorderStyle.FixedSingle, Location = new Point(440, 164),
+            Size = new Size(470, 170), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+        };
+        var booleanValue = new CheckBox
+        {
+            Text = "Enabled / true", ForeColor = TextMain, Font = new Font("Segoe UI", 9),
+            Location = new Point(440, 164), AutoSize = true, Visible = false
+        };
+        var apply = MakeButton("Apply value", true, new Point(440, 348), new Size(135, 36));
+        apply.Enabled = false;
+        var status = new Label
+        {
+            Text = "Only existing String, Integer, Real, and Boolean values can be edited.",
+            ForeColor = TextSoft, Font = new Font("Segoe UI", 8),
+            Location = new Point(440, 395), Size = new Size(470, 42)
+        };
+        var guidance = new Panel
+        {
+            Location = new Point(440, 452), Size = new Size(470, 136),
+            BackColor = Panel, Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+        };
+        guidance.Controls.Add(new Label
+        {
+            Text = "SAFE EDITING BOUNDARIES",
+            ForeColor = Accent, Font = new Font("Consolas", 8, FontStyle.Bold),
+            Location = new Point(14, 13), AutoSize = true
+        });
+        guidance.Controls.Add(new Label
+        {
+            Text = "This editor changes existing scalar values only. It does not add/remove keys, edit arrays or dictionaries, or modify binary Data/Date fields. Save to a new file, then run the matching official ocvalidate for the exact OpenCore release. A valid plist is not necessarily a bootable EFI.",
+            ForeColor = TextMuted, Font = new Font("Segoe UI", 8),
+            Location = new Point(14, 38), Size = new Size(440, 88)
+        });
+        page.Controls.AddRange(new Control[] { open, saveAs, search, sourceLabel, entries, selectedPath, typeLabel, value, booleanValue, apply, status, guidance });
+
+        ConfigPlistEditorSession? session = null;
+        string? sourcePath = null;
+        PlistEditableEntry? selectedEntry = null;
+        IReadOnlyList<PlistEditableEntry> allEntries = Array.Empty<PlistEditableEntry>();
+
+        void ShowSelectedEntry()
+        {
+            selectedEntry = entries.SelectedItem as PlistEditableEntry;
+            bool hasSelection = selectedEntry is not null;
+            apply.Enabled = hasSelection;
+            value.Visible = hasSelection && selectedEntry!.Type != "boolean";
+            booleanValue.Visible = hasSelection && selectedEntry!.Type == "boolean";
+            if (!hasSelection)
+            {
+                selectedPath.Text = "Select a property on the left.";
+                typeLabel.Text = "Type: —";
+                value.Clear();
+                booleanValue.Checked = false;
+                return;
+            }
+
+            selectedPath.Text = selectedEntry!.Path;
+            typeLabel.Text = "Type: " + selectedEntry.Type;
+            if (selectedEntry.Type == "boolean")
+                booleanValue.Checked = bool.Parse(selectedEntry.Value);
+            else
+                value.Text = selectedEntry.Value;
+        }
+
+        void RefreshEntries(string? preservePath = null)
+        {
+            entries.BeginUpdate();
+            entries.Items.Clear();
+            string query = search.Text.Trim();
+            foreach (var entry in allEntries)
+                if (query.Length == 0 || entry.Path.Contains(query, StringComparison.OrdinalIgnoreCase))
+                    entries.Items.Add(entry);
+            entries.EndUpdate();
+
+            int selectedIndex = -1;
+            if (!string.IsNullOrEmpty(preservePath))
+                for (int index = 0; index < entries.Items.Count; index++)
+                    if (entries.Items[index] is PlistEditableEntry item && item.Path == preservePath)
+                    {
+                        selectedIndex = index;
+                        break;
+                    }
+            entries.SelectedIndex = selectedIndex >= 0 ? selectedIndex : (entries.Items.Count > 0 ? 0 : -1);
+            ShowSelectedEntry();
+        }
+
+        open.Click += (_, _) =>
+        {
+            using var dialog = new OpenFileDialog
+            {
+                Filter = "XML property list (*.plist;*.xml)|*.plist;*.xml|All files (*.*)|*.*",
+                Title = "Open an XML config.plist"
+            };
+            if (dialog.ShowDialog(this) != DialogResult.OK) return;
+            if (!ConfirmDiscardConfigEditorChanges()) return;
+            try
+            {
+                var info = new FileInfo(dialog.FileName);
+                if (info.Length > 5 * 1024 * 1024)
+                    throw new InvalidDataException("The selected config.plist exceeds the 5 MB safety limit.");
+                string xml = File.ReadAllText(dialog.FileName, Encoding.UTF8);
+                session = ConfigPlistEditorSession.Load(xml);
+                sourcePath = dialog.FileName;
+                allEntries = session.Entries;
+                _configEditorHasUnsavedChanges = false;
+                sourceLabel.Text = $"Loaded: {sourcePath}  ·  {allEntries.Count} editable scalar value(s)";
+                status.Text = "Changes remain in memory until you save a new file.";
+                saveAs.Enabled = true;
+                RefreshEntries();
+            }
+            catch (Exception ex)
+            {
+                status.Text = "The selected file could not be opened. The previously loaded document and its in-memory changes remain available.";
+                status.ForeColor = Yellow;
+                MessageBox.Show(this, ex.Message, "Could not open config.plist", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        };
+
+        search.TextChanged += (_, _) => RefreshEntries(selectedEntry?.Path);
+        entries.SelectedIndexChanged += (_, _) => ShowSelectedEntry();
+        apply.Click += (_, _) =>
+        {
+            if (session is null || selectedEntry is null) return;
+            try
+            {
+                string newValue = selectedEntry.Type == "boolean"
+                    ? (booleanValue.Checked ? "true" : "false")
+                    : value.Text;
+                string changedPath = selectedEntry.Path;
+                session.SetValue(selectedEntry, newValue);
+                allEntries = session.Entries;
+                _configEditorHasUnsavedChanges = true;
+                status.Text = "Value updated in memory. Save a separate copy when the review is complete.";
+                status.ForeColor = Green;
+                RefreshEntries(changedPath);
+            }
+            catch (Exception ex)
+            {
+                status.Text = "Value was not changed: " + ex.Message;
+                status.ForeColor = Yellow;
+            }
+        };
+        saveAs.Click += (_, _) =>
+        {
+            if (session is null || sourcePath is null) return;
+            using var dialog = new SaveFileDialog
+            {
+                Filter = "XML property list (*.plist)|*.plist",
+                FileName = Path.GetFileNameWithoutExtension(sourcePath) + "-edited.plist",
+                InitialDirectory = Path.GetDirectoryName(sourcePath),
+                OverwritePrompt = false,
+                Title = "Save edited config.plist as a new file"
+            };
+            if (dialog.ShowDialog(this) != DialogResult.OK) return;
+            try
+            {
+                session.SaveAsNewFile(dialog.FileName);
+                _configEditorHasUnsavedChanges = false;
+                status.Text = "Saved new file: " + dialog.FileName;
+                status.ForeColor = Green;
+                MessageBox.Show(this,
+                    "A new config.plist copy was saved. The source file was left unchanged.\r\n\r\nRun the official ocvalidate that matches this config's OpenCore version before testing it.",
+                    "Config copy saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                status.Text = "Save failed: " + ex.Message;
+                status.ForeColor = Yellow;
+            }
+        };
+
         return page;
     }
 
@@ -328,6 +1328,9 @@ internal sealed class MainForm : Form
         var detect = MakeButton("Detect this PC  →", true, new Point(0, 48), new Size(170, 36));
         var copy = MakeButton("Copy report", false, new Point(182, 48), new Size(120, 36));
         var save = MakeButton("Save Markdown", false, new Point(312, 48), new Size(140, 36));
+        var exportProfile = MakeButton("Export profile JSON", false, new Point(465, 48), new Size(150, 36));
+        var importProfile = MakeButton("Import profile JSON", false, new Point(625, 48), new Size(150, 36));
+        var checklist = MakeButton("Guided EFI checklist", false, new Point(785, 48), new Size(135, 36));
         _hardwareReportBox = new TextBox
         {
             Multiline = true, ReadOnly = true, WordWrap = false, ScrollBars = ScrollBars.Both,
@@ -337,7 +1340,7 @@ internal sealed class MainForm : Form
             Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
         };
         _hardwareReportBox.Text = "Select “Detect this PC” to collect hardware details.\r\n\r\nThe Windows hardware query is read-only. Some device details may be unavailable without vendor-specific tools.";
-        page.Controls.AddRange(new Control[] { detect, copy, save, _hardwareReportBox });
+        page.Controls.AddRange(new Control[] { detect, copy, save, exportProfile, importProfile, checklist, _hardwareReportBox });
 
         detect.Click += async (_, _) =>
         {
@@ -368,6 +1371,94 @@ internal sealed class MainForm : Form
                 _status.ForeColor = Green;
             }
         };
+        exportProfile.Click += async (_, _) =>
+        {
+            exportProfile.Enabled = false;
+            _status.Text = "●  EXPORTING HARDWARE PROFILE";
+            _status.ForeColor = Blue;
+            try
+            {
+                string json = await HardwareProfileService.CollectProfileAsync();
+                _currentHardwareProfileJson = json;
+                using var dialog = new SaveFileDialog
+                {
+                    Filter = "Hardware profile JSON (*.json)|*.json",
+                    FileName = "simple-hackintosh-hardware-profile-v1.json",
+                    Title = "Export privacy-conscious hardware profile"
+                };
+                if (dialog.ShowDialog(this) == DialogResult.OK)
+                {
+                    File.WriteAllText(dialog.FileName, json, new UTF8Encoding(false));
+                    _status.Text = "●  PROFILE EXPORTED";
+                    _status.ForeColor = Green;
+                    _hardwareReportBox.Text = HardwareProfileService.BuildSummary(json) + Environment.NewLine + Environment.NewLine +
+                        "Saved to: " + dialog.FileName + Environment.NewLine +
+                        "Sensitive serial, UUID and MAC-address fields are not included.";
+                }
+                else
+                {
+                    _status.Text = "●  EXPORT CANCELLED";
+                    _status.ForeColor = TextSoft;
+                }
+            }
+            catch (Exception ex)
+            {
+                _status.Text = "●  PROFILE EXPORT FAILED";
+                _status.ForeColor = Yellow;
+                MessageBox.Show(this, ex.Message, "Could not export hardware profile", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            finally { exportProfile.Enabled = true; }
+        };
+
+        importProfile.Click += (_, _) =>
+        {
+            using var dialog = new OpenFileDialog
+            {
+                Filter = "Hardware profile JSON (*.json)|*.json",
+                Title = "Import Hardware Profile Schema v1"
+            };
+            if (dialog.ShowDialog(this) != DialogResult.OK) return;
+            try
+            {
+                var info = new FileInfo(dialog.FileName);
+                if (info.Length > 2 * 1024 * 1024) throw new InvalidDataException("The selected profile exceeds the 2 MB safety limit.");
+                string json = File.ReadAllText(dialog.FileName, Encoding.UTF8);
+                string validation = HardwareProfileService.ValidateProfile(json);
+                _currentHardwareProfileJson = json;
+                _hardwareReportBox.Text = HardwareProfileService.BuildSummary(json) + Environment.NewLine + Environment.NewLine +
+                    validation + Environment.NewLine + "Imported from: " + dialog.FileName;
+                _status.Text = "●  PROFILE IMPORTED / SCHEMA V1";
+                _status.ForeColor = Green;
+            }
+            catch (Exception ex)
+            {
+                _status.Text = "●  PROFILE REJECTED";
+                _status.ForeColor = Yellow;
+                MessageBox.Show(this, ex.Message, "Invalid hardware profile", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        };
+
+        checklist.Click += async (_, _) =>
+        {
+            checklist.Enabled = false;
+            _status.Text = "●  BUILDING GUIDED EFI CHECKLIST";
+            _status.ForeColor = Blue;
+            try
+            {
+                _currentHardwareProfileJson ??= await HardwareProfileService.CollectProfileAsync();
+                _hardwareReportBox.Text = HardwareProfileService.BuildConfigurationChecklist(_currentHardwareProfileJson);
+                _status.Text = "●  GUIDED CHECKLIST READY";
+                _status.ForeColor = Green;
+            }
+            catch (Exception ex)
+            {
+                _status.Text = "●  CHECKLIST GENERATION FAILED";
+                _status.ForeColor = Yellow;
+                MessageBox.Show(this, ex.Message, "Could not build the guided checklist", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            finally { checklist.Enabled = true; }
+        };
+
         save.Click += (_, _) =>
         {
             if (string.IsNullOrWhiteSpace(_hardwareReportBox.Text)) return;
@@ -380,6 +1471,42 @@ internal sealed class MainForm : Form
             }
         };
         return page;
+    }
+
+    private string? PromptForPublishedSha256(string version)
+    {
+        using var prompt = new Form
+        {
+            Text = $"Verify official OpenCore {version} archive",
+            StartPosition = FormStartPosition.CenterParent,
+            FormBorderStyle = FormBorderStyle.FixedDialog,
+            MinimizeBox = false,
+            MaximizeBox = false,
+            ShowInTaskbar = false,
+            ClientSize = new Size(620, 190),
+            BackColor = Panel,
+            ForeColor = TextMain,
+            Font = new Font("Segoe UI", 9)
+        };
+        var explanation = new Label
+        {
+            Text = "Paste the SHA-256 digest shown by GitHub for this exact OpenCore RELEASE ZIP. It may start with sha256:. Do not use a digest from another version or an untrusted mirror.",
+            ForeColor = TextMuted, Location = new Point(18, 18), Size = new Size(580, 48)
+        };
+        var digest = new TextBox
+        {
+            Location = new Point(18, 75), Size = new Size(580, 28),
+            BackColor = Color.FromArgb(8, 13, 18), ForeColor = TextMain,
+            BorderStyle = BorderStyle.FixedSingle, Font = new Font("Consolas", 9)
+        };
+        var verify = MakeButton("Verify and import", true, new Point(340, 130), new Size(150, 34));
+        verify.DialogResult = DialogResult.OK;
+        var cancel = MakeButton("Cancel", false, new Point(500, 130), new Size(98, 34));
+        cancel.DialogResult = DialogResult.Cancel;
+        prompt.Controls.AddRange(new Control[] { explanation, digest, verify, cancel });
+        prompt.AcceptButton = verify;
+        prompt.CancelButton = cancel;
+        return prompt.ShowDialog(this) == DialogResult.OK ? digest.Text : null;
     }
 
     private static FlowLayoutPanel NewResultsPanel(Point location, Size size)
@@ -444,10 +1571,7 @@ internal static class PlistParser
     {
         if (string.IsNullOrWhiteSpace(xmlText)) throw new InvalidDataException("The plist is empty.");
         if (xmlText.Length > 5 * 1024 * 1024) throw new InvalidDataException("The XML exceeds the 5 MB safety limit.");
-        var settings = new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null, MaxCharactersInDocument = 5 * 1024 * 1024 };
-        using var stringReader = new StringReader(xmlText);
-        using var reader = XmlReader.Create(stringReader, settings);
-        var document = XDocument.Load(reader, LoadOptions.None);
+        var document = SafePlistXml.Load(xmlText);
         var root = document.Root;
         if (root?.Name.LocalName != "plist") throw new InvalidDataException("The XML root element must be <plist>.");
         var value = root.Elements().FirstOrDefault();
