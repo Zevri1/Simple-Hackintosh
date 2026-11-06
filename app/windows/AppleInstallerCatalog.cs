@@ -17,6 +17,9 @@ internal static class AppleInstallerCatalog
 
     public static async Task<IReadOnlyList<AppleInstallerOption>> GetInstallersAsync(CancellationToken cancellationToken = default)
     {
+        using var catalogTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        catalogTimeout.CancelAfter(TimeSpan.FromMinutes(5));
+        cancellationToken = catalogTimeout.Token;
         using var response = await Client.GetAsync(CatalogUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         response.EnsureSuccessStatusCode();
         EnsureAppleHttps(response.RequestMessage?.RequestUri);

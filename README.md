@@ -43,7 +43,7 @@ The native SwiftUI app has a graphical workspace for Apple's full-installer cata
 - [Desktop app roadmap and shared hardware profile](docs/17-desktop-studio-roadmap.md)
 - [Hardware profile JSON Schema v1](schemas/hardware-profile-v1.schema.json)
 
-The Windows desktop app is also present as a native .NET 10 Windows Forms utility with EFI Checker, Config Validator, and Hardware Inspector screens. The planned next step is to add the same Apple catalog downloader and EFI builder to Windows.
+The Windows desktop app is a native .NET 10 Windows Forms utility with EFI Checker, Config Validator, Hardware Inspector, direct Apple full-installer downloads, a SHA-256-verified OpenCore x64 starter builder, and privacy-conscious Hardware Profile v1 JSON import/export. Its EFI output is a starter template, not a ready-to-boot configuration.
 
 ## What this project is
 

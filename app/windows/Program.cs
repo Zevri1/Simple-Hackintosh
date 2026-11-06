@@ -52,6 +52,7 @@ internal sealed class MainForm : Form
     private string _selectedSource = "";
     private TextBox? _hardwareReportBox;
     private CancellationTokenSource? _installerDownloadCts;
+    private CancellationTokenSource? _opencoreBuildCts;
 
     public MainForm()
     {
@@ -86,11 +87,13 @@ internal sealed class MainForm : Form
         AddNav(sidebar, "efi", "01   EFI Checker", 202);
         AddNav(sidebar, "config", "02   Config Validator", 250);
         AddNav(sidebar, "hardware", "03   Hardware Inspector", 298);
+        AddNav(sidebar, "opencore", "04   OpenCore Builder", 346);
+        AddNav(sidebar, "installer", "05   macOS Downloader", 394);
 
-        var privacy = new Panel { BackColor = Panel, BorderStyle = BorderStyle.FixedSingle, Location = new Point(18, 390), Size = new Size(194, 116), Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom };
+        var privacy = new Panel { BackColor = Panel, BorderStyle = BorderStyle.FixedSingle, Location = new Point(18, 500), Size = new Size(194, 116), Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom };
         privacy.Controls.Add(new Label { Text = "●  LOCAL PROCESSING", ForeColor = Green, Font = new Font("Consolas", 8, FontStyle.Bold), Location = new Point(12, 13), AutoSize = true });
         privacy.Controls.Add(new Label { Text = "Files are inspected on this PC.\r\nNothing is uploaded by this app.", ForeColor = TextMuted, Font = new Font("Segoe UI", 8), Location = new Point(12, 39), Size = new Size(164, 43) });
-        privacy.Controls.Add(new Label { Text = "SIMPLE HACKINTOSH  ·  0.1.0", ForeColor = TextSoft, Font = new Font("Consolas", 7), Location = new Point(12, 88), AutoSize = true });
+        privacy.Controls.Add(new Label { Text = "SIMPLE HACKINTOSH  ·  0.3.0", ForeColor = TextSoft, Font = new Font("Consolas", 7), Location = new Point(12, 88), AutoSize = true });
         sidebar.Controls.Add(privacy);
 
         var main = new Panel { Dock = DockStyle.Fill, BackColor = Background };
@@ -153,6 +156,16 @@ internal sealed class MainForm : Form
                 _pageTitle.Text = "Hardware Inspector";
                 _pageSubtitle.Text = "Collect local system information and export a hardware report.";
                 page = BuildHardwarePage();
+                break;
+            case "opencore":
+                _pageTitle.Text = "OpenCore Builder";
+                _pageSubtitle.Text = "Download the official release, verify its SHA-256 digest, and create a safe starter EFI.";
+                page = BuildOpenCoreBuilderPage();
+                break;
+            case "installer":
+                _pageTitle.Text = "macOS Downloader";
+                _pageSubtitle.Text = "Download Apple's full InstallAssistant package directly to a selected drive.";
+                page = BuildMacOSDownloaderPage();
                 break;
             default:
                 _pageTitle.Text = "Simple Hackintosh";
@@ -400,6 +413,115 @@ internal sealed class MainForm : Form
         return page;
     }
 
+    private Control BuildOpenCoreBuilderPage()
+    {
+        var page = NewPage();
+        var intro = new Label
+        {
+            Text = "Fetch the latest stable OpenCore RELEASE from Acidanthera's official GitHub repository. The archive digest is checked before any EFI folder is created.",
+            ForeColor = TextMuted, Font = new Font("Segoe UI", 9), Location = new Point(0, 8), Size = new Size(900, 42)
+        };
+        var check = MakeButton("Check official release", false, new Point(0, 64), new Size(180, 36));
+        var choose = MakeButton("Choose destination", false, new Point(190, 64), new Size(170, 36));
+        var build = MakeButton("Download + build starter", true, new Point(370, 64), new Size(205, 36));
+        var cancel = MakeButton("Cancel", false, new Point(585, 64), new Size(100, 36));
+        var selected = new Label { Text = "No destination selected", ForeColor = TextSoft, Font = new Font("Consolas", 8), Location = new Point(0, 112), Size = new Size(880, 24), AutoEllipsis = true };
+        var releaseLabel = new Label { Text = "Release not checked yet", ForeColor = TextMuted, Font = new Font("Segoe UI", 9), Location = new Point(0, 146), Size = new Size(900, 52), AutoEllipsis = true };
+        var progress = new ProgressBar { Location = new Point(0, 208), Size = new Size(880, 18), Minimum = 0, Maximum = 100 };
+        var status = new Label
+        {
+            Text = "The app will not overwrite an existing EFI and will not modify partitions, firmware settings or boot entries.",
+            ForeColor = TextMuted, Font = new Font("Segoe UI", 9), Location = new Point(0, 238), Size = new Size(900, 64)
+        };
+        var warning = new Panel { Location = new Point(0, 320), Size = new Size(880, 150), BackColor = Panel };
+        warning.Controls.Add(new Label { Text = "STARTER EFI — NOT READY TO BOOT", ForeColor = Yellow, Font = new Font("Consolas", 9, FontStyle.Bold), Location = new Point(18, 18), AutoSize = true });
+        warning.Controls.Add(new Label
+        {
+            Text = "The builder copies the official x64 EFI folder and the matching Sample.plist. It does not choose ACPI, Kexts, SMBIOS, kernel quirks or firmware drivers for your hardware. Configure the result for the target PC and run the matching ocvalidate before testing from removable media.",
+            ForeColor = TextMuted, Font = new Font("Segoe UI", 9), Location = new Point(18, 48), Size = new Size(835, 82)
+        });
+        page.Controls.AddRange(new Control[] { intro, check, choose, build, cancel, selected, releaseLabel, progress, status, warning });
+
+        string? destination = null;
+        OpenCoreReleaseInfo? latest = null;
+        build.Enabled = false;
+        cancel.Enabled = false;
+
+        choose.Click += (_, _) =>
+        {
+            using var dialog = new FolderBrowserDialog { Description = "Choose an existing folder where a new EFI folder can be created." };
+            if (dialog.ShowDialog(this) == DialogResult.OK)
+            {
+                destination = dialog.SelectedPath;
+                selected.Text = destination;
+                build.Enabled = latest is not null && _opencoreBuildCts is null;
+            }
+        };
+
+        check.Click += async (_, _) =>
+        {
+            check.Enabled = false;
+            status.Text = "Checking the official Acidanthera release metadata…";
+            try
+            {
+                latest = await OpenCoreReleaseService.GetLatestReleaseAsync();
+                releaseLabel.Text = $"Latest stable release: OpenCore {latest.Version}   ·   {latest.AssetName}\r\nSHA-256: {latest.Sha256}";
+                status.Text = "Official GitHub release metadata loaded. The digest will be checked again against the downloaded archive.";
+                build.Enabled = destination is not null && _opencoreBuildCts is null;
+            }
+            catch (Exception ex)
+            {
+                latest = null;
+                releaseLabel.Text = "Could not verify official release metadata.";
+                status.Text = "Release check failed: " + ex.Message;
+                build.Enabled = false;
+            }
+            finally { check.Enabled = true; }
+        };
+
+        cancel.Click += (_, _) => _opencoreBuildCts?.Cancel();
+
+        build.Click += async (_, _) =>
+        {
+            if (destination is null || latest is null || _opencoreBuildCts is not null) return;
+            _opencoreBuildCts = new CancellationTokenSource();
+            build.Enabled = false; check.Enabled = false; choose.Enabled = false; cancel.Enabled = true;
+            progress.Style = ProgressBarStyle.Continuous;
+            progress.Value = 0;
+            var reporter = new Progress<OpenCoreProgress>(value =>
+            {
+                status.Text = value.Stage;
+                if (value.Expected is > 0)
+                {
+                    progress.Style = ProgressBarStyle.Continuous;
+                    progress.Value = (int)Math.Clamp(value.Received * 100L / value.Expected.Value, 0, 100);
+                }
+                else progress.Style = ProgressBarStyle.Marquee;
+            });
+            try
+            {
+                var result = await OpenCoreReleaseService.BuildStarterAsync(destination, reporter, _opencoreBuildCts.Token);
+                releaseLabel.Text = $"Created OpenCore {result.Version} starter EFI   ·   SHA-256: {result.Sha256}";
+                status.Text = "Starter created at: " + result.EfiPath;
+                MessageBox.Show(this,
+                    "The verified OpenCore starter was created at:\r\n\r\n" + result.EfiPath +
+                    "\r\n\r\nIt is a template, not a ready-to-boot EFI. Read EFI/READ-ME-FIRST.txt.",
+                    "OpenCore starter created", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (OperationCanceledException) { status.Text = "Build cancelled. Temporary files were removed; no EFI was created."; }
+            catch (Exception ex) { status.Text = "OpenCore build failed: " + ex.Message; }
+            finally
+            {
+                _opencoreBuildCts.Dispose();
+                _opencoreBuildCts = null;
+                build.Enabled = destination is not null && latest is not null;
+                check.Enabled = true; choose.Enabled = true; cancel.Enabled = false;
+                progress.Style = ProgressBarStyle.Continuous;
+            }
+        };
+        return page;
+    }
+
     private Control BuildHardwarePage()
     {
         var page = NewPage();
@@ -407,6 +529,8 @@ internal sealed class MainForm : Form
         var detect = MakeButton("Detect this PC  →", true, new Point(0, 48), new Size(170, 36));
         var copy = MakeButton("Copy report", false, new Point(182, 48), new Size(120, 36));
         var save = MakeButton("Save Markdown", false, new Point(312, 48), new Size(140, 36));
+        var exportProfile = MakeButton("Export profile JSON", false, new Point(465, 48), new Size(150, 36));
+        var importProfile = MakeButton("Import profile JSON", false, new Point(625, 48), new Size(150, 36));
         _hardwareReportBox = new TextBox
         {
             Multiline = true, ReadOnly = true, WordWrap = false, ScrollBars = ScrollBars.Both,
@@ -416,7 +540,7 @@ internal sealed class MainForm : Form
             Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
         };
         _hardwareReportBox.Text = "Select “Detect this PC” to collect hardware details.\r\n\r\nThe Windows hardware query is read-only. Some device details may be unavailable without vendor-specific tools.";
-        page.Controls.AddRange(new Control[] { detect, copy, save, _hardwareReportBox });
+        page.Controls.AddRange(new Control[] { detect, copy, save, exportProfile, importProfile, _hardwareReportBox });
 
         detect.Click += async (_, _) =>
         {
@@ -447,6 +571,71 @@ internal sealed class MainForm : Form
                 _status.ForeColor = Green;
             }
         };
+        exportProfile.Click += async (_, _) =>
+        {
+            exportProfile.Enabled = false;
+            _status.Text = "●  EXPORTING HARDWARE PROFILE";
+            _status.ForeColor = Blue;
+            try
+            {
+                string json = await HardwareProfileService.CollectProfileAsync();
+                using var dialog = new SaveFileDialog
+                {
+                    Filter = "Hardware profile JSON (*.json)|*.json",
+                    FileName = "simple-hackintosh-hardware-profile-v1.json",
+                    Title = "Export privacy-conscious hardware profile"
+                };
+                if (dialog.ShowDialog(this) == DialogResult.OK)
+                {
+                    File.WriteAllText(dialog.FileName, json, new UTF8Encoding(false));
+                    _status.Text = "●  PROFILE EXPORTED";
+                    _status.ForeColor = Green;
+                    _hardwareReportBox.Text = HardwareProfileService.BuildSummary(json) + Environment.NewLine + Environment.NewLine +
+                        "Saved to: " + dialog.FileName + Environment.NewLine +
+                        "Sensitive serial, UUID and MAC-address fields are not included.";
+                }
+                else
+                {
+                    _status.Text = "●  EXPORT CANCELLED";
+                    _status.ForeColor = TextSoft;
+                }
+            }
+            catch (Exception ex)
+            {
+                _status.Text = "●  PROFILE EXPORT FAILED";
+                _status.ForeColor = Yellow;
+                MessageBox.Show(this, ex.Message, "Could not export hardware profile", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            finally { exportProfile.Enabled = true; }
+        };
+
+        importProfile.Click += (_, _) =>
+        {
+            using var dialog = new OpenFileDialog
+            {
+                Filter = "Hardware profile JSON (*.json)|*.json",
+                Title = "Import Hardware Profile Schema v1"
+            };
+            if (dialog.ShowDialog(this) != DialogResult.OK) return;
+            try
+            {
+                var info = new FileInfo(dialog.FileName);
+                if (info.Length > 2 * 1024 * 1024) throw new InvalidDataException("The selected profile exceeds the 2 MB safety limit.");
+                string json = File.ReadAllText(dialog.FileName, Encoding.UTF8);
+                string validation = HardwareProfileService.ValidateProfile(json);
+                _hardwareReportBox.Text = HardwareProfileService.BuildSummary(json) + Environment.NewLine + Environment.NewLine +
+                    validation + Environment.NewLine + "Imported from: " + dialog.FileName;
+                _status.Text = "●  PROFILE IMPORTED / SCHEMA V1";
+                _status.ForeColor = Green;
+            }
+            catch (Exception ex)
+            {
+                _status.Text = "●  PROFILE REJECTED";
+                _status.ForeColor = Yellow;
+                MessageBox.Show(this, ex.Message, "Invalid hardware profile", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        };
+
         save.Click += (_, _) =>
         {
             if (string.IsNullOrWhiteSpace(_hardwareReportBox.Text)) return;

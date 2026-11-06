@@ -1,6 +1,6 @@
 # Windows Desktop Studio — Factory Work Packages
 
-**Target:** Simple Hackintosh Windows desktop v0.2 → v0.3  
+**Target:** Simple Hackintosh Windows desktop v0.3 preview  
 **Current delivery branch:** `chatgpt/windows-desktop-app-v2`  
 **Coordination rule:** one owner per workstream; shared contracts are reviewed before integration.
 
@@ -37,13 +37,17 @@ Keep the existing native Windows Forms application on .NET 10. Do not introduce 
 
 ## Workstream C — OpenCore and EFI engineering
 
-**Next deliverables**
-1. Discover official OpenCorePkg releases from the Acidanthera GitHub repository.
-2. Verify release archive SHA-256 against GitHub's published asset digest before extraction.
-3. Build a non-destructive x64 OpenCore starter directory from the official release.
+**Implemented in v0.3 preview**
+1. Discover the latest stable OpenCorePkg release from the official Acidanthera GitHub API.
+2. Require GitHub's published SHA-256 digest and verify the downloaded RELEASE ZIP before extraction.
+3. Build a non-destructive x64 starter directory from the official release.
 4. Place the matching `Docs/Sample.plist` at `EFI/OC/config.plist`.
-5. Add a clear starter-only warning and matching-version `ocvalidate` guidance.
-6. Later, import the shared hardware profile and generate a hardware-specific configuration proposal.
+5. Reject ZIP traversal, links, duplicate archive paths, excessive entry counts and oversized extraction.
+6. Label the result as a starter and provide version-matched `ocvalidate` guidance.
+
+**Remaining**
+- Integrate the matching `ocvalidate` executable and structured validation output.
+- Add a guided hardware-specific configuration flow.
 
 **Acceptance**
 - No existing EFI folder is overwritten.
@@ -54,9 +58,9 @@ Keep the existing native Windows Forms application on .NET 10. Do not introduce 
 
 ## Workstream D — Hardware profile and compatibility
 
-**Deliverables**
-- Export a privacy-conscious JSON profile matching `schemas/hardware-profile-v1.schema.json`.
-- Import the same profile in macOS Studio.
+**Implemented in v0.3 preview**
+- Export a privacy-conscious JSON profile matching the shared schema-v1 structure.
+- Import and validate schema-v1 profiles in the Windows Hardware Inspector.
 - Include CPU, GPU/PCI IDs, network, audio, storage and firmware facts where Windows exposes them.
 - Exclude serial numbers, UUIDs, SMBIOS identity values and MAC addresses.
 
@@ -107,7 +111,7 @@ flowchart TD
 - [x] Native Windows Forms shell and three local diagnostic pages.
 - [x] Apple full-installer catalog and direct-to-selected-drive download preview.
 - [ ] Live Apple catalog smoke test on Windows.
-- [ ] Automated Windows unit-test project.
-- [ ] Official OpenCore release downloader and starter EFI builder.
-- [ ] Hardware profile JSON export/import.
+- [x] Automated Windows unit-test project (profile-schema and archive-path safety tests).
+- [x] Official OpenCore release downloader and starter EFI builder.
+- [x] Hardware profile JSON export/import (Windows runtime smoke test pending).
 - [ ] Final QA and signed/notarized macOS counterpart coordination.
