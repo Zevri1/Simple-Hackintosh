@@ -615,4 +615,32 @@ public sealed class SafetyAndProfileTests
         Assert.Contains("Target macOS: Not selected", report, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void ExtractsExactHdaCodecVendorAndDeviceIdsFromWindowsPnpIdentifiers()
+    {
+        string? codec = HardwareProfileService.BuildAudioCodecSummary(new[]
+        {
+            @"HDAUDIO\FUNC_01&VEN_10EC&DEV_0256&SUBSYS_17AA1234&REV_1000",
+            @"HDAUDIO\FUNC_01&VEN_10EC&DEV_0256&SUBSYS_17AA1234&REV_1000",
+            @"HDAUDIO\FUNC_02&VEN_8086&DEV_280B&SUBSYS_17AA1234&REV_1000",
+            @"USB\VID_0BDA&PID_4014"
+        });
+
+        Assert.Equal("Realtek HDA codec (VEN_10EC DEV_0256)", codec);
+    }
+
+    [Fact]
+    public void DoesNotGuessCodecFromFriendlyNameOrNonHdaPnPIdentifiers()
+    {
+        string? codec = HardwareProfileService.BuildAudioCodecSummary(new[]
+        {
+            "Realtek Audio",
+            @"HDAUDIO\FUNC_02&VEN_10EC&DEV_0256&SUBSYS_17AA1234",
+            @"USB\VID_0BDA&PID_4014"
+        });
+
+        Assert.Null(codec);
+    }
+
 }

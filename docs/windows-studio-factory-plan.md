@@ -157,8 +157,9 @@ flowchart TD
 - [x] Source-linked Kext dependency and compatibility notes with tests for key upstream requirements.
 - [x] Separate the Kext Library's release-notes and upstream-documentation actions; keep source and compatibility guidance visible before downloading.
 - [x] Hardware-to-Kext Review based on local Hardware Profile v1, with tests for I219, Intel Wi-Fi, NVMe, missing audio codec and unknown hardware.
+- [x] Read exact HDAUDIO function-01 codec vendor/device IDs from Windows PnP identifiers when available; tests confirm friendly names and non-codec HDA functions are not misidentified.
 - [x] Non-destructive scalar Config Editor with save-as-new-file behavior.
 - [x] Offline OpenCore release import UI, digest verification and validator cache tests.
 - [ ] Live Apple catalog smoke test on Windows.
-- [ ] Windows runtime smoke tests for profile, Kext and EFI flows.
+- [ ] Windows runtime smoke tests for profile, HDAUDIO codec detection, Kext and EFI flows.
 - [ ] Final QA and signed/notarized macOS counterpart coordination.

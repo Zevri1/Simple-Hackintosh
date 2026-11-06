@@ -23,9 +23,10 @@ internal static class HardwareProfileService
         "$nets=@(Get-CimInstance Win32_NetworkAdapter | Where-Object { $_.PhysicalAdapter -and $_.PNPDeviceID } | ForEach-Object { [pscustomobject]@{Name=$_.Name; Pnp=$_.PNPDeviceID; AdapterType=$_.AdapterType} }); " +
         "$disks=@(Get-CimInstance Win32_DiskDrive | ForEach-Object { [pscustomobject]@{Model=$_.Model; InterfaceType=$_.InterfaceType; Size=$_.Size} }); " +
         "$audio=@(Get-CimInstance Win32_SoundDevice | ForEach-Object { $_.Name }); " +
+        "$audioCodecIds=@(Get-CimInstance Win32_PnPEntity | Where-Object { $_.PNPDeviceID -like 'HDAUDIO*' } | ForEach-Object { $_.PNPDeviceID }); " +
         "$bt=@(Get-CimInstance Win32_PnPEntity | Where-Object { $_.Name -match 'Bluetooth' } | ForEach-Object { $_.Name }); " +
         "$mode='Unknown'; try { $fw=(Get-ComputerInfo -Property BiosFirmwareType).BiosFirmwareType; if ($fw -match 'Uefi') { $mode='UEFI' } elseif ($fw -match 'Legacy') { $mode='Legacy' } } catch {}; " +
-        "[pscustomobject]@{ComputerSystem=$cs; Processor=$cpu; Bios=$bios; Graphics=$gpus; Network=$nets; Storage=$disks; Audio=$audio; Bluetooth=$bt; FirmwareMode=$mode} | ConvertTo-Json -Depth 6 -Compress";
+        "[pscustomobject]@{ComputerSystem=$cs; Processor=$cpu; Bios=$bios; Graphics=$gpus; Network=$nets; Storage=$disks; Audio=$audio; AudioCodecIds=$audioCodecIds; Bluetooth=$bt; FirmwareMode=$mode} | ConvertTo-Json -Depth 6 -Compress";
 
     public static async Task<string> CollectProfileAsync(CancellationToken cancellationToken = default)
     {
@@ -112,11 +113,7 @@ internal static class HardwareProfileService
                 ["bluetoothAdapters"] = GetArray(root, "Bluetooth").Select(x => x.ValueKind == JsonValueKind.String ? x.GetString() : null)
                     .Where(x => !string.IsNullOrWhiteSpace(x)).Cast<string>().Distinct(StringComparer.OrdinalIgnoreCase).ToArray()
             },
-            ["audio"] = new Dictionary<string, object?>
-            {
-                ["controllers"] = GetArray(root, "Audio").Select(x => x.ValueKind == JsonValueKind.String ? x.GetString() : null)
-                    .Where(x => !string.IsNullOrWhiteSpace(x)).Cast<string>().Distinct(StringComparer.OrdinalIgnoreCase).ToArray()
-            },
+            ["audio"] = BuildAudioProfile(root),
             ["storage"] = storage,
             ["notes"] = new[]
             {
@@ -128,6 +125,25 @@ internal static class HardwareProfileService
         string json = JsonSerializer.Serialize(profile, new JsonSerializerOptions { WriteIndented = true });
         ValidateProfile(json);
         return json;
+    }
+
+    private static Dictionary<string, object?> BuildAudioProfile(JsonElement root)
+    {
+        var audio = new Dictionary<string, object?>
+        {
+            ["controllers"] = GetArray(root, "Audio")
+                .Select(item => item.ValueKind == JsonValueKind.String ? item.GetString() : null)
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Cast<string>()
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray()
+        };
+
+        string? codec = BuildAudioCodecSummary(GetArray(root, "AudioCodecIds")
+            .Where(item => item.ValueKind == JsonValueKind.String)
+            .Select(item => item.GetString() ?? ""));
+        if (!string.IsNullOrWhiteSpace(codec)) audio["codec"] = codec;
+        return audio;
     }
 
     public static string ValidateProfile(string json)
@@ -433,6 +449,28 @@ internal static class HardwareProfileService
     {
         string? value = GetString(source, property);
         if (!string.IsNullOrWhiteSpace(value)) output[key] = value.Trim();
+    }
+
+    internal static string? BuildAudioCodecSummary(IEnumerable<string> pnpIds)
+    {
+        var regex = new Regex(
+            @"HDAUDIO\\FUNC_01&VEN_([0-9A-F]{4})&DEV_([0-9A-F]{4})",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        var matches = pnpIds
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => regex.Match(id))
+            .Where(match => match.Success)
+            .Select(match => (
+                Vendor: match.Groups[1].Value.ToUpperInvariant(),
+                Device: match.Groups[2].Value.ToUpperInvariant()))
+            .Distinct()
+            .OrderBy(match => match.Vendor, StringComparer.Ordinal)
+            .ThenBy(match => match.Device, StringComparer.Ordinal)
+            .ToArray();
+
+        if (matches.Length == 0) return null;
+        return string.Join("; ", matches.Select(match =>
+            $"{VendorName(match.Vendor)} HDA codec (VEN_{match.Vendor} DEV_{match.Device})"));
     }
 
     private static string VendorName(string id) => id.ToUpperInvariant() switch
