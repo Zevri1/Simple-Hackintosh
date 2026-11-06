@@ -742,8 +742,8 @@ internal sealed class MainForm : Form
         };
         sourcePicker.DataSource = OfficialComponentService.Sources.ToList();
         var load = MakeButton("Load official release", true, new Point(312, 10), new Size(180, 36));
-        var openRelease = MakeButton("Release notes", false, new Point(472, 10), new Size(142, 36));
-        var openDocs = MakeButton("Upstream documentation", false, new Point(624, 10), new Size(200, 36));
+        var openRelease = MakeButton("Release notes", false, new Point(502, 10), new Size(142, 36));
+        var openDocs = MakeButton("Upstream documentation", false, new Point(652, 10), new Size(200, 36));
         var choose = MakeButton("Choose output folder", false, new Point(0, 168), new Size(175, 36));
         var download = MakeButton("Verify & extract Kexts", true, new Point(185, 168), new Size(190, 36));
         var cancel = MakeButton("Cancel", false, new Point(385, 168), new Size(100, 36));

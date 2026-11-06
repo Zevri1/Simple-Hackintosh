@@ -154,6 +154,7 @@ flowchart TD
 - [x] Read-only guided EFI preparation checklist generated from schema-v1 hardware profiles.
 - [x] Official Kext Library with digest-required download and safe Kext-only extraction.
 - [x] Source-linked Kext dependency and compatibility notes with tests for key upstream requirements.
+- [x] Separate the Kext Library's release-notes and upstream-documentation actions; keep source and compatibility guidance visible before downloading.
 - [x] Non-destructive scalar Config Editor with save-as-new-file behavior.
 - [x] Offline OpenCore release import UI, digest verification and validator cache tests.
 - [ ] Live Apple catalog smoke test on Windows.
