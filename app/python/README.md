@@ -1,6 +1,6 @@
 # Simple Hackintosh CLI
 
-A cross-platform Python assistant with a native PowerShell front-end for Windows and a double-clickable Terminal launcher on macOS. Version 2.4.0 adds a verified OpCore-Simplify Hardware Sniffer export on Windows, a guided launch flow, and clearer Windows/macOS run instructions.
+A cross-platform Python assistant with a native PowerShell front-end for Windows and a double-clickable Terminal launcher on macOS. Version 3.0.0 adds a verified OpCore-Simplify Hardware Sniffer export on Windows, a guided launch flow, and clearer Windows/macOS run instructions.
 
 **No third-party Python packages are required.** The program uses Python's standard library. Windows hardware inventory uses PowerShell/CIM; macOS inventory uses the built-in system_profiler and sw_vers commands.
 
@@ -10,7 +10,7 @@ A cross-platform Python assistant with a native PowerShell front-end for Windows
 
 1. Download the [latest CLI ZIP](https://github.com/Zevri1/Simple-Hackintosh/releases/latest).
 2. Right-click the ZIP and choose **Extract All**.
-3. Open the extracted `Simple-Hackintosh-CLI-v2.4.0` folder. In the release ZIP, the launchers are directly beside `simple_hackintosh.py`.
+3. Open the extracted `Simple-Hackintosh-CLI-v3.0.0` folder. In the release ZIP, the launchers are directly beside `simple_hackintosh.py`.
 4. Start the matching launcher below.
 
 | System | Exact way to start |
