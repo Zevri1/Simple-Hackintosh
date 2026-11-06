@@ -17,6 +17,7 @@ A native Windows Forms (.NET 10) desktop companion for the Simple Hackintosh fie
 2. Add official Kext/ACPI/driver release sources with compatibility and version matching.
 3. Design a separate, heavily guarded removable-USB workflow; it must show exact disk identity and require a second erase confirmation. Internal disks remain out of scope.
 4. Improve Windows hardware inventory and PCI/ACPI identification without exporting sensitive identifiers.
+
 The official validator can use a selected stable Acidanthera release (or the latest stable release when none is selected). The selected `config.plist` must belong to that same OpenCore version. If the official release archive does not include a Windows `ocvalidate.exe`, the app stops and explains that it will not substitute an unofficial binary.
 
 Windows can download Apple's full installer package and prepare EFI assets. For macOS 11 Big Sur and newer, it cannot use the traditional gibMacOS Windows `MakeInstall` flow to create a complete bootable installer USB; the final media-creation step uses Apple's `createinstallmedia` on macOS. The Windows GUI should therefore support a clear handoff: download in Windows, then finish USB creation from macOS.

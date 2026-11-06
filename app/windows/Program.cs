@@ -293,7 +293,7 @@ internal sealed class MainForm : Form
         var officialValidateButton = MakeButton("Official ocvalidate", false, new Point(400, 0), new Size(190, 36));
         var cancelOfficialButton = MakeButton("Cancel", false, new Point(600, 0), new Size(90, 36));
         var loadVersionsButton = MakeButton("Load OpenCore versions", false, new Point(700, 0), new Size(220, 36));
-        var versionPicker = new ComboBox { Location = new Point(0, 98), Size = new Size(300, 34), DropDownStyle = ComboBoxStyle.DropDownList, Enabled = false };
+        var versionPicker = new ComboBox { Location = new Point(0, 54), Size = new Size(300, 34), DropDownStyle = ComboBoxStyle.DropDownList, Enabled = false };
         var versionHint = new Label { Text = "Select the exact OpenCore version used by this config.plist. The latest stable release is used if none is selected.", ForeColor = TextSoft, Font = new Font("Segoe UI", 8), Location = new Point(312, 58), Size = new Size(608, 34) };
         cancelOfficialButton.Enabled = false;
         var input = new TextBox
@@ -301,12 +301,12 @@ internal sealed class MainForm : Form
             Multiline = true, AcceptsReturn = true, AcceptsTab = true, WordWrap = false,
             ScrollBars = ScrollBars.Both, Font = new Font("Consolas", 9),
             BackColor = Color.FromArgb(8, 13, 18), ForeColor = Color.FromArgb(215, 228, 233),
-            BorderStyle = BorderStyle.FixedSingle, Location = new Point(0, 54),
+            BorderStyle = BorderStyle.FixedSingle, Location = new Point(0, 98),
             Size = new Size(920, 340), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
         };
         var hint = new Label
         {
-            Text = "The local check is structural. Official ocvalidate downloads the latest stable Acidanthera validator and must only be used with a config.plist from that exact OpenCore version.",
+            Text = "The local check is structural. Official ocvalidate is version-specific; select the same OpenCore release used by this config.plist.",
             ForeColor = TextSoft, Font = new Font("Segoe UI", 8), Location = new Point(2, 446), Size = new Size(920, 32)
         };
         var results = NewResultsPanel(new Point(0, 484), new Size(920, 380));
