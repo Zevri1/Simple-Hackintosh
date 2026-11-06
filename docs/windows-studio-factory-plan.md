@@ -73,9 +73,13 @@ Keep the existing native Windows Forms application on .NET 10. Do not introduce 
 - Validate expected x64 EFI and Sample.plist entries, the exact Windows validator path, duplicate paths, links, traversal, archive entry count and expanded size.
 - Cache the extracted validator with a SHA-256 sidecar and add the imported release to the Config Validator version selector.
 
+**Implemented in v0.5 preview**
+- Add source-linked per-component dependency and compatibility notes for the curated Kext library, including Lilu minimum versions and hardware-specific caveats.
+- Keep upstream notes distinct from automatic compatibility verdicts; no Kext is selected or enabled automatically.
+
 **Remaining**
 - Expand the scalar Config Editor into a complete schema-guided editor using the exact schema shipped with the selected OpenCore version.
-- Add per-component macOS compatibility metadata and OpenCore dependency guidance based on upstream documentation.
+- Compare detected hardware IDs and target macOS against the upstream requirements rather than relying only on static notes.
 
 **Acceptance**
 - No existing EFI folder is overwritten.
@@ -149,6 +153,7 @@ flowchart TD
 - [x] Hardware profile JSON export/import (Windows runtime smoke test pending).
 - [x] Read-only guided EFI preparation checklist generated from schema-v1 hardware profiles.
 - [x] Official Kext Library with digest-required download and safe Kext-only extraction.
+- [x] Source-linked Kext dependency and compatibility notes with tests for key upstream requirements.
 - [x] Non-destructive scalar Config Editor with save-as-new-file behavior.
 - [x] Offline OpenCore release import UI, digest verification and validator cache tests.
 - [ ] Live Apple catalog smoke test on Windows.

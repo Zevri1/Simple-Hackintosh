@@ -521,4 +521,38 @@ public sealed class SafetyAndProfileTests
         }
     }
 
+
+    [Fact]
+    public void OfficialKextLibraryShowsUpstreamDependenciesAndCompatibilityNotes()
+    {
+        var sources = OfficialComponentService.Sources;
+        var lilu = Assert.Single(sources, item => item.Name == "Lilu");
+        var virtualSmc = Assert.Single(sources, item => item.Name == "VirtualSMC");
+        var whateverGreen = Assert.Single(sources, item => item.Name == "WhateverGreen");
+        var appleAlc = Assert.Single(sources, item => item.Name == "AppleALC");
+        var intelMausi = Assert.Single(sources, item => item.Name == "IntelMausi");
+        var nvmeFix = Assert.Single(sources, item => item.Name == "NVMeFix");
+        var cpuTscSync = Assert.Single(sources, item => item.Name == "CpuTscSync");
+
+        Assert.Contains("plugin", lilu.Purpose, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Lilu", virtualSmc.Dependencies, StringComparison.Ordinal);
+        Assert.Contains("1.5.6", whateverGreen.Dependencies, StringComparison.Ordinal);
+        Assert.Contains("layout-id", appleAlc.Guidance, StringComparison.Ordinal);
+        Assert.Contains("I219", intelMausi.Compatibility, StringComparison.Ordinal);
+        Assert.Contains("1.4.1", nvmeFix.Dependencies, StringComparison.Ordinal);
+        Assert.Contains("MSR_IA32_TSC_ADJUST", cpuTscSync.Compatibility, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void OfficialKextLibraryDocumentationLinksUseUpstreamGitHub()
+    {
+        foreach (var source in OfficialComponentService.Sources)
+        {
+            Assert.True(Uri.TryCreate(source.DocumentationUrl, UriKind.Absolute, out var uri));
+            Assert.Equal(Uri.UriSchemeHttps, uri!.Scheme);
+            Assert.Equal("github.com", uri.Host);
+            Assert.StartsWith($"/{source.Repository}", uri.AbsolutePath, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
 }

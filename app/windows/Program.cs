@@ -742,32 +742,44 @@ internal sealed class MainForm : Form
         };
         sourcePicker.DataSource = OfficialComponentService.Sources.ToList();
         var load = MakeButton("Load official release", true, new Point(312, 10), new Size(180, 36));
-        var openRelease = MakeButton("Open release notes", false, new Point(502, 10), new Size(160, 36));
-        var choose = MakeButton("Choose output folder", false, new Point(0, 112), new Size(175, 36));
-        var download = MakeButton("Verify & extract Kexts", true, new Point(185, 112), new Size(190, 36));
-        var cancel = MakeButton("Cancel", false, new Point(385, 112), new Size(100, 36));
+        var openRelease = MakeButton("Release notes", false, new Point(472, 10), new Size(142, 36));
+        var openDocs = MakeButton("Upstream documentation", false, new Point(624, 10), new Size(200, 36));
+        var choose = MakeButton("Choose output folder", false, new Point(0, 168), new Size(175, 36));
+        var download = MakeButton("Verify & extract Kexts", true, new Point(185, 168), new Size(190, 36));
+        var cancel = MakeButton("Cancel", false, new Point(385, 168), new Size(100, 36));
         cancel.Enabled = false;
         download.Enabled = false;
         openRelease.Enabled = false;
+        openDocs.Enabled = true;
 
         var purpose = new Label
         {
-            ForeColor = TextMuted, Font = new Font("Segoe UI", 9), Location = new Point(0, 58),
-            Size = new Size(900, 42), AutoEllipsis = true
+            ForeColor = TextMuted, Font = new Font("Segoe UI", 9), Location = new Point(0, 56),
+            Size = new Size(900, 32), AutoEllipsis = true
+        };
+        var dependencies = new Label
+        {
+            ForeColor = TextMain, Font = new Font("Segoe UI", 8), Location = new Point(0, 91),
+            Size = new Size(920, 25), AutoEllipsis = true
+        };
+        var compatibility = new Label
+        {
+            ForeColor = TextMuted, Font = new Font("Segoe UI", 8), Location = new Point(0, 118),
+            Size = new Size(920, 42), AutoEllipsis = true
         };
         var releaseInfo = new Label
         {
             ForeColor = TextMain, Font = new Font("Segoe UI", 9, FontStyle.Bold),
-            Location = new Point(0, 166), Size = new Size(920, 46), AutoEllipsis = true
+            Location = new Point(0, 222), Size = new Size(920, 42), AutoEllipsis = true
         };
         var destination = new Label
         {
             Text = "No output folder selected", ForeColor = TextMuted,
-            Location = new Point(0, 220), Size = new Size(920, 28), AutoEllipsis = true
+            Location = new Point(0, 268), Size = new Size(920, 24), AutoEllipsis = true
         };
         var progress = new ProgressBar
         {
-            Location = new Point(0, 258), Size = new Size(920, 18),
+            Location = new Point(0, 300), Size = new Size(920, 18),
             Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
             Style = ProgressBarStyle.Continuous, Minimum = 0, Maximum = 100
         };
@@ -775,11 +787,11 @@ internal sealed class MainForm : Form
         {
             Text = "Choose a component and load its official stable release.",
             ForeColor = TextSoft, Font = new Font("Segoe UI", 9),
-            Location = new Point(0, 290), Size = new Size(920, 46), AutoEllipsis = true
+            Location = new Point(0, 330), Size = new Size(920, 46), AutoEllipsis = true
         };
         var caution = new Panel
         {
-            Location = new Point(0, 352), Size = new Size(920, 148),
+            Location = new Point(0, 388), Size = new Size(920, 148),
             BackColor = Panel, Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
         };
         caution.Controls.Add(new Label
@@ -794,7 +806,7 @@ internal sealed class MainForm : Form
             ForeColor = TextMuted, Font = new Font("Segoe UI", 9),
             Location = new Point(18, 45), Size = new Size(870, 88)
         });
-        page.Controls.AddRange(new Control[] { sourcePicker, load, openRelease, purpose, choose, download, cancel, releaseInfo, destination, progress, status, caution });
+        page.Controls.AddRange(new Control[] { sourcePicker, load, openRelease, openDocs, purpose, dependencies, compatibility, choose, download, cancel, releaseInfo, destination, progress, status, caution });
 
         OfficialComponentRelease? selectedRelease = null;
         string? outputFolder = null;
@@ -806,12 +818,17 @@ internal sealed class MainForm : Form
             load.Enabled = !busy;
             sourcePicker.Enabled = !busy;
             openRelease.Enabled = !busy && selectedRelease is not null;
+            openDocs.Enabled = !busy && sourcePicker.SelectedItem is OfficialComponentSource;
             cancel.Enabled = busy;
         }
         void UpdatePurpose()
         {
             if (sourcePicker.SelectedItem is OfficialComponentSource source)
-                purpose.Text = source.Purpose + "  " + source.Guidance;
+            {
+                purpose.Text = source.Purpose;
+                dependencies.Text = "Dependencies: " + source.Dependencies;
+                compatibility.Text = "Upstream compatibility note: " + source.Compatibility + "  " + source.Guidance;
+            }
         }
         sourcePicker.SelectedIndexChanged += (_, _) =>
         {
@@ -854,6 +871,15 @@ internal sealed class MainForm : Form
             }
         };
 
+        openDocs.Click += (_, _) =>
+        {
+            if (sourcePicker.SelectedItem is not OfficialComponentSource source ||
+                !Uri.TryCreate(source.DocumentationUrl, UriKind.Absolute, out var uri) ||
+                uri.Scheme != Uri.UriSchemeHttps ||
+                !uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase)) return;
+            Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
+        };
+
         openRelease.Click += (_, _) =>
         {
             if (selectedRelease is null) return;
@@ -884,12 +910,13 @@ internal sealed class MainForm : Form
             var reporter = new Progress<ComponentDownloadProgress>(value =>
             {
                 status.Text = value.Stage;
-                if (value.Expected is > 0)
+                if (value.Stage.Contains("Extracting", StringComparison.OrdinalIgnoreCase) || value.Expected is not > 0)
+                    progress.Style = ProgressBarStyle.Marquee;
+                else
                 {
                     progress.Style = ProgressBarStyle.Continuous;
                     progress.Value = (int)Math.Clamp(value.Received * 100L / value.Expected.Value, 0, 100);
                 }
-                else progress.Style = ProgressBarStyle.Marquee;
             });
             try
             {

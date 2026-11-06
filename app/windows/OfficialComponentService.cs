@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 
 namespace SimpleHackintosh.App;
 
-internal sealed record OfficialComponentSource(string Name, string Repository, string Purpose, string Guidance);
+internal sealed record OfficialComponentSource(string Name, string Repository, string Purpose, string Guidance, string Dependencies, string Compatibility, string DocumentationUrl);
 internal sealed record OfficialComponentRelease(
     OfficialComponentSource Source, string Version, Uri DownloadUri, string? Sha256,
     long ExpectedBytes, Uri ReleasePageUri);
@@ -25,22 +25,54 @@ internal static class OfficialComponentService
 {
     private static readonly OfficialComponentSource[] KnownSources =
     [
-        new("Lilu", "acidanthera/Lilu", "Common patching framework used by several plugins.",
-            "Treat Lilu as a dependency where a selected plugin requires it; it is not a universal fix by itself."),
-        new("VirtualSMC", "acidanthera/VirtualSMC", "SMC emulation and related companion kexts.",
-            "Choose only the VirtualSMC components appropriate to the target hardware; do not inject every companion kext automatically."),
-        new("WhateverGreen", "acidanthera/WhateverGreen", "Graphics-related compatibility and property handling.",
-            "Check the exact GPU generation and target macOS release before enabling it."),
-        new("AppleALC", "acidanthera/AppleALC", "AppleHDA-based audio support for supported codecs.",
-            "The exact audio codec and layout must be identified separately; downloading AppleALC does not configure audio."),
-        new("IntelMausi", "acidanthera/IntelMausi", "Ethernet support for compatible Intel network controllers.",
-            "Confirm the exact Ethernet controller PCI ID and supported macOS versions before use."),
-        new("NVMeFix", "acidanthera/NVMeFix", "NVMe power-management and compatibility improvements.",
-            "Do not add it unless the target NVMe controller and observed issue make it relevant."),
-        new("RestrictEvents", "acidanthera/RestrictEvents", "Targeted workarounds for selected platform and macOS behaviours.",
-            "Use only for a documented matching issue; it is not required on every Hackintosh."),
-        new("CpuTscSync", "acidanthera/CpuTscSync", "TSC synchronization for selected CPU and firmware combinations.",
-            "Check the CPU family, firmware behaviour, and upstream guidance before adding this kext.")
+        new("Lilu", "acidanthera/Lilu",
+            "Base patching framework that provides a plugin API for macOS kernel and process patching.",
+            "Install Lilu together with any plugin Kext that depends on it; a clean download alone does not make a plugin useful.",
+            "Base framework; no additional Kext dependency is stated by the upstream README.",
+            "The upstream changelog records macOS 10.4+ support in the 1.5.5 line. Check the selected release notes for later macOS changes.",
+            "https://github.com/acidanthera/Lilu"),
+        new("VirtualSMC", "acidanthera/VirtualSMC",
+            "Software SMC emulation with optional sensor and key companion plugins.",
+            "Select only the VirtualSMC components needed by the target computer; do not inject every companion bundle.",
+            "Requires Lilu for full functionality.",
+            "Upstream documents macOS 10.4+ support and recommends macOS 10.9 or newer.",
+            "https://github.com/acidanthera/VirtualSMC"),
+        new("WhateverGreen", "acidanthera/WhateverGreen",
+            "GPU patching and compatibility features for selected AMD, Intel and NVIDIA graphics hardware.",
+            "Review the exact GPU device ID, generation, connector layout and target macOS release before use.",
+            "Lilu 1.5.6 or newer is required by the current upstream README.",
+            "GPU-specific; this project does not claim every GPU is supported or that all patches apply to every macOS release.",
+            "https://github.com/acidanthera/WhateverGreen"),
+        new("AppleALC", "acidanthera/AppleALC",
+            "Native AppleHDA-based audio support for selected onboard audio codecs.",
+            "Identify the exact codec and supported layout-id before use; the Kext does not determine the correct layout by itself.",
+            "Requires Lilu. The exact codec and layout-id must also be supported.",
+            "The upstream README lists macOS 10.4–26; macOS 26 changed AppleHDA and may require additional steps.",
+            "https://github.com/acidanthera/AppleALC/wiki/Installation-and-usage"),
+        new("IntelMausi", "acidanthera/IntelMausi",
+            "Ethernet driver for a defined set of Intel onboard LAN controllers.",
+            "Compare the exact controller/device ID with the upstream supported-controller list. A generic Intel network name is not enough.",
+            "No Lilu dependency is stated by the upstream README.",
+            "Upstream lists selected Intel 5–300 series controllers and describes the driver as optimized for Mavericks or newer on 64-bit systems.",
+            "https://github.com/acidanthera/IntelMausi"),
+        new("NVMeFix", "acidanthera/NVMeFix",
+            "Power-management and compatibility fixes for Apple's NVMe storage driver.",
+            "Use only after confirming the NVMe controller and an issue that this project addresses.",
+            "Requires Lilu 1.4.1 or newer.",
+            "Upstream documents macOS 10.14+ and support up to macOS 26; some features may not be available on newer releases.",
+            "https://github.com/acidanthera/NVMeFix"),
+        new("RestrictEvents", "acidanthera/RestrictEvents",
+            "Targeted fixes for selected platform and macOS behaviours.",
+            "Use only for the exact documented issue; it is not a general compatibility patch or a default requirement.",
+            "Lilu plugin; include a compatible Lilu release.",
+            "The upstream README describes individual patches and boot arguments rather than a blanket macOS compatibility guarantee.",
+            "https://github.com/acidanthera/RestrictEvents"),
+        new("CpuTscSync", "acidanthera/CpuTscSync",
+            "TSC synchronization for selected CPU and firmware combinations.",
+            "Do not add unless the exact CPU and wake/panic behaviour match the upstream project's intended use.",
+            "Lilu plugin; include a compatible Lilu release.",
+            "Upstream warns that CPUs without MSR_IA32_TSC_ADJUST (0x03B) are unsupported on macOS 12 and newer.",
+            "https://github.com/acidanthera/CpuTscSync")
     ];
 
     private static readonly HttpClient Client = new(new HttpClientHandler

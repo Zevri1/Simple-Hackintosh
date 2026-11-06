@@ -17,7 +17,7 @@ A native Windows Forms (.NET 10) desktop companion for the Simple Hackintosh fie
 ## Remaining Windows roadmap
 
 1. Expand the scalar Config Editor into a complete schema-guided editor using the exact schema shipped with the selected OpenCore version. The current editor deliberately leaves arrays, dictionaries, Data and Date values read-only.
-2. Add per-component macOS compatibility metadata and release-to-OpenCore dependency guidance. The current library verifies upstream archives but does not infer compatibility or automatically install components.
+2. Expand compatibility analysis by comparing the detected PCI/CPU/audio/storage profile with the exact upstream device and OS requirements. The current Kext Library shows upstream dependency notes but does not infer compatibility or automatically install components.
 3. Design a separate, heavily guarded removable-USB workflow; it must show exact disk identity and require a second erase confirmation. Internal disks remain out of scope.
 4. Improve Windows hardware inventory and PCI/ACPI identification without exporting sensitive identifiers.
 
