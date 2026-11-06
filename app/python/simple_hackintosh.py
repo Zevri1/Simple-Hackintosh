@@ -19,7 +19,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
-APP_VERSION = "2.2.0"
+APP_VERSION = "2.3.0"
 SECTIONS = (
     "ACPI", "Booter", "DeviceProperties", "Kernel",
     "Misc", "NVRAM", "PlatformInfo", "UEFI",
@@ -344,8 +344,10 @@ def _powershell_executable() -> str | None:
 
 
 def collect_hardware() -> dict[str, Any]:
+    if platform.system() == "Darwin":
+        return collect_hardware_macos()
     if platform.system() != "Windows":
-        raise RuntimeError("Hardware inventory currently requires Windows PowerShell and CIM.")
+        raise RuntimeError("Hardware inventory is currently supported on Windows and macOS.")
     executable = _powershell_executable()
     if not executable:
         raise RuntimeError("PowerShell was not found. It is normally included with Windows.")
@@ -378,6 +380,8 @@ $devices = @(Get-CimInstance Win32_PnPEntity | Where-Object {
   }
 } | Sort-Object Class, Name)
 [pscustomobject]@{
+  HostPlatform = 'Windows'
+  Architecture = $env:PROCESSOR_ARCHITECTURE
   ComputerModel = $computer.Model
   CPU = $cpu.Name
   CPUCores = $cpu.NumberOfCores
@@ -386,6 +390,7 @@ $devices = @(Get-CimInstance Win32_PnPEntity | Where-Object {
   Motherboard = (($board.Manufacturer, $board.Product) -join ' ').Trim()
   BIOS = (($bios.Manufacturer, $bios.SMBIOSBIOSVersion) -join ' ').Trim()
   Windows = $os.Caption
+  OS = $os.Caption
   WindowsVersion = $os.Version
   MemoryGB = [math]::Round($computer.TotalPhysicalMemory / 1GB, 1)
   Disks = $disks
@@ -415,6 +420,211 @@ $devices = @(Get-CimInstance Win32_PnPEntity | Where-Object {
     result["macOSCompatibility"] = estimate_macos_compatibility(result)
     return result
 
+
+
+def _mac_walk_dicts(value: Any) -> Iterable[dict[str, Any]]:
+    if isinstance(value, dict):
+        yield value
+        for child in value.values():
+            yield from _mac_walk_dicts(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from _mac_walk_dicts(child)
+
+
+def _mac_scalar(node: dict[str, Any], *keys: str) -> str | None:
+    wanted = {key.casefold() for key in keys}
+    for key, value in node.items():
+        if key.casefold() in wanted and isinstance(value, (str, int, float)):
+            rendered = str(value).strip()
+            if rendered:
+                return rendered
+    return None
+
+
+def _mac_memory_gb(value: Any) -> float | None:
+    if isinstance(value, (int, float)):
+        number = float(value)
+        return round(number / (1024 ** 3), 1) if number > 1024 ** 2 else round(number, 1)
+    if not isinstance(value, str):
+        return None
+    match = re.search(r"(\d+(?:\.\d+)?)\s*(TB|GB|MB)", value, re.IGNORECASE)
+    if not match:
+        return None
+    number = float(match.group(1))
+    unit = match.group(2).upper()
+    if unit == "TB":
+        number *= 1024
+    elif unit == "MB":
+        number /= 1024
+    return round(number, 1)
+
+
+def _mac_hex(value: str | None) -> str | None:
+    if value is None:
+        return None
+    match = re.search(r"(?:0x)?([0-9a-f]{4})", value, re.IGNORECASE)
+    return match.group(1).upper() if match else None
+
+
+def parse_macos_profiler_data(
+    profiler: dict[str, Any],
+    os_version: str = "",
+    architecture: str | None = None,
+) -> dict[str, Any]:
+    """Convert system_profiler JSON into a small privacy-conscious hardware report."""
+    hardware = next(iter(_as_list(profiler.get("SPHardwareDataType"))), {})
+    if not isinstance(hardware, dict):
+        hardware = {}
+
+    cpu = _mac_scalar(
+        hardware,
+        "chip_type", "cpu_type", "processor_name", "machine_processor",
+    ) or "Not reported"
+    model_name = _mac_scalar(hardware, "machine_name", "machine_model") or "Mac"
+    model_id = _mac_scalar(hardware, "machine_model", "model_identifier")
+    computer_model = f"{model_name} ({model_id})" if model_id and model_id not in model_name else model_name
+    core_value = _mac_scalar(hardware, "total_number_cores", "number_of_cores", "processor_cores")
+    core_match = re.search(r"\d+", core_value or "")
+    cores = int(core_match.group()) if core_match else None
+    memory = _mac_scalar(hardware, "physical_memory", "memory", "machine_memory")
+
+    gpu_names: list[str] = []
+    gpus: list[dict[str, Any]] = []
+    for node in _mac_walk_dicts(profiler.get("SPDisplaysDataType", [])):
+        name = _mac_scalar(node, "sppci_model", "spdisplays_model", "chipset_model", "_name")
+        if not name:
+            continue
+        if not re.search(r"intel|amd|radeon|nvidia|geforce|uhd|iris|graphics|apple\s*m\d", name, re.IGNORECASE):
+            continue
+        if name.casefold() in {existing.casefold() for existing in gpu_names}:
+            continue
+        gpu_names.append(name)
+        gpus.append({
+            "Name": name,
+            "DriverVersion": _mac_scalar(node, "spdisplays_driver", "driver_version"),
+            "AdapterRAM_GB": _mac_memory_gb(_mac_scalar(node, "spdisplays_vram", "vram")),
+        })
+
+    devices: list[dict[str, Any]] = []
+    seen_devices: set[tuple[str, str]] = set()
+    for node in _mac_walk_dicts(profiler.get("SPPCIDataType", [])):
+        name = _mac_scalar(node, "sppci_model", "spci_model", "model", "_name", "name")
+        if not name:
+            continue
+        vendor = _mac_hex(_mac_scalar(node, "vendor-id", "sppci_vendor-id", "spci_vendor-id", "vendor_id"))
+        device_id = _mac_hex(_mac_scalar(node, "device-id", "sppci_device-id", "spci_device-id", "device_id"))
+        hardware_ids = [f"VEN_{vendor}&DEV_{device_id}"] if vendor and device_id else []
+        key = (name.casefold(), hardware_ids[0] if hardware_ids else "")
+        if key in seen_devices:
+            continue
+        seen_devices.add(key)
+        devices.append({
+            "Name": name,
+            "Class": "Display" if re.search(r"graphics|display|radeon|geforce|uhd|iris", name, re.IGNORECASE) else "PCI",
+            "Manufacturer": _mac_scalar(node, "sppci_vendor", "spci_vendor", "vendor"),
+            "Status": "Reported by system_profiler",
+            "HardwareIDs": hardware_ids,
+        })
+
+    for gpu in gpus:
+        if not any(device.get("Name", "").casefold() == gpu["Name"].casefold() for device in devices):
+            devices.append({
+                "Name": gpu["Name"],
+                "Class": "Display",
+                "Manufacturer": None,
+                "Status": "Reported by system_profiler",
+                "HardwareIDs": [],
+            })
+
+    disks: list[dict[str, Any]] = []
+    seen_disks: set[str] = set()
+    for node in _mac_walk_dicts(profiler.get("SPStorageDataType", [])):
+        name = _mac_scalar(node, "physical_drive", "device_model", "spstorage_name", "spsata_model", "spnvme_model", "_name")
+        if not name:
+            continue
+        if not any(key.casefold() in {"bsd_name", "physical_drive", "device_model", "spstorage_name", "spsata_model", "spnvme_model"} for key in node):
+            continue
+        if name.casefold() in seen_disks:
+            continue
+        seen_disks.add(name.casefold())
+        capacity = _mac_scalar(node, "size", "capacity", "physical_drive_size", "spstorage_capacity")
+        disks.append({"Model": name, "InterfaceType": "Apple storage", "SizeGB": _mac_memory_gb(capacity)})
+
+    firmware = _mac_scalar(hardware, "boot_rom_version", "system_firmware_version", "firmware_version")
+    return {
+        "HostPlatform": "Darwin",
+        "Architecture": architecture or platform.machine(),
+        "ComputerModel": computer_model,
+        "CPU": cpu,
+        "CPUCores": cores,
+        "LogicalProcessors": None,
+        "GPUs": gpus,
+        "Motherboard": "Apple logic board",
+        "BIOS": firmware or "Apple firmware (version not reported)",
+        "OS": os_version or platform.mac_ver()[0] or "macOS version not reported",
+        "MemoryGB": _mac_memory_gb(memory),
+        "Disks": disks,
+        "Devices": devices,
+    }
+
+
+def collect_hardware_macos() -> dict[str, Any]:
+    if platform.system() != "Darwin":
+        raise RuntimeError("macOS hardware inventory can only run on macOS.")
+    profiler = shutil.which("system_profiler")
+    if not profiler:
+        raise RuntimeError("system_profiler was not found. It is included with macOS.")
+
+    try:
+        types_result = subprocess.run(
+            [profiler, "-listDataTypes"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=30, check=False,
+        )
+        available = set(re.findall(r"\bSP[A-Za-z0-9]+DataType\b", types_result.stdout or ""))
+        wanted = [
+            "SPHardwareDataType", "SPDisplaysDataType", "SPPCIDataType",
+            "SPStorageDataType", "SPNVMeDataType", "SPMemoryDataType",
+        ]
+        data_types = [item for item in wanted if item in available]
+        if not data_types:
+            data_types = ["SPHardwareDataType", "SPDisplaysDataType"]
+
+        result = subprocess.run(
+            [profiler, "-json", "-detailLevel", "mini", *data_types],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=120, check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise RuntimeError(f"Could not run system_profiler: {exc}") from exc
+
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout).strip()
+        raise RuntimeError(f"system_profiler failed: {detail or 'unknown error'}")
+    try:
+        profile_data = json.loads(result.stdout.lstrip("\ufeff"))
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"Could not parse system_profiler JSON: {exc}") from exc
+    if not isinstance(profile_data, dict):
+        raise RuntimeError("system_profiler returned an unexpected data format.")
+
+    version = platform.mac_ver()[0]
+    sw_vers = shutil.which("sw_vers")
+    if sw_vers:
+        try:
+            version_result = subprocess.run(
+                [sw_vers, "-productVersion"], capture_output=True,
+                text=True, encoding="utf-8", errors="replace", timeout=10, check=False,
+            )
+            if version_result.returncode == 0 and version_result.stdout.strip():
+                version = version_result.stdout.strip()
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+
+    data = parse_macos_profiler_data(profile_data, version, platform.machine())
+    data["macOSCompatibility"] = estimate_macos_compatibility(data)
+    return data
 
 def _as_list(value: Any) -> list[Any]:
     if value is None:
@@ -459,6 +669,28 @@ def estimate_macos_compatibility(data: dict[str, Any]) -> dict[str, Any]:
     gives a version ceiling for Intel iGPUs covered by the cited community guide.
     """
     cpu_name = str(data.get("CPU") or "")
+    if data.get("HostPlatform") == "Darwin":
+        running_os = str(data.get("OS") or "macOS (version not reported)")
+        apple_silicon = bool(re.search(r"Apple\s*M[1-9][^,;]*", cpu_name, re.IGNORECASE) or data.get("Architecture") == "arm64")
+        return {
+            "status": "native-mac",
+            "target": f"{running_os} is currently running on this Mac",
+            "confidence": "Confirmed current running OS only; maximum supported version is not inferred",
+            "gpu_family": "; ".join(str(item.get("Name") or "") for item in _as_list(data.get("GPUs")) if isinstance(item, dict)) or "Graphics adapter not reported",
+            "experimental_target": None,
+            "notes": [
+                "This is a Mac hardware inventory, so the report confirms the macOS version that is running now.",
+                "It does not infer the maximum macOS release supported by the model identifier.",
+                "Apple Silicon is identified." if apple_silicon else "Intel Mac hardware is identified; model-specific support limits require a separate Apple model lookup.",
+            ],
+            "sources": [
+                {"title": "Apple — Use System Information to identify your Mac", "url": "https://support.apple.com/en-us/102767"},
+            ],
+            "limitations": [
+                "This is not a maximum-version support check or an installer/boot test.",
+                "The report avoids collecting serial number and hardware UUID fields from system_profiler.",
+            ],
+        }
     cpu_match = re.search(r"\bi[3579]\s*-\s*(\d{4,5})([A-Z]{1,3})?", cpu_name, re.IGNORECASE)
     generation: int | None = None
     if cpu_match:
@@ -627,9 +859,9 @@ def hardware_report_markdown(data: dict[str, Any]) -> str:
         ("CPU", data.get("CPU")),
         ("CPU cores / threads", f"{data.get('CPUCores', '?')} / {data.get('LogicalProcessors', '?')}"),
         ("Motherboard", data.get("Motherboard")),
-        ("BIOS", data.get("BIOS")),
-        ("Windows", data.get("Windows")),
-        ("Windows version", data.get("WindowsVersion")),
+        ("Firmware / BIOS", data.get("BIOS")),
+        ("Operating system", data.get("OS") or data.get("Windows")),
+        ("OS build", data.get("WindowsVersion")),
         ("Memory", f"{data.get('MemoryGB')} GB" if data.get("MemoryGB") is not None else None),
         ("GPUs", "; ".join(
             f"{gpu.get('Name', 'Unknown')} (driver {gpu.get('DriverVersion') or 'unknown'})"
@@ -675,7 +907,7 @@ def hardware_report_markdown(data: dict[str, Any]) -> str:
         lines.append("| — | No matching Plug and Play devices were returned | — | — |")
     lines.extend([
         "",
-        "This is a best-effort community-guide estimate, not official Apple compatibility confirmation or a boot test.",
+        "This is a best-effort community-guide estimate for Windows-hosted hardware; on macOS hosts it confirms only the OS currently running, not the maximum supported release.",
         "",
     ])
     return "\n".join(lines)

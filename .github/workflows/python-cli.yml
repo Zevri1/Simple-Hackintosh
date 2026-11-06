@@ -23,7 +23,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest]
+        os: [windows-latest, ubuntu-latest, macos-latest]
         python-version: ["3.10", "3.12"]
     steps:
       - name: Check out repository
@@ -46,3 +46,18 @@ jobs:
       - name: Smoke test CMD launcher
         if: runner.os == 'Windows'
         run: cmd /c app\python\run.bat doctor
+      - name: Smoke test Windows PowerShell 5.1 launcher
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: ./app/python/run.ps1 doctor
+      - name: Smoke test PowerShell 7 launcher
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./app/python/run.ps1 doctor
+      - name: Smoke test macOS inventory and Terminal launcher
+        if: runner.os == 'macOS'
+        run: |
+          chmod +x app/python/run.command
+          python app/python/simple_hackintosh.py hardware --json
+          SIMPLE_HACKINTOSH_NO_PAUSE=1 app/python/run.command doctor
+          test -x app/python/run.command

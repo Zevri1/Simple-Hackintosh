@@ -12,7 +12,7 @@ on:
         description: "Release tag to create"
         required: true
         type: string
-        default: "v2.2.0"
+        default: "v2.3.0"
 
 permissions:
   contents: write
@@ -84,8 +84,11 @@ jobs:
           dist.mkdir(exist_ok=True)
           archive_path = dist / f"{package_name}.zip"
 
+          (root / "run.command").chmod(0o755)
           include = [
               root / "run.bat",
+              root / "run.ps1",
+              root / "run.command",
               root / "simple_hackintosh.py",
               root / "README.md",
               *sorted((root / "macrecovery").glob("*")),
@@ -105,6 +108,8 @@ jobs:
               names = archive.namelist()
               required = {
                   f"{package_name}/run.bat",
+                  f"{package_name}/run.ps1",
+                  f"{package_name}/run.command",
                   f"{package_name}/simple_hackintosh.py",
                   f"{package_name}/macrecovery/macrecovery.py",
                   f"{package_name}/macrecovery/LICENSE.txt",
@@ -135,7 +140,7 @@ jobs:
             --title "Simple Hackintosh CLI v${VERSION}" \
             --notes "Standalone Python/CMD assistant v${VERSION}.
 
-          Includes the interactive menu, hardware inventory, EFI scanner and checker, the Create EFI starter workflow, and the bundled upstream macrecovery downloader.
+          Includes the PowerShell front-end, macOS Terminal launcher, cross-platform hardware inventory, EFI scanner and checker, Create EFI starter workflow, and bundled upstream macrecovery downloader.
 
           macrecovery downloads Recovery assets directly from Apple when run. No macOS Recovery image, BaseSystem, chunklist, or installer payload is included in this release.
 
