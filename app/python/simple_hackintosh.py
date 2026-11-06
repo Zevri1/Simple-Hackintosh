@@ -23,7 +23,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
-APP_VERSION = "3.0.0"
+APP_VERSION = "3.1.0"
 SECTIONS = (
     "ACPI", "Booter", "DeviceProperties", "Kernel",
     "Misc", "NVRAM", "PlatformInfo", "UEFI",
@@ -930,12 +930,34 @@ def normalize_hardware_sniffer_report(report: dict[str, Any]) -> dict[str, Any]:
         if isinstance(info, dict)
     ]
     network_names = collect_group("Network", "Net")
+    sound_group = group("Sound")
     audio_names = collect_group("Sound", "Audio", include_controller_id=True)
+    audio_endpoints = list(dict.fromkeys(
+        endpoint
+        for details in sound_group.values()
+        if isinstance(details, dict)
+        for endpoint in _as_list(details.get("Audio Endpoints"))
+        if isinstance(endpoint, str) and endpoint.strip()
+    ))
     storage_names = collect_group("Storage Controllers", "Storage")
     bluetooth_names = collect_group("Bluetooth", "Bluetooth")
+    sd_controller_names = collect_group("SD Controller", "Storage")
     collect_group("GPU", "Display", assume_pci=True)
     collect_group("USB Controllers", "USB")
-    collect_group("SD Controller", "Storage")
+
+    monitor_names: list[str] = []
+    for monitor_name, monitor_info in group("Monitor").items():
+        if not isinstance(monitor_info, dict):
+            continue
+        details = [
+            scalar(monitor_info.get("Connector Type")),
+            scalar(monitor_info.get("Resolution")),
+            scalar(monitor_info.get("Connected GPU")),
+        ]
+        monitor_names.append(
+            f"{str(monitor_name).strip()} ({'; '.join(item for item in details if item)})"
+            if any(details) else str(monitor_name).strip()
+        )
 
     chipset = scalar(motherboard.get("Chipset"))
     model = scalar(motherboard.get("Name"))
@@ -958,11 +980,15 @@ def normalize_hardware_sniffer_report(report: dict[str, Any]) -> dict[str, Any]:
         "Platform": scalar(motherboard.get("Platform")),
         "BIOS": "; ".join(item for item in bios_parts if item) or None,
         "CPUFeatures": cpu_features,
+        "CPUCodename": scalar(cpu.get("Codename")),
         "GPUs": gpu_entries,
+        "Monitors": monitor_names,
         "NetworkAdapters": network_names,
         "AudioDevices": audio_names,
+        "AudioEndpoints": audio_endpoints,
         "StorageControllers": storage_names,
         "BluetoothDevices": bluetooth_names,
+        "SDControllers": sd_controller_names,
         "Devices": devices,
         "Disks": [],
     }
@@ -991,8 +1017,9 @@ def hardware_report_markdown(data: dict[str, Any]) -> str:
     ]
     fields = (
         ("Computer model", data.get("ComputerModel")),
-        ("CPU", data.get("CPU")),
+        ("CPU", f"{data.get('CPU') or 'Not reported'} ({data.get('CPUCodename')})" if data.get("CPUCodename") else data.get("CPU")),
         ("CPU cores / threads", f"{data.get('CPUCores', '?')} / {data.get('LogicalProcessors', '?')}"),
+        ("Connected monitors", "; ".join(data.get("Monitors", [])) or None),
         ("Motherboard", data.get("Motherboard")),
         ("Chipset", data.get("Chipset")),
         ("Platform type", data.get("Platform")),
@@ -1007,8 +1034,10 @@ def hardware_report_markdown(data: dict[str, Any]) -> str:
         )),
         ("Network adapters", "; ".join(data.get("NetworkAdapters", [])) or None),
         ("Audio devices", "; ".join(data.get("AudioDevices", [])) or None),
+        ("Audio endpoints", "; ".join(data.get("AudioEndpoints", [])) or None),
         ("Storage controllers", "; ".join(data.get("StorageControllers", [])) or None),
         ("Bluetooth devices", "; ".join(data.get("BluetoothDevices", [])) or None),
+        ("SD controllers", "; ".join(data.get("SDControllers", [])) or None),
         ("Disks", "; ".join(
             f"{disk.get('Model', 'Unknown')} ({disk.get('SizeGB', '?')} GB, {disk.get('InterfaceType') or 'interface unknown'})"
             for disk in data.get("Disks", []) if isinstance(disk, dict)
@@ -1103,9 +1132,87 @@ def command_doctor() -> int:
     return 0
 
 
+APP_RELEASE_API = "https://api.github.com/repos/Zevri1/Simple-Hackintosh/releases/latest"
+APP_RELEASES_URL = "https://github.com/Zevri1/Simple-Hackintosh/releases/latest"
 HARDWARE_SNIFFER_RELEASE_API = "https://api.github.com/repos/lzhoang2801/Hardware-Sniffer/releases/latest"
+HARDWARE_SNIFFER_RELEASES_URL = "https://github.com/lzhoang2801/Hardware-Sniffer/releases/latest"
 HARDWARE_SNIFFER_ASSET_NAME = "Hardware-Sniffer.exe"
 HARDWARE_SNIFFER_MAX_BYTES = 32 * 1024 * 1024
+
+
+def _version_tuple(value: Any) -> tuple[int, int, int] | None:
+    """Parse a stable MAJOR.MINOR.PATCH version, optionally prefixed by v."""
+    match = re.fullmatch(r"v?(\d+)\.(\d+)\.(\d+)", str(value or "").strip(), re.IGNORECASE)
+    if not match:
+        return None
+    return tuple(int(part) for part in match.groups())
+
+
+def check_for_app_update(timeout: float = 4.0) -> dict[str, Any]:
+    """Check the official latest stable release. Never download or replace this app."""
+    request = urllib.request.Request(
+        APP_RELEASE_API,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "User-Agent": f"Simple-Hackintosh/{APP_VERSION}",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            raw = response.read(512 * 1024 + 1)
+        if len(raw) > 512 * 1024:
+            raise RuntimeError("GitHub release metadata exceeded the safety limit.")
+        release = json.loads(raw.decode("utf-8"))
+        if not isinstance(release, dict) or release.get("draft") or release.get("prerelease"):
+            raise RuntimeError("No published stable Simple Hackintosh release was returned.")
+        tag = str(release.get("tag_name") or "").strip()
+        latest = _version_tuple(tag)
+        current = _version_tuple(APP_VERSION)
+        if latest is None or current is None:
+            raise RuntimeError("The app or release version is not a stable MAJOR.MINOR.PATCH value.")
+        release_url = str(release.get("html_url") or "")
+        parsed_url = urllib.parse.urlparse(release_url)
+        if (
+            parsed_url.scheme != "https"
+            or parsed_url.netloc.lower() != "github.com"
+            or not parsed_url.path.startswith("/Zevri1/Simple-Hackintosh/releases/tag/")
+        ):
+            release_url = APP_RELEASES_URL
+        return {
+            "status": "update_available" if latest > current else "up_to_date",
+            "current_version": APP_VERSION,
+            "latest_version": tag.lstrip("vV"),
+            "tag": tag,
+            "url": release_url,
+        }
+    except (urllib.error.URLError, TimeoutError, OSError, UnicodeDecodeError, json.JSONDecodeError, RuntimeError) as exc:
+        return {
+            "status": "unavailable",
+            "current_version": APP_VERSION,
+            "url": APP_RELEASES_URL,
+            "reason": str(exc),
+        }
+
+
+def print_update_notice(status: dict[str, Any] | None) -> None:
+    """Show update-check results without blocking offline use."""
+    if not isinstance(status, dict):
+        return
+    kind = status.get("status")
+    if kind == "update_available":
+        print(
+            f"[UPDATE] Simple Hackintosh {status.get('latest_version')} is available "
+            f"(installed: {status.get('current_version')})."
+        )
+        print(f"[UPDATE] Release notes and verified downloads: {status.get('url') or APP_RELEASES_URL}")
+    elif kind == "up_to_date":
+        print(
+            f"[PASS] Simple Hackintosh {status.get('current_version')} is up to date "
+            f"(latest stable: {status.get('latest_version')})."
+        )
+    elif kind == "unavailable":
+        print("[INFO] Could not check Simple Hackintosh updates; continuing offline.")
+        print(f"[INFO] Check manually: {status.get('url') or APP_RELEASES_URL}")
 
 
 def _hardware_sniffer_cache_dir() -> Path:
