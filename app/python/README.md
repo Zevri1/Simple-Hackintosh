@@ -59,21 +59,17 @@ Requirements: Python 3.10 or newer. No third-party Python packages are required.
 
 ### OpCore-Simplify hardware report (Windows)
 
-The interactive menu's **01 Hardware report** option launches the official [Hardware Sniffer](https://github.com/lzhoang2801/Hardware-Sniffer) used by [OpCore-Simplify](https://github.com/lzhoang2801/OpCore-Simplify). Simple Hackintosh downloads the official `Hardware-Sniffer.exe` release on demand, checks the SHA-256 digest published by GitHub, and requires a valid Windows Authenticode signature before launch. The executable is cached under your Windows local application data folder; it is not bundled in this repository or the CLI ZIP.
+The **01 Hardware report** option uses the official [Hardware Sniffer](https://github.com/lzhoang2801/Hardware-Sniffer) used by [OpCore-Simplify](https://github.com/lzhoang2801/OpCore-Simplify). Simple Hackintosh downloads the official `Hardware-Sniffer.exe` release on demand, verifies GitHub's published SHA-256 digest, and requires a valid Windows Authenticode signature before launch. The verified executable is cached under your Windows local application data folder; it is not bundled in the CLI ZIP.
 
-When its menu appears:
-1. Press `H` to export the hardware report.
-2. Press `Enter` to dismiss the save confirmation and return to the Hardware Sniffer menu.
-3. Press `Q` to quit.
-4. The report is saved to `HardwareReport/SysReport/Report.json` by default. Change the folder when prompted in the Simple Hackintosh menu.
+The export is automated: Simple Hackintosh sends the upstream menu's `H` (export), Enter (dismiss confirmation), and `Q` (quit) choices, then checks that `SysReport/Report.json` exists and contains valid JSON. You do not need to interact with a second menu. The **ACPI dump** option is never selected. If a report from an earlier run exists, it is preserved with a timestamped `Report.previous-*.json` name before the new report is created. If the helper exits without a valid report, the app shows its exit code and the last diagnostic output rather than silently returning a generic failure.
 
-You can launch this export directly from PowerShell with:
+Run this export directly from PowerShell with:
 
 ```powershell
 ./run.ps1 hardware-sniffer --output-dir HardwareReport
 ```
 
-Do **not** choose `A` unless you intentionally want to dump ACPI tables. The report export does not require an ACPI dump. This upstream Hardware Sniffer is Windows-only; on macOS, Simple Hackintosh continues to use the built-in `system_profiler` hardware inventory instead. Review the generated report before sharing it.
+The upstream Hardware Sniffer executable is Windows-only. On macOS, Simple Hackintosh uses the native `system_profiler` inventory and can save Markdown or JSON instead. Review the generated report before sharing it: device names and IDs may identify your hardware.
 
 ## PowerShell and macOS launchers
 
