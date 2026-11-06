@@ -34,6 +34,7 @@ Requirements: Python 3.10 or newer. Windows 10/11 is required for automatic hard
 | Check a config.plist | Checks plist syntax, required OpenCore sections, common entry fields, and duplicate entries |
 | Run official ocvalidate | Runs the validator included with the user's matching OpenCore release |
 | Compare two EFI folders/ZIPs | Compares file paths and SHA-256 content hashes to find additions, removals, and changed files |
+| Back up an EFI folder | Creates a new ZIP backup without modifying or overwriting the source |
 | Create a support report | Produces a shareable report without raw config.plist or SMBIOS identity values |
 
 ## CMD commands
@@ -83,6 +84,14 @@ run.bat ocvalidate "E:\EFI\OC\config.plist" --tool "C:\OpenCore\Utilities\ocvali
 
 Replace the example version with the version you actually use. The program checks the validator's reported version before running when `--expect-version` is supplied. OpenCore's official documentation states that the validator must match the OpenCore release; a mismatched validator can produce misleading results.
 
+### Create an EFI backup
+
+```cmd
+run.bat backup-efi "E:\EFI" --output "C:\Backups\EFI-before-changes.zip"
+```
+
+Creates a ZIP from an extracted EFI folder. The source is read-only, the destination must be outside that source folder, and an existing backup file is never overwritten. This backs up only the folder you select; it does not mount or locate hidden EFI system partitions.
+
 ### Compare EFI backups
 
 ```cmd
@@ -97,6 +106,7 @@ Compares file paths and SHA-256 hashes. It reports added, removed, and modified 
 ```cmd
 run.bat support-report "E:\EFI" --output hackintosh-support-report.md
 run.bat support-report "E:\EFI" --json --output support-report.json
+run.bat support-report "E:\EFI" --json
 run.bat support-report "E:\EFI" --no-hardware
 ```
 
