@@ -1,6 +1,9 @@
-# 03 — Prepare a macOS Recovery USB in Windows
+# 03 — Prepare macOS Recovery media in Windows
 
 This chapter describes the Recovery-media workflow. It does not provide or redistribute a macOS installer image.
+
+> [!NOTE]
+> This Windows chapter is for the Recovery method. For a full offline installer, Windows can download Apple's InstallAssistant.pkg with a trusted tool such as the official [gibMacOS project](https://github.com/corpnewt/gibMacOS), but Windows cannot run Apple's createinstallmedia utility. For macOS 11 (Big Sur) and newer, transfer the downloaded package to a Mac, open it there to place the installer app in Applications, and create the bootable USB on that Mac. The new [macOS Studio app](../app/macos/README.md) provides a graphical workflow for that final stage. The upstream [gibMacOS README](https://github.com/corpnewt/gibMacOS#readme) documents the Windows limitation.
 
 ## What you need
 

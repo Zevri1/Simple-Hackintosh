@@ -1,0 +1,77 @@
+name: Build macOS desktop app
+
+on:
+  push:
+    branches:
+      - main
+      - feature/macos-gui-app
+    paths:
+      - "app/macos/**"
+      - ".github/workflows/macos-app.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "app/macos/**"
+      - ".github/workflows/macos-app.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build universal macOS app
+    runs-on: macos-26
+    steps:
+      - name: Check out Simple Hackintosh
+        uses: actions/checkout@v4
+
+      - name: Set up Swift
+        uses: swift-actions/setup-swift@v3
+        with:
+          swift-version: "6.3.1"
+
+      - name: Check out pinned mist-cli source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init "$RUNNER_TEMP/mist-cli"
+          git -C "$RUNNER_TEMP/mist-cli" remote add origin https://github.com/ninxsoft/mist-cli.git
+          git -C "$RUNNER_TEMP/mist-cli" fetch --depth=1 origin d67e9172aa21c54420568fed60306955a56aa416
+          git -C "$RUNNER_TEMP/mist-cli" checkout --detach FETCH_HEAD
+          test "$(git -C "$RUNNER_TEMP/mist-cli" rev-parse HEAD)" = "d67e9172aa21c54420568fed60306955a56aa416"
+
+      - name: Build pinned mist-cli helper
+        run: swift build --package-path "$RUNNER_TEMP/mist-cli" --configuration release --arch arm64 --arch x86_64
+
+      - name: Verify mist-cli
+        run: |
+          "$RUNNER_TEMP/mist-cli/.build/apple/Products/release/mist" --version
+          "$RUNNER_TEMP/mist-cli/.build/apple/Products/release/mist" list installer --help
+
+      - name: Build and package Simple Hackintosh Studio
+        run: |
+          chmod +x app/macos/build-app.sh
+          app/macos/build-app.sh "$RUNNER_TEMP/macos-artifacts" "$RUNNER_TEMP/mist-cli/.build/apple/Products/release/mist"
+
+      - name: Validate application bundle
+        run: |
+          set -euo pipefail
+          APP="$RUNNER_TEMP/macos-artifacts/Simple Hackintosh Studio.app"
+          plutil -lint "$APP/Contents/Info.plist"
+          file "$APP/Contents/MacOS/SimpleHackintoshMac"
+          file "$APP/Contents/Helpers/mist"
+          codesign --verify --deep --strict "$APP"
+          test -s "$RUNNER_TEMP/macos-artifacts/Simple-Hackintosh-Studio-macOS-universal.zip"
+          shasum -a 256 -c "$RUNNER_TEMP/macos-artifacts/Simple-Hackintosh-Studio-macOS-universal.zip.sha256"
+
+      - name: Upload macOS app
+        uses: actions/upload-artifact@v4
+        with:
+          name: Simple-Hackintosh-Studio-macOS-universal
+          path: |
+            ${{ runner.temp }}/macos-artifacts/Simple-Hackintosh-Studio-macOS-universal.zip
+            ${{ runner.temp }}/macos-artifacts/Simple-Hackintosh-Studio-macOS-universal.zip.sha256
+          if-no-files-found: error
+          retention-days: 30
