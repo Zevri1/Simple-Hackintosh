@@ -1,4 +1,5 @@
 import plistlib
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -42,6 +43,18 @@ class MacRecoveryIntegrationTests(unittest.TestCase):
         self.assertEqual(command[0], sys.executable)
         self.assertTrue(command[1].endswith(str(Path("macrecovery") / "macrecovery.py")))
         self.assertEqual(command[2:], ["download", "--os-type", "latest"])
+
+    def test_upstream_macrecovery_help_runs_without_network(self):
+        script = Path(__file__).resolve().parents[1] / "macrecovery" / "macrecovery.py"
+        result = subprocess.run(
+            [sys.executable, str(script), "-h"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=20,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Gather recovery information for Macs", result.stdout)
 
 class ConfigValidationTests(unittest.TestCase):
     def test_accepts_minimal_main_sections(self):
