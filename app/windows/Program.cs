@@ -744,9 +744,10 @@ internal sealed class MainForm : Form
         var load = MakeButton("Load official release", true, new Point(312, 10), new Size(180, 36));
         var openRelease = MakeButton("Release notes", false, new Point(502, 10), new Size(142, 36));
         var openDocs = MakeButton("Upstream documentation", false, new Point(652, 10), new Size(200, 36));
-        var choose = MakeButton("Choose output folder", false, new Point(0, 168), new Size(175, 36));
-        var download = MakeButton("Verify & extract Kexts", true, new Point(185, 168), new Size(190, 36));
-        var cancel = MakeButton("Cancel", false, new Point(385, 168), new Size(100, 36));
+        var analyzeHardware = MakeButton("Analyze detected hardware", false, new Point(0, 168), new Size(190, 36));
+        var choose = MakeButton("Choose output folder", false, new Point(0, 344), new Size(175, 36));
+        var download = MakeButton("Verify & extract Kexts", true, new Point(185, 344), new Size(190, 36));
+        var cancel = MakeButton("Cancel", false, new Point(385, 344), new Size(100, 36));
         cancel.Enabled = false;
         download.Enabled = false;
         openRelease.Enabled = false;
@@ -767,19 +768,34 @@ internal sealed class MainForm : Form
             ForeColor = TextMuted, Font = new Font("Segoe UI", 8), Location = new Point(0, 118),
             Size = new Size(920, 42), AutoEllipsis = true
         };
+        var targetMacOS = new TextBox
+        {
+            Location = new Point(205, 173), Size = new Size(260, 28),
+            PlaceholderText = "Target macOS (optional, e.g. 26 Tahoe)",
+            BackColor = Color.FromArgb(8, 13, 18), ForeColor = TextMain,
+            BorderStyle = BorderStyle.FixedSingle
+        };
+        var compatibilityReport = new TextBox
+        {
+            Multiline = true, ReadOnly = true, WordWrap = true, ScrollBars = ScrollBars.Vertical,
+            Location = new Point(0, 210), Size = new Size(920, 118),
+            BackColor = Color.FromArgb(8, 13, 18), ForeColor = TextMuted,
+            BorderStyle = BorderStyle.FixedSingle, Font = new Font("Consolas", 8)
+        };
+        compatibilityReport.Text = "Select “Analyze detected hardware” to compare your local read-only hardware profile with the curated Kext guidance. Unknown values will remain unknown.";
         var releaseInfo = new Label
         {
             ForeColor = TextMain, Font = new Font("Segoe UI", 9, FontStyle.Bold),
-            Location = new Point(0, 222), Size = new Size(920, 42), AutoEllipsis = true
+            Location = new Point(0, 474), Size = new Size(920, 42), AutoEllipsis = true
         };
         var destination = new Label
         {
             Text = "No output folder selected", ForeColor = TextMuted,
-            Location = new Point(0, 268), Size = new Size(920, 24), AutoEllipsis = true
+            Location = new Point(0, 518), Size = new Size(920, 24), AutoEllipsis = true
         };
         var progress = new ProgressBar
         {
-            Location = new Point(0, 300), Size = new Size(920, 18),
+            Location = new Point(0, 550), Size = new Size(920, 18),
             Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
             Style = ProgressBarStyle.Continuous, Minimum = 0, Maximum = 100
         };
@@ -787,11 +803,11 @@ internal sealed class MainForm : Form
         {
             Text = "Choose a component and load its official stable release.",
             ForeColor = TextSoft, Font = new Font("Segoe UI", 9),
-            Location = new Point(0, 330), Size = new Size(920, 46), AutoEllipsis = true
+            Location = new Point(0, 580), Size = new Size(920, 46), AutoEllipsis = true
         };
         var caution = new Panel
         {
-            Location = new Point(0, 388), Size = new Size(920, 148),
+            Location = new Point(0, 638), Size = new Size(920, 148),
             BackColor = Panel, Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
         };
         caution.Controls.Add(new Label
@@ -806,7 +822,7 @@ internal sealed class MainForm : Form
             ForeColor = TextMuted, Font = new Font("Segoe UI", 9),
             Location = new Point(18, 45), Size = new Size(870, 88)
         });
-        page.Controls.AddRange(new Control[] { sourcePicker, load, openRelease, openDocs, purpose, dependencies, compatibility, choose, download, cancel, releaseInfo, destination, progress, status, caution });
+        page.Controls.AddRange(new Control[] { sourcePicker, load, openRelease, openDocs, purpose, dependencies, compatibility, analyzeHardware, targetMacOS, compatibilityReport, choose, download, cancel, releaseInfo, destination, progress, status, caution });
 
         OfficialComponentRelease? selectedRelease = null;
         string? outputFolder = null;
@@ -817,6 +833,8 @@ internal sealed class MainForm : Form
             choose.Enabled = !busy;
             load.Enabled = !busy;
             sourcePicker.Enabled = !busy;
+            analyzeHardware.Enabled = !busy;
+            targetMacOS.Enabled = !busy;
             openRelease.Enabled = !busy && selectedRelease is not null;
             openDocs.Enabled = !busy && sourcePicker.SelectedItem is OfficialComponentSource;
             cancel.Enabled = busy;
@@ -840,6 +858,26 @@ internal sealed class MainForm : Form
             UpdateButtons();
         };
         UpdatePurpose();
+
+        analyzeHardware.Click += async (_, _) =>
+        {
+            analyzeHardware.Enabled = false;
+            status.Text = "Reading a local hardware profile and comparing known device evidence…";
+            try
+            {
+                _currentHardwareProfileJson ??= await HardwareProfileService.CollectProfileAsync();
+                compatibilityReport.Text = HardwareKextCompatibilityService.Analyze(
+                    _currentHardwareProfileJson, targetMacOS.Text);
+                status.Text = "Hardware review ready. Potential matches still require exact device and macOS verification.";
+                status.ForeColor = Green;
+            }
+            catch (Exception ex)
+            {
+                status.Text = "Hardware review could not be completed: " + ex.Message;
+                status.ForeColor = Yellow;
+            }
+            finally { analyzeHardware.Enabled = true; }
+        };
 
         load.Click += async (_, _) =>
         {

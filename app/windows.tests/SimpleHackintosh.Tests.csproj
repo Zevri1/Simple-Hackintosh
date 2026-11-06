@@ -23,5 +23,6 @@
     <Compile Include="../windows/OfficialComponentService.cs" Link="OfficialComponentService.cs" />
     <Compile Include="../windows/SafePlistXml.cs" Link="SafePlistXml.cs" />
     <Compile Include="../windows/ConfigPlistEditorService.cs" Link="ConfigPlistEditorService.cs" />
+    <Compile Include="../windows/HardwareKextCompatibilityService.cs" Link="HardwareKextCompatibilityService.cs" />
   </ItemGroup>
 </Project>

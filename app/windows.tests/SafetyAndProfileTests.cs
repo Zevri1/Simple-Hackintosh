@@ -555,4 +555,64 @@ public sealed class SafetyAndProfileTests
         }
     }
 
+
+    [Fact]
+    public void HardwareAssessmentIdentifiesPotentialIntelEthernetAndIntelWifiWithoutOverclaiming()
+    {
+        const string profile = """
+        {
+          "schemaVersion": 1,
+          "sourcePlatform": "windows",
+          "device": { "manufacturer": "Lenovo", "model": "ThinkPad L14 Gen 1" },
+          "cpu": { "vendor": "GenuineIntel", "model": "Intel Core i5-10210U" },
+          "gpu": [{ "vendor": "Intel", "model": "Intel UHD Graphics", "pciVendorId": "8086", "pciDeviceId": "9B41" }],
+          "network": {
+            "wifiAdapters": [{ "vendor": "Intel", "model": "Intel Wi-Fi 6 AX200", "pciVendorId": "8086", "pciDeviceId": "2723" }],
+            "ethernetAdapters": [{ "vendor": "Intel", "model": "Intel Ethernet Connection I219-V", "pciVendorId": "8086", "pciDeviceId": "15BE" }],
+            "bluetoothAdapters": ["Intel Bluetooth"]
+          },
+          "audio": { "controllers": ["Intel Smart Sound"] },
+          "storage": [{ "model": "NVMe SSD", "controller": "NVMe", "interface": "NVMe" }]
+        }
+        """;
+
+        string report = HardwareKextCompatibilityService.Analyze(profile, "macOS 26 Tahoe");
+
+        Assert.Contains("IntelMausi — Potential match", report, StringComparison.Ordinal);
+        Assert.Contains("I219-V", report, StringComparison.Ordinal);
+        Assert.Contains("Intel Wi-Fi (separate project) — Detected", report, StringComparison.Ordinal);
+        Assert.Contains("AirDrop", report, StringComparison.Ordinal);
+        Assert.Contains("AppleALC — Insufficient data", report, StringComparison.Ordinal);
+        Assert.Contains("No codec ID", report, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("NVMeFix — Potentially relevant", report, StringComparison.Ordinal);
+        Assert.Contains("Target macOS: macOS 26 Tahoe", report, StringComparison.Ordinal);
+        Assert.Contains("No Kext is downloaded, enabled", report, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void HardwareAssessmentNeverInfersKextsFromAnEmptyProfile()
+    {
+        const string profile = """
+        {
+          "schemaVersion": 1,
+          "sourcePlatform": "manual",
+          "device": {},
+          "cpu": {},
+          "gpu": [],
+          "network": {},
+          "audio": {},
+          "storage": []
+        }
+        """;
+
+        string report = HardwareKextCompatibilityService.Analyze(profile);
+
+        Assert.Contains("WhateverGreen — Insufficient data", report, StringComparison.Ordinal);
+        Assert.Contains("IntelMausi — Not detected", report, StringComparison.Ordinal);
+        Assert.Contains("Intel Wi-Fi (separate project) — Not detected", report, StringComparison.Ordinal);
+        Assert.Contains("AppleALC — Not detected", report, StringComparison.Ordinal);
+        Assert.Contains("NVMeFix — Insufficient data", report, StringComparison.Ordinal);
+        Assert.Contains("Target macOS: Not selected", report, StringComparison.Ordinal);
+    }
+
 }

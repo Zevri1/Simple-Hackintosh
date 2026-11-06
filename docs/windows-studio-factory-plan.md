@@ -75,6 +75,7 @@ Keep the existing native Windows Forms application on .NET 10. Do not introduce 
 
 **Implemented in v0.5 preview**
 - Add source-linked per-component dependency and compatibility notes for the curated Kext library, including Lilu minimum versions and hardware-specific caveats.
+- Add a local Hardware-to-Kext Review that reads Hardware Profile v1, identifies possible evidence-based component matches, and explicitly marks missing data or unknown requirements.
 - Keep upstream notes distinct from automatic compatibility verdicts; no Kext is selected or enabled automatically.
 
 **Remaining**
@@ -155,6 +156,7 @@ flowchart TD
 - [x] Official Kext Library with digest-required download and safe Kext-only extraction.
 - [x] Source-linked Kext dependency and compatibility notes with tests for key upstream requirements.
 - [x] Separate the Kext Library's release-notes and upstream-documentation actions; keep source and compatibility guidance visible before downloading.
+- [x] Hardware-to-Kext Review based on local Hardware Profile v1, with tests for I219, Intel Wi-Fi, NVMe, missing audio codec and unknown hardware.
 - [x] Non-destructive scalar Config Editor with save-as-new-file behavior.
 - [x] Offline OpenCore release import UI, digest verification and validator cache tests.
 - [ ] Live Apple catalog smoke test on Windows.
