@@ -55,6 +55,7 @@ internal sealed class MainForm : Form
     private CancellationTokenSource? _installerDownloadCts;
     private CancellationTokenSource? _opencoreBuildCts;
     private CancellationTokenSource? _ocvalidateCts;
+    private CancellationTokenSource? _componentDownloadCts;
 
     public MainForm()
     {
@@ -91,11 +92,12 @@ internal sealed class MainForm : Form
         AddNav(sidebar, "hardware", "03   Hardware Inspector", 298);
         AddNav(sidebar, "opencore", "04   OpenCore Builder", 346);
         AddNav(sidebar, "installer", "05   macOS Downloader", 394);
+        AddNav(sidebar, "components", "06   Kext Library", 442);
 
         var privacy = new Panel { BackColor = Panel, BorderStyle = BorderStyle.FixedSingle, Location = new Point(18, 500), Size = new Size(194, 116), Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom };
         privacy.Controls.Add(new Label { Text = "●  LOCAL PROCESSING", ForeColor = Green, Font = new Font("Consolas", 8, FontStyle.Bold), Location = new Point(12, 13), AutoSize = true });
         privacy.Controls.Add(new Label { Text = "Files are inspected on this PC.\r\nNothing is uploaded by this app.", ForeColor = TextMuted, Font = new Font("Segoe UI", 8), Location = new Point(12, 39), Size = new Size(164, 43) });
-        privacy.Controls.Add(new Label { Text = "SIMPLE HACKINTOSH  ·  0.3.0", ForeColor = TextSoft, Font = new Font("Consolas", 7), Location = new Point(12, 88), AutoSize = true });
+        privacy.Controls.Add(new Label { Text = "SIMPLE HACKINTOSH  ·  0.4.0", ForeColor = TextSoft, Font = new Font("Consolas", 7), Location = new Point(12, 88), AutoSize = true });
         sidebar.Controls.Add(privacy);
 
         var main = new Panel { Dock = DockStyle.Fill, BackColor = Background };
@@ -168,6 +170,11 @@ internal sealed class MainForm : Form
                 _pageTitle.Text = "macOS Downloader";
                 _pageSubtitle.Text = "Download Apple's full InstallAssistant package directly to a selected drive.";
                 page = BuildMacOSDownloaderPage();
+                break;
+            case "components":
+                _pageTitle.Text = "Official Kext Library";
+                _pageSubtitle.Text = "Browse and verify stable Kext releases from selected upstream GitHub repositories.";
+                page = BuildComponentsPage();
                 break;
             default:
                 _pageTitle.Text = "Simple Hackintosh";
@@ -624,6 +631,200 @@ internal sealed class MainForm : Form
                 progress.Style = ProgressBarStyle.Continuous;
             }
         };
+        return page;
+    }
+
+    private Control BuildComponentsPage()
+    {
+        var page = NewPage();
+        var sourcePicker = new ComboBox
+        {
+            Location = new Point(0, 12), Size = new Size(300, 34),
+            DropDownStyle = ComboBoxStyle.DropDownList, DisplayMember = nameof(OfficialComponentSource.Name)
+        };
+        sourcePicker.DataSource = OfficialComponentService.Sources.ToList();
+        var load = MakeButton("Load official release", true, new Point(312, 10), new Size(180, 36));
+        var openRelease = MakeButton("Open release notes", false, new Point(502, 10), new Size(160, 36));
+        var choose = MakeButton("Choose output folder", false, new Point(0, 112), new Size(175, 36));
+        var download = MakeButton("Verify & extract Kexts", true, new Point(185, 112), new Size(190, 36));
+        var cancel = MakeButton("Cancel", false, new Point(385, 112), new Size(100, 36));
+        cancel.Enabled = false;
+        download.Enabled = false;
+        openRelease.Enabled = false;
+
+        var purpose = new Label
+        {
+            ForeColor = TextMuted, Font = new Font("Segoe UI", 9), Location = new Point(0, 58),
+            Size = new Size(900, 42), AutoEllipsis = true
+        };
+        var releaseInfo = new Label
+        {
+            ForeColor = TextMain, Font = new Font("Segoe UI", 9, FontStyle.Bold),
+            Location = new Point(0, 166), Size = new Size(920, 46), AutoEllipsis = true
+        };
+        var destination = new Label
+        {
+            Text = "No output folder selected", ForeColor = TextMuted,
+            Location = new Point(0, 220), Size = new Size(920, 28), AutoEllipsis = true
+        };
+        var progress = new ProgressBar
+        {
+            Location = new Point(0, 258), Size = new Size(920, 18),
+            Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+            Style = ProgressBarStyle.Continuous, Minimum = 0, Maximum = 100
+        };
+        var status = new Label
+        {
+            Text = "Choose a component and load its official stable release.",
+            ForeColor = TextSoft, Font = new Font("Segoe UI", 9),
+            Location = new Point(0, 290), Size = new Size(920, 46), AutoEllipsis = true
+        };
+        var caution = new Panel
+        {
+            Location = new Point(0, 352), Size = new Size(920, 148),
+            BackColor = Panel, Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+        };
+        caution.Controls.Add(new Label
+        {
+            Text = "SOURCE-VERIFIED DOWNLOADS — NOT AUTOMATIC EFI INSTALLATION",
+            ForeColor = Yellow, Font = new Font("Consolas", 9, FontStyle.Bold),
+            Location = new Point(18, 16), AutoSize = true
+        });
+        caution.Controls.Add(new Label
+        {
+            Text = "Only selected official GitHub repositories are listed. The app requires a GitHub-published SHA-256 digest before downloading, verifies the archive, rejects unsafe ZIP paths, and extracts only Kext bundles into a new folder. It does not edit config.plist or copy files into an existing EFI. Check the target macOS version, exact hardware, dependencies, and upstream release notes before using any component.",
+            ForeColor = TextMuted, Font = new Font("Segoe UI", 9),
+            Location = new Point(18, 45), Size = new Size(870, 88)
+        });
+        page.Controls.AddRange(new Control[] { sourcePicker, load, openRelease, purpose, choose, download, cancel, releaseInfo, destination, progress, status, caution });
+
+        OfficialComponentRelease? selectedRelease = null;
+        string? outputFolder = null;
+        void UpdateButtons()
+        {
+            bool busy = _componentDownloadCts is not null;
+            download.Enabled = !busy && outputFolder is not null && selectedRelease?.Sha256 is not null;
+            choose.Enabled = !busy;
+            load.Enabled = !busy;
+            sourcePicker.Enabled = !busy;
+            openRelease.Enabled = !busy && selectedRelease is not null;
+            cancel.Enabled = busy;
+        }
+        void UpdatePurpose()
+        {
+            if (sourcePicker.SelectedItem is OfficialComponentSource source)
+                purpose.Text = source.Purpose + "  " + source.Guidance;
+        }
+        sourcePicker.SelectedIndexChanged += (_, _) =>
+        {
+            selectedRelease = null;
+            releaseInfo.Text = "Release metadata not loaded.";
+            status.Text = "Load the official stable release for the selected source.";
+            progress.Value = 0;
+            UpdatePurpose();
+            UpdateButtons();
+        };
+        UpdatePurpose();
+
+        load.Click += async (_, _) =>
+        {
+            if (sourcePicker.SelectedItem is not OfficialComponentSource source) return;
+            selectedRelease = null;
+            releaseInfo.Text = "Contacting the official GitHub releases API…";
+            status.Text = "Only stable releases and the exact upstream RELEASE ZIP will be considered.";
+            progress.Style = ProgressBarStyle.Marquee;
+            UpdateButtons();
+            try
+            {
+                selectedRelease = await OfficialComponentService.GetLatestStableReleaseAsync(source);
+                releaseInfo.Text = $"{source.Name} {selectedRelease.Version}  ·  {selectedRelease.ExpectedBytes:N0} bytes  ·  " +
+                    (selectedRelease.Sha256 is null ? "No published SHA-256 — download disabled" : "SHA-256 digest published");
+                status.Text = selectedRelease.Sha256 is null
+                    ? "The official asset has no published digest. Open the upstream release page; this app will not download an unverifiable ZIP."
+                    : "Official release metadata loaded. The archive digest will be verified before extraction.";
+                progress.Value = 0;
+            }
+            catch (Exception ex)
+            {
+                releaseInfo.Text = "Could not load a verified stable release.";
+                status.Text = ex.Message;
+            }
+            finally
+            {
+                progress.Style = ProgressBarStyle.Continuous;
+                UpdateButtons();
+            }
+        };
+
+        openRelease.Click += (_, _) =>
+        {
+            if (selectedRelease is null) return;
+            var uri = selectedRelease.ReleasePageUri;
+            if (uri.Scheme == Uri.UriSchemeHttps && uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase))
+                Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
+        };
+
+        choose.Click += (_, _) =>
+        {
+            using var dialog = new FolderBrowserDialog { Description = "Choose where a new verified component folder will be created." };
+            if (dialog.ShowDialog(this) == DialogResult.OK)
+            {
+                outputFolder = dialog.SelectedPath;
+                destination.Text = outputFolder;
+                UpdateButtons();
+            }
+        };
+
+        cancel.Click += (_, _) => _componentDownloadCts?.Cancel();
+        download.Click += async (_, _) =>
+        {
+            if (selectedRelease is null || outputFolder is null || _componentDownloadCts is not null) return;
+            _componentDownloadCts = new CancellationTokenSource();
+            UpdateButtons();
+            progress.Value = 0;
+            progress.Style = ProgressBarStyle.Continuous;
+            var reporter = new Progress<ComponentDownloadProgress>(value =>
+            {
+                status.Text = value.Stage;
+                if (value.Expected is > 0)
+                {
+                    progress.Style = ProgressBarStyle.Continuous;
+                    progress.Value = (int)Math.Clamp(value.Received * 100L / value.Expected.Value, 0, 100);
+                }
+                else progress.Style = ProgressBarStyle.Marquee;
+            });
+            try
+            {
+                var result = await OfficialComponentService.DownloadAndExtractKextsAsync(
+                    selectedRelease, outputFolder, reporter, _componentDownloadCts.Token);
+                releaseInfo.Text = $"{result.ComponentName} {result.Version} verified  ·  SHA-256: {result.Sha256}";
+                status.Text = $"Extracted {result.KextNames.Count} Kext bundle(s) to: {result.OutputDirectory}";
+                progress.Value = 100;
+                MessageBox.Show(this,
+                    "The official release archive passed SHA-256 verification.\r\n\r\n" +
+                    string.Join("\r\n", result.KextNames) +
+                    "\r\n\r\nNo existing EFI or config.plist was changed. Read READ-ME-FIRST.txt in the output folder.",
+                    "Verified component downloaded", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (OperationCanceledException)
+            {
+                status.Text = "Download cancelled. Temporary files were removed; no component folder was installed.";
+                progress.Value = 0;
+            }
+            catch (Exception ex)
+            {
+                status.Text = "Component download failed: " + ex.Message;
+                progress.Value = 0;
+            }
+            finally
+            {
+                _componentDownloadCts.Dispose();
+                _componentDownloadCts = null;
+                UpdateButtons();
+                progress.Style = ProgressBarStyle.Continuous;
+            }
+        };
+
         return page;
     }
 

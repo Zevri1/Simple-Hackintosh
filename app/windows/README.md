@@ -10,11 +10,12 @@ A native Windows Forms (.NET 10) desktop companion for the Simple Hackintosh fie
 - **macOS Downloader:** reads Apple's public full-installer catalog, lists available macOS releases, and streams the Apple-hosted `InstallAssistant.pkg` directly to a folder or external drive selected in the GUI. Shows progress and supports cancellation.
 - **OpenCore Builder:** discovers the latest stable release from the official Acidanthera GitHub repository, checks the release asset SHA-256 digest, and creates an x64 EFI starter with the matching `Sample.plist`. ZIP paths, links, archive size and output collisions are checked before creating the final `EFI` folder.
 - **Hardware Profile v1:** exports detected Windows hardware as JSON compatible with the shared schema and imports/validates schema-v1 profiles. PCI vendor/device IDs are retained, while serial numbers, UUIDs, SMBIOS identifiers and network MAC addresses are not exported.
+- **Official Kext Library:** checks stable releases from a curated set of upstream Acidanthera repositories, requires a GitHub-published SHA-256 digest before downloading, verifies the archive, and extracts only `.kext` bundles into a new staging folder. Existing EFI folders and `config.plist` files are never changed.
 
 ## Remaining Windows roadmap
 
 1. Add a guided configuration editor using the exact schema shipped with the selected OpenCore version. The hardware-based checklist is a read-only planning aid, not this editor.
-2. Add official Kext/ACPI/driver release sources with compatibility and version matching.
+2. Add per-component macOS compatibility metadata and release-to-OpenCore dependency guidance. The current library verifies upstream archives but does not infer compatibility or automatically install components.
 3. Design a separate, heavily guarded removable-USB workflow; it must show exact disk identity and require a second erase confirmation. Internal disks remain out of scope.
 4. Improve Windows hardware inventory and PCI/ACPI identification without exporting sensitive identifiers.
 

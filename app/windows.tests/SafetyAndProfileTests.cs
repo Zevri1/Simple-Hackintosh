@@ -1,4 +1,6 @@
 using System.IO;
+using System.IO.Compression;
+using System.Text;
 using System.Text.Json;
 using SimpleHackintosh.App;
 using Xunit;
@@ -164,6 +166,119 @@ public sealed class SafetyAndProfileTests
         """;
         using var document = JsonDocument.Parse(json);
         Assert.Throws<InvalidDataException>(() => OpenCoreReleaseService.ParseStableReleases(document.RootElement));
+    }
+
+
+    [Fact]
+    public void OfficialComponentSourcesAreRestrictedToCuratedRepositories()
+    {
+        Assert.Contains(OfficialComponentService.Sources, source => source.Repository == "acidanthera/Lilu");
+        Assert.Contains(OfficialComponentService.Sources, source => source.Repository == "acidanthera/AppleALC");
+    }
+
+    [Fact]
+    public void ParsesVerifiedOfficialComponentRelease()
+    {
+        var source = OfficialComponentService.Sources.Single(item => item.Repository == "acidanthera/Lilu");
+        const string json = """
+        [{
+          "tag_name": "1.7.2",
+          "draft": false,
+          "prerelease": false,
+          "assets": [{
+            "name": "Lilu-1.7.2-RELEASE.zip",
+            "size": 781360,
+            "digest": "sha256:53967d7dcfaab01023a33df2e969a89522f13d6654a6a56ac4711b62dabf3ab8",
+            "browser_download_url": "https://github.com/acidanthera/Lilu/releases/download/1.7.2/Lilu-1.7.2-RELEASE.zip"
+          }]
+        }]
+        """;
+        using var document = JsonDocument.Parse(json);
+        var release = OfficialComponentService.ParseLatestStableRelease(source, document.RootElement);
+        Assert.Equal("1.7.2", release.Version);
+        Assert.NotNull(release.Sha256);
+        Assert.Equal(781360, release.ExpectedBytes);
+    }
+
+    [Fact]
+    public void RefusesComponentReleaseWithoutPublishedDigestForDownloads()
+    {
+        var source = OfficialComponentService.Sources.Single(item => item.Repository == "acidanthera/IntelMausi");
+        const string json = """
+        [{
+          "tag_name": "1.0.8",
+          "draft": false,
+          "prerelease": false,
+          "assets": [{
+            "name": "IntelMausi-1.0.8-RELEASE.zip",
+            "size": 869695,
+            "browser_download_url": "https://github.com/acidanthera/IntelMausi/releases/download/1.0.8/IntelMausi-1.0.8-RELEASE.zip"
+          }]
+        }]
+        """;
+        using var document = JsonDocument.Parse(json);
+        var release = OfficialComponentService.ParseLatestStableRelease(source, document.RootElement);
+        Assert.Null(release.Sha256);
+    }
+
+    [Fact]
+    public void RejectsUntrustedOfficialComponentAssetUrl()
+    {
+        var source = OfficialComponentService.Sources.Single(item => item.Repository == "acidanthera/Lilu");
+        const string json = """
+        [{
+          "tag_name": "1.7.2",
+          "draft": false,
+          "prerelease": false,
+          "assets": [{
+            "name": "Lilu-1.7.2-RELEASE.zip",
+            "size": 781360,
+            "digest": "sha256:53967d7dcfaab01023a33df2e969a89522f13d6654a6a56ac4711b62dabf3ab8",
+            "browser_download_url": "https://example.invalid/Lilu-1.7.2-RELEASE.zip"
+          }]
+        }]
+        """;
+        using var document = JsonDocument.Parse(json);
+        Assert.Throws<InvalidDataException>(() =>
+            OfficialComponentService.ParseLatestStableRelease(source, document.RootElement));
+    }
+
+    [Theory]
+    [InlineData("../outside/file.kext/Contents/Info.plist")]
+    [InlineData(@"C:\outside\file.kext\Contents\Info.plist")]
+    [InlineData(@"..\..\outside.kext\Contents\Info.plist")]
+    public void RejectsUnsafeComponentArchivePaths(string path)
+    {
+        Assert.Throws<InvalidDataException>(() => OfficialComponentService.ValidateArchivePath(path));
+    }
+
+    [Fact]
+    public void ExtractsOnlyKextBundlesIntoSafeFolder()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "sh-kext-test-" + Guid.NewGuid().ToString("N"));
+        string zip = root + ".zip";
+        Directory.CreateDirectory(root);
+        try
+        {
+            using (var archive = ZipFile.Open(zip, ZipArchiveMode.Create))
+            {
+                var info = archive.CreateEntry("Lilu-1.7.2-RELEASE/Kexts/Release/Lilu.kext/Contents/Info.plist");
+                using (var writer = new StreamWriter(info.Open())) writer.Write("<plist><dict/></plist>");
+                var binary = archive.CreateEntry("Lilu-1.7.2-RELEASE/Kexts/Release/Lilu.kext/Contents/MacOS/Lilu");
+                using (var writer = new StreamWriter(binary.Open())) writer.Write("test-binary");
+                var docs = archive.CreateEntry("Lilu-1.7.2-RELEASE/Docs/README.md");
+                using (var writer = new StreamWriter(docs.Open())) writer.Write("not extracted");
+            }
+            var names = OfficialComponentService.ExtractKextBundles(zip, root);
+            Assert.Equal(new[] { "Lilu.kext" }, names);
+            Assert.True(File.Exists(Path.Combine(root, "Lilu.kext", "Contents", "Info.plist")));
+            Assert.False(File.Exists(Path.Combine(root, "Docs", "README.md")));
+        }
+        finally
+        {
+            if (File.Exists(zip)) File.Delete(zip);
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
     }
 
 }

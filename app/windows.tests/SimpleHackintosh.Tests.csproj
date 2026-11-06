@@ -19,5 +19,6 @@
     <Compile Include="../windows/OpenCoreValidatorService.cs" Link="OpenCoreValidatorService.cs" />
     <Compile Include="../windows/OpenCoreReleaseCatalog.cs" Link="OpenCoreReleaseCatalog.cs" />
     <Compile Include="../windows/HardwareProfileService.cs" Link="HardwareProfileService.cs" />
+    <Compile Include="../windows/OfficialComponentService.cs" Link="OfficialComponentService.cs" />
   </ItemGroup>
 </Project>

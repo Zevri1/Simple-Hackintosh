@@ -55,8 +55,15 @@ Keep the existing native Windows Forms application on .NET 10. Do not introduce 
 - Add a read-only guided EFI preparation checklist generated from an imported or locally detected Hardware Profile v1.
 - Separate reported hardware facts from information that still requires manual confirmation; do not infer compatibility or auto-enable quirks.
 
+**Implemented in v0.4 preview**
+- Add an official Kext Library for selected Acidanthera projects.
+- Require the upstream GitHub SHA-256 digest before downloading; verify archive size and digest before extracting.
+- Extract only Kext bundles from verified archives into a new, non-overwriting staging folder. Never edit an existing EFI or `config.plist`.
+- Refuse to download release assets that do not publish a verifiable SHA-256 digest; leave the official release page available for manual review.
+
 **Remaining**
 - Build the actual schema-guided config.plist editor using the exact schema/sample shipped with the selected OpenCore version.
+- Add per-component macOS compatibility metadata and OpenCore dependency guidance based on upstream documentation.
 - Add import of a local official OpenCore release package for offline validation when internet access is unavailable.
 
 **Acceptance**
@@ -96,6 +103,7 @@ Keep the existing native Windows Forms application on .NET 10. Do not introduce 
 - Unit tests for catalog parsing, URL allowlists, size validation, archive filtering and safe output paths.
 - CI artifact inspection.
 - Manual smoke test on Windows 10/11 for scaling, keyboard navigation, cancellation and external-drive destination.
+- Verify official Kext downloads against real upstream release assets and inspect the extracted Kext bundle contents on Windows.
 
 **Release gate**
 - CI green.
@@ -128,4 +136,5 @@ flowchart TD
 - [x] Select among the latest 20 stable official OpenCore releases for version-matched config validation.
 - [x] Hardware profile JSON export/import (Windows runtime smoke test pending).
 - [x] Read-only guided EFI preparation checklist generated from schema-v1 hardware profiles.
+- [x] Official Kext Library with digest-required download and safe Kext-only extraction.
 - [ ] Final QA and signed/notarized macOS counterpart coordination.
