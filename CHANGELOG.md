@@ -1,6 +1,15 @@
 # Changelog
 
-All notable documentation changes are recorded here.
+All notable documentation and CLI changes are recorded here.
+
+## 2026-11-06 — CLI v2.5.0
+
+- Automated the official OpCore-Simplify Hardware Sniffer report-export menu instead of leaving a second interactive prompt open.
+- Validated the generated JSON and surfaced the helper's exit code and captured diagnostics when no report is produced.
+- Preserved a report from a previous run with a timestamped filename before exporting a replacement.
+- Rebuilt the website visual system and added direct CLI release links to the home page and Tools page.
+- Added static website contract checks to the Pages workflow.
+
 
 ## 2026-11-05
 
