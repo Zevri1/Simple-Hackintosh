@@ -2,6 +2,13 @@
 
 All notable documentation and CLI changes are recorded here.
 
+## 2026-11-06 — CLI v2.5.1
+
+- Fixed the Hardware Sniffer launch gate: the upstream Windows release is not Authenticode-signed, so a missing signature is now accepted only after the official GitHub SHA-256 digest matches.
+- Kept rejection of invalid Authenticode signatures and retained the automated report export, JSON validation, error diagnostics, and previous-report preservation.
+- Updated the website and release links to the v2.5.1 hotfix.
+
+
 ## 2026-11-06 — CLI v2.5.0
 
 - Automated the official OpCore-Simplify Hardware Sniffer report-export menu instead of leaving a second interactive prompt open.
