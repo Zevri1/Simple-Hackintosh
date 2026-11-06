@@ -6,7 +6,7 @@ A native SwiftUI companion for the Simple Hackintosh project. This first desktop
 
 - **Full macOS installer catalog:** reads the versions exposed by Apple's softwareupdate --list-full-installers command.
 - **Download inside the app:** runs Apple's softwareupdate --fetch-full-installer --full-installer-version command. macOS downloads the installer app into /Applications; the app then copies that installer app to the folder or external drive selected by the user. This is a full installer workflow, not a Recovery image download.
-- **Bootable USB creation:** invokes the selected installer app's createinstallmedia tool. macOS presents its administrator-authorization dialog. The selected external, ejectable volume is erased; the app requires a separate confirmation before running the command.
+- **Bootable USB creation:** invokes the selected installer app's createinstallmedia tool. macOS presents its administrator-authorization dialog. The selected external, ejectable volume is erased; the app requires a separate confirmation and refuses to erase a volume that contains the installer app itself.
 - **OpenCore EFI starter:** downloads the latest stable OpenCore-*-RELEASE.zip from the official acidanthera/OpenCorePkg GitHub releases, verifies the downloaded bytes against the SHA-256 digest in GitHub release metadata, copies the x64 EFI folder, installs Docs/Sample.plist as EFI/OC/config.plist, and runs the matching ocvalidate executable when the release contains it.
 - **Hardware Inspector:** uses macOS system_profiler and sw_vers locally. Serial-number and hardware-UUID lines are redacted in the displayed report.
 
@@ -19,7 +19,7 @@ The generated EFI is a **starter**, not a ready-to-boot configuration for a part
 - macOS 13 or newer to run the GUI.
 - macOS Catalina 10.15 or newer for Apple's full-installer download workflow.
 - Internet access for the Apple software catalog and official OpenCore release download.
-- An external, ejectable volume for bootable USB creation. The volume is erased by Apple's createinstallmedia tool.
+- An external, ejectable volume for bootable USB creation. The volume is erased by Apple's createinstallmedia tool. Keep the downloaded installer app on another drive.
 
 ## Build and test
 

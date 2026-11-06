@@ -14,8 +14,7 @@ public struct InstallerOption: Identifiable, Hashable, Sendable {
 public enum InstallerCatalogParser {
     /// Parses the output of Apple's softwareupdate --list-full-installers command.
     public static func parse(_ output: String) -> [InstallerOption] {
-        let pattern = #"(?m)^\s*\*?\s*Title:\s*(.+?),\s*Version:\s*([0-9]+(?:\.[0-9]+)*) "#
-            .trimmingCharacters(in: .whitespaces)
+        let pattern = #"(?m)^\s*\*?\s*Title:\s*(.+?),\s*Version:\s*([0-9]+(?:\.[0-9]+)*)"# 
         guard let expression = try? NSRegularExpression(pattern: pattern) else { return [] }
         let source = output as NSString
         let matches = expression.matches(in: output, range: NSRange(location: 0, length: source.length))
@@ -42,6 +41,15 @@ public enum CommandEscaping {
             .replacingOccurrences(of: "\r", with: "\\r")
             .replacingOccurrences(of: "\n", with: "\\n")
         return "\"\(escaped)\""
+    }
+}
+
+public enum PathSafety {
+    /// Returns true only when childPath is inside parentPath (component-aware, not string-prefix based).
+    public static func isInside(childPath: String, parentPath: String) -> Bool {
+        let child = URL(fileURLWithPath: childPath).standardizedFileURL.pathComponents
+        let parent = URL(fileURLWithPath: parentPath).standardizedFileURL.pathComponents
+        return child.count > parent.count && child.starts(with: parent)
     }
 }
 

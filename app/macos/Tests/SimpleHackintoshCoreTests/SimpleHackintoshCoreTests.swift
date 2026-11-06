@@ -29,6 +29,12 @@ final class SimpleHackintoshCoreTests: XCTestCase {
         XCTAssertEqual(CommandEscaping.appleScriptString("a\"b\\c\nnext"), "\"a\\\"b\\\\c\\nnext\"")
     }
 
+    func testPathSafetyUsesPathComponentsInsteadOfStringPrefixes() {
+        XCTAssertTrue(PathSafety.isInside(childPath: "/Volumes/USB/Install macOS.app", parentPath: "/Volumes/USB"))
+        XCTAssertFalse(PathSafety.isInside(childPath: "/Volumes/USB2/Install macOS.app", parentPath: "/Volumes/USB"))
+        XCTAssertFalse(PathSafety.isInside(childPath: "/Applications/Install macOS.app", parentPath: "/Volumes/USB"))
+    }
+
     func testSHA256DigestComparisonIsStrict() {
         let digest = String(repeating: "a", count: 64)
         XCTAssertTrue(SHA256Digest.matches(githubDigest: "sha256:\(digest)", actualHex: digest))

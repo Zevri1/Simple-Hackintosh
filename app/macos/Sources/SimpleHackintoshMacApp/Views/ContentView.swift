@@ -175,8 +175,7 @@ struct ContentView: View {
             List(selection: $selection) {
                 Section("WORKSPACE") {
                     ForEach(AppSection.allCases) { section in
-                        Label(section.title, systemImage: section.symbol)
-                            .tag(Optional(section))
+                        Label(section.title, systemImage: section.symbol).tag(Optional(section))
                     }
                 }
             }
@@ -188,18 +187,13 @@ struct ContentView: View {
                         .font(.system(size: 10, weight: .bold, design: .monospaced))
                         .foregroundStyle(accent)
                     Text("Your EFI and hardware report stay on this Mac. OpenCore is downloaded from its official GitHub release.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(.caption).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                     Text("MAC APP · 0.1.0")
-                        .font(.system(size: 9, design: .monospaced))
-                        .foregroundStyle(.tertiary)
+                        .font(.system(size: 9, design: .monospaced)).foregroundStyle(.tertiary)
                 }
-                .padding(14)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(panel)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .padding(12)
+                .padding(14).frame(maxWidth: .infinity, alignment: .leading)
+                .background(panel).clipShape(RoundedRectangle(cornerRadius: 12)).padding(12)
             }
         } detail: {
             Group {
@@ -244,21 +238,11 @@ struct ContentView: View {
     private var overviewPage: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                pageHeader(
-                    eyebrow: "OPENCORE / INSTALLER WORKSPACE",
-                    title: "Prepare macOS.\nBuild with evidence.",
-                    subtitle: "A native macOS workspace for full installers, OpenCore EFI starters, and hardware diagnostics."
-                )
+                pageHeader(eyebrow: "OPENCORE / INSTALLER WORKSPACE", title: "Prepare macOS.\nBuild with evidence.", subtitle: "A native macOS workspace for full installers, OpenCore EFI starters, and hardware diagnostics.")
                 HStack(spacing: 14) {
-                    summaryCard("Full macOS installer", detail: "Apple Software Update catalog", symbol: "arrow.down.circle", tint: accent) {
-                        selection = .installer
-                    }
-                    summaryCard("OpenCore EFI starter", detail: "Official release · SHA-256 checked", symbol: "folder.badge.gearshape", tint: .cyan) {
-                        selection = .efi
-                    }
-                    summaryCard("Hardware report", detail: "System Profiler · local only", symbol: "cpu", tint: .orange) {
-                        selection = .hardware
-                    }
+                    summaryCard("Full macOS installer", detail: "Apple Software Update catalog", symbol: "arrow.down.circle", tint: accent) { selection = .installer }
+                    summaryCard("OpenCore EFI starter", detail: "Official release · SHA-256 checked", symbol: "folder.badge.gearshape", tint: .cyan) { selection = .efi }
+                    summaryCard("Hardware report", detail: "System Profiler · local only", symbol: "cpu", tint: .orange) { selection = .hardware }
                 }
                 infoPanel(title: "What this first Mac build does", symbol: "checkmark.seal") {
                     bullet("Lists full macOS installers exposed by Apple's Software Update catalog.")
@@ -266,10 +250,7 @@ struct ContentView: View {
                     bullet("Uses Apple's createinstallmedia tool to create a bootable USB, with an explicit erase confirmation and administrator prompt.")
                     bullet("Downloads the official OpenCore RELEASE archive, verifies GitHub's published SHA-256 digest, and creates a starter EFI folder.")
                 }
-                warningPanel(
-                    title: "EFI starter is not a ready-to-boot EFI",
-                    detail: "The generated folder contains official OpenCore files and Sample.plist. It still needs device-specific ACPI, Kexts, drivers, config.plist settings, and SMBIOS review. Never boot it as a finished configuration without completing those steps."
-                )
+                warningPanel(title: "EFI starter is not a ready-to-boot EFI", detail: "The generated folder contains official OpenCore files and Sample.plist. It still needs device-specific ACPI, Kexts, drivers, config.plist settings, and SMBIOS review. Never boot it as a finished configuration without completing those steps.")
             }
             .padding(30)
         }
@@ -278,11 +259,7 @@ struct ContentView: View {
     private var installerPage: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                pageHeader(
-                    eyebrow: "APPLE SOFTWARE UPDATE",
-                    title: "macOS Installer",
-                    subtitle: "Download the full installer inside this app — no Recovery download workflow is used here."
-                )
+                pageHeader(eyebrow: "APPLE SOFTWARE UPDATE", title: "macOS Installer", subtitle: "Download the full installer inside this app — no Recovery download workflow is used here.")
                 infoPanel(title: "1 · Choose a full installer", symbol: "arrow.down.circle") {
                     Text("The catalog is provided by macOS and may show only versions available to this Mac. The download is handled by Apple's softwareupdate tool.")
                         .font(.subheadline).foregroundStyle(.secondary)
@@ -292,12 +269,10 @@ struct ContentView: View {
                                 Text("\(option.title) · \(option.version)").tag(option.version)
                             }
                         }
-                        .labelsHidden()
-                        .frame(maxWidth: 430)
+                        .labelsHidden().frame(maxWidth: 430)
                         Button("Refresh catalog", systemImage: "arrow.clockwise") {
                             Task { await model.refreshInstallerCatalog() }
-                        }
-                        .disabled(model.isBusy)
+                        }.disabled(model.isBusy)
                     }
                     HStack {
                         Label(model.installerDestination?.path ?? "No destination selected", systemImage: "externaldrive")
@@ -314,12 +289,11 @@ struct ContentView: View {
                     } label: {
                         Label("Download full installer", systemImage: "arrow.down.to.line")
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(accent)
+                    .buttonStyle(.borderedProminent).tint(accent)
                     .disabled(model.isBusy || model.selectedInstaller == nil || model.installerDestination == nil)
                 }
                 infoPanel(title: "2 · Create a bootable USB", symbol: "externaldrive.badge.plus") {
-                    Text("Select an external, ejectable volume. Apple's createinstallmedia utility erases the selected volume and writes the installer.")
+                    Text("Select an external, ejectable volume. Apple's createinstallmedia utility erases it. Keep the downloaded installer app on a different drive from the USB you are going to erase.")
                         .font(.subheadline).foregroundStyle(.secondary)
                     HStack {
                         Picker("External volume", selection: $model.selectedVolumePath) {
@@ -327,14 +301,11 @@ struct ContentView: View {
                                 Text("\(volume.name) · \(volume.capacityDescription)").tag(volume.id)
                             }
                         }
-                        .labelsHidden()
-                        .frame(maxWidth: 430)
+                        .labelsHidden().frame(maxWidth: 430)
                         Button("Refresh drives", systemImage: "arrow.clockwise") { model.refreshVolumes() }
                     }
                     HStack {
-                        Button(role: .destructive) {
-                            confirmErase = true
-                        } label: {
+                        Button(role: .destructive) { confirmErase = true } label: {
                             Label("Erase and create installer…", systemImage: "externaldrive.badge.exclamationmark")
                         }
                         .disabled(model.isBusy || model.installedInstaller == nil || model.selectedVolume == nil)
@@ -358,11 +329,7 @@ struct ContentView: View {
     private var efiPage: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                pageHeader(
-                    eyebrow: "ACIDANTHERA / OPENCOREPKG",
-                    title: "EFI Builder",
-                    subtitle: "Create a clean OpenCore EFI starter from the latest stable official release."
-                )
+                pageHeader(eyebrow: "ACIDANTHERA / OPENCOREPKG", title: "EFI Builder", subtitle: "Create a clean OpenCore EFI starter from the latest stable official release.")
                 infoPanel(title: "Build an EFI starter", symbol: "shippingbox") {
                     Text("The app downloads OpenCorePkg from acidanthera, checks the SHA-256 digest published in GitHub release metadata, extracts the x64 EFI files, copies Docs/Sample.plist to config.plist, and runs the matching ocvalidate when available.")
                         .font(.subheadline).foregroundStyle(.secondary)
@@ -381,8 +348,7 @@ struct ContentView: View {
                     } label: {
                         Label("Build EFI starter", systemImage: "hammer")
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(accent)
+                    .buttonStyle(.borderedProminent).tint(accent)
                     .disabled(model.isBusy || model.efiDestination == nil)
                     if let generated = model.generatedEFI {
                         HStack {
@@ -395,10 +361,7 @@ struct ContentView: View {
                         }
                     }
                 }
-                warningPanel(
-                    title: "Before using this EFI",
-                    detail: "This is a starter folder, not a personalized configuration. Add only the ACPI tables, Kexts, UEFI drivers, quirks, and device properties that match your exact hardware. Create and verify a backup before replacing any existing EFI. The app does not overwrite a pre-existing output directory or your current boot partition."
-                )
+                warningPanel(title: "Before using this EFI", detail: "This is a starter folder, not a personalized configuration. Add only the ACPI tables, Kexts, UEFI drivers, quirks, and device properties that match your exact hardware. Create and verify a backup before replacing any existing EFI. The app does not overwrite a pre-existing output directory or your current boot partition.")
                 activityPanel
             }
             .padding(30)
@@ -408,33 +371,24 @@ struct ContentView: View {
     private var hardwarePage: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                pageHeader(
-                    eyebrow: "SYSTEM INFORMATION",
-                    title: "Hardware Inspector",
-                    subtitle: "Read hardware details from this Mac and prepare a privacy-conscious report."
-                )
+                pageHeader(eyebrow: "SYSTEM INFORMATION", title: "Hardware Inspector", subtitle: "Read hardware details from this Mac and prepare a privacy-conscious report.")
                 HStack {
                     Button {
                         Task { await model.detectHardware() }
                     } label: {
                         Label("Detect hardware", systemImage: "cpu")
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(accent)
-                    .disabled(model.isBusy)
+                    .buttonStyle(.borderedProminent).tint(accent).disabled(model.isBusy)
                     Button("Copy report", systemImage: "doc.on.doc") {
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(model.hardwareReport, forType: .string)
                     }
-                    Button("Save report…", systemImage: "square.and.arrow.down") {
-                        saveHardwareReport()
-                    }
+                    Button("Save report…", systemImage: "square.and.arrow.down") { saveHardwareReport() }
                 }
                 TextEditor(text: $model.hardwareReport)
                     .font(.system(.caption, design: .monospaced))
                     .scrollContentBackground(.hidden)
-                    .padding(12)
-                    .background(panel)
+                    .padding(12).background(panel)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .frame(minHeight: 430)
                 Text("Serial-number and hardware-UUID fields are removed from the displayed report. Review the report before sharing it.")
@@ -448,15 +402,13 @@ struct ContentView: View {
         infoPanel(title: "Activity", symbol: "text.alignleft") {
             HStack(spacing: 8) {
                 if model.isBusy { ProgressView().controlSize(.small) }
-                Text(model.statusMessage)
-                    .font(.subheadline.weight(.medium))
+                Text(model.statusMessage).font(.subheadline.weight(.medium))
                     .foregroundStyle(model.isBusy ? accent : .secondary)
             }
             TextEditor(text: $model.logText)
                 .font(.system(.caption, design: .monospaced))
                 .scrollContentBackground(.hidden)
-                .padding(10)
-                .background(Color.black.opacity(0.22))
+                .padding(10).background(Color.black.opacity(0.22))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .frame(minHeight: 120, maxHeight: 210)
                 .disabled(true)
@@ -465,16 +417,10 @@ struct ContentView: View {
 
     private func pageHeader(eyebrow: String, title: String, subtitle: String) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(eyebrow)
-                .font(.system(size: 10, weight: .bold, design: .monospaced))
-                .foregroundStyle(accent)
-            Text(title)
-                .font(.system(size: 32, weight: .bold, design: .rounded))
-                .foregroundStyle(.primary)
-                .fixedSize(horizontal: false, vertical: true)
-            Text(subtitle)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+            Text(eyebrow).font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundStyle(accent)
+            Text(title).font(.system(size: 32, weight: .bold, design: .rounded))
+                .foregroundStyle(.primary).fixedSize(horizontal: false, vertical: true)
+            Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.bottom, 2)
@@ -488,9 +434,7 @@ struct ContentView: View {
                 Text(detail).font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.leading)
             }
             .frame(maxWidth: .infinity, minHeight: 118, alignment: .leading)
-            .padding(18)
-            .background(panel)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .padding(18).background(panel).clipShape(RoundedRectangle(cornerRadius: 14))
         }
         .buttonStyle(.plain)
     }
@@ -500,10 +444,8 @@ struct ContentView: View {
             Label(title, systemImage: symbol).font(.headline)
             content()
         }
-        .padding(20)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(panel)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .padding(20).frame(maxWidth: .infinity, alignment: .leading)
+        .background(panel).clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.06), lineWidth: 1))
     }
 
@@ -516,10 +458,8 @@ struct ContentView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(18)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.yellow.opacity(0.07))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .padding(18).frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.yellow.opacity(0.07)).clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.yellow.opacity(0.18), lineWidth: 1))
     }
 

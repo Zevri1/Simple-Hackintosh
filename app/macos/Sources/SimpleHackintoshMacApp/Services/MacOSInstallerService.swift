@@ -26,6 +26,7 @@ enum MacOSInstallerError: LocalizedError {
     case installerAlreadyExists(URL)
     case missingCreateInstallMedia(URL)
     case selectedVolumeIsNotEjectable
+    case installerIsStoredOnTargetVolume
 
     var errorDescription: String? {
         switch self {
@@ -41,6 +42,8 @@ enum MacOSInstallerError: LocalizedError {
             return "The selected installer does not contain createinstallmedia: \(url.path)"
         case .selectedVolumeIsNotEjectable:
             return "For safety, this action is limited to an ejectable external volume."
+        case .installerIsStoredOnTargetVolume:
+            return "The installer app is stored on the same drive you selected to erase. Move the installer to a different drive or folder, then choose the USB again."
         }
     }
 }
@@ -65,7 +68,6 @@ final class MacOSInstallerService {
             "/usr/sbin/softwareupdate",
             arguments: ["--fetch-full-installer", "--full-installer-version", option.version]
         )
-
         let expectedName = "Install \(option.title).app"
         let applications = URL(fileURLWithPath: "/Applications", isDirectory: true)
         let expectedURL = applications.appendingPathComponent(expectedName, isDirectory: true)
@@ -90,7 +92,6 @@ final class MacOSInstallerService {
             }
             sourceURL = first
         }
-
         let destinationURL = destinationDirectory.appendingPathComponent(sourceURL.lastPathComponent, isDirectory: true)
         guard !FileManager.default.fileExists(atPath: destinationURL.path) else {
             throw MacOSInstallerError.installerAlreadyExists(destinationURL)
@@ -121,10 +122,10 @@ final class MacOSInstallerService {
             throw MacOSInstallerError.selectedVolumeIsNotEjectable
         }
         let values = try volume.url.resourceValues(forKeys: [.volumeIsEjectableKey])
-        guard values.volumeIsEjectable == true else {
-            throw MacOSInstallerError.selectedVolumeIsNotEjectable
+        guard values.volumeIsEjectable == true else { throw MacOSInstallerError.selectedVolumeIsNotEjectable }
+        guard !PathSafety.isInside(childPath: installer.appURL.path, parentPath: volume.url.path) else {
+            throw MacOSInstallerError.installerIsStoredOnTargetVolume
         }
-
         let createInstallMedia = installer.appURL
             .appendingPathComponent("Contents/Resources/createinstallmedia")
         guard FileManager.default.isExecutableFile(atPath: createInstallMedia.path) else {
