@@ -24,22 +24,31 @@ The repository includes a cross-platform Python assistant (v3.1.0) with a PowerS
 - [Python CLI source, beginner guide, commands, and tests](app/python/README.md)
 - [Python CLI test workflow](.github/workflows/python-cli.yml)
 
-Features include Windows/macOS hardware inventory, a Windows OpCore-Simplify-style `Report.json` export using the official Hardware Sniffer (downloaded with a verified GitHub SHA-256 digest and optional Authenticode verification, then driven automatically without an ACPI dump), EFI and Kext reference checks, config.plist linting, official version-matched `ocvalidate` integration, the bundled OpenCore `macrecovery` utility, EFI starter-folder creation, safe backups, SHA-256 comparison, and privacy-conscious support reports.
+Features include Windows/macOS hardware inventory, a Windows OpCore-Simplify-style Report.json export using the official Hardware Sniffer (downloaded with a verified GitHub SHA-256 digest and optional Authenticode verification, then driven automatically without an ACPI dump), EFI and Kext reference checks, config.plist linting, official version-matched ocvalidate integration, the bundled OpenCore macrecovery utility, EFI starter-folder creation, safe backups, SHA-256 comparison, and privacy-conscious support reports.
 
-### Run from a downloaded release
+### Native desktop workspaces
+
+The repository is adding graphical desktop applications alongside the CLI:
+
+- **macOS — Simple Hackintosh Studio 0.1.0:** a native SwiftUI app with a full-installer catalog, a user-selected download destination, a GUI flow for Apple's createinstallmedia tool, an official OpenCore EFI starter builder, and local hardware/EFI inspection. It bundles the pinned mist-cli downloader; it does not use Recovery for the full-installer workflow. [macOS app source and build guide](app/macos/README.md) · [macOS build workflow](.github/workflows/macos-app.yml)
+- **Windows — Desktop App 0.1.0:** the existing native app provides hardware inventory, EFI inspection, and config validation. The planned full-installer download flow will use the official gibMacOS project to retrieve Apple-hosted installer packages to a chosen folder. For macOS 11 and later, Windows cannot run Apple's createinstallmedia utility; use a Mac for the final bootable USB creation. [Windows app guide](app/windows/README.md)
+
+The first macOS GUI release creates an OpenCore starter using the upstream Sample.plist; it is not a hardware-configured, ready-to-boot EFI. Device-specific ACPI, Kexts, drivers, quirks, and SMBIOS still need to be selected and validated.
+
+### Run the Python assistant from a downloaded release
 
 1. Download and extract the [latest CLI ZIP](https://github.com/Zevri1/Simple-Hackintosh/releases/latest).
-2. Open the extracted folder; `run.bat`, `run.ps1`, `run.command`, and `simple_hackintosh.py` are together at its top level.
-3. On Windows, double-click `run.bat`, or open PowerShell in that folder and run `./run.ps1`. If PowerShell blocks the script, run `Set-ExecutionPolicy -Scope Process Bypass` in the same window, then retry.
-4. On macOS, Control-click `run.command` and choose **Open**, or open Terminal in that folder and run `chmod +x ./run.command && ./run.command`.
+2. Open the extracted folder; run.bat, run.ps1, run.command, and simple_hackintosh.py are together at its top level.
+3. On Windows, double-click run.bat, or open PowerShell in that folder and run ./run.ps1. If PowerShell blocks the script, run Set-ExecutionPolicy -Scope Process Bypass in the same window, then retry.
+4. On macOS, Control-click run.command and choose Open, or open Terminal in that folder and run chmod +x ./run.command && ./run.command.
 
-Python 3.10 or newer is required. From a repository checkout rather than the release ZIP, run `cd app/python` first. The Windows Hardware Sniffer report option is Windows-only; macOS uses the native `system_profiler` inventory. The Windows report is exported automatically; macOS uses its native inventory. See [the CLI guide](app/python/README.md) for details.
+Python 3.10 or newer is required. From a repository checkout rather than the release ZIP, run cd app/python first. The Windows Hardware Sniffer report option is Windows-only; macOS uses the native system_profiler inventory. See the [CLI guide](app/python/README.md) for details.
 
 ## What this project is
 
-Simple Hackintosh teaches the concepts and workflow behind installing and maintaining macOS on non-Apple x86-64 hardware with OpenCore. The goal is to explain *why* each part of an EFI exists, how to check whether hardware is supported, and how to validate a configuration before relying on it.
+Simple Hackintosh teaches the concepts and workflow behind installing and maintaining macOS on non-Apple x86-64 hardware with OpenCore. The goal is to explain why each part of an EFI exists, how to check whether hardware is supported, and how to validate a configuration before relying on it.
 
-This repository does **not** distribute macOS installers, Apple firmware, third-party binary packages, prebuilt device-specific EFI folders, or personal SMBIOS identifiers. Obtain tools and Kexts from their official project sources and respect their licenses.
+This repository does not distribute macOS installers, Apple firmware, third-party binary packages, prebuilt device-specific EFI folders, or personal SMBIOS identifiers. Obtain tools and Kexts from their official project sources and respect their licenses.
 
 ## The learning path
 
@@ -100,6 +109,7 @@ The [visual walkthrough](docs/16-visual-walkthrough.md) includes reference scree
 - [OpenCore Post-Install Guide](https://dortania.github.io/OpenCore-Post-Install/)
 - [Getting Started with ACPI](https://dortania.github.io/Getting-Started-With-ACPI/)
 - [Dortania macOS 26 / Tahoe notes](https://dortania.github.io/OpenCore-Install-Guide/extras/tahoe.html)
+- [gibMacOS official repository](https://github.com/corpnewt/gibMacOS)
 - [GPU Buyers Guide](https://dortania.github.io/GPU-Buyers-Guide/)
 - [Wireless Buyers Guide](https://dortania.github.io/Wireless-Buyers-Guide/)
 
@@ -109,6 +119,8 @@ The [visual walkthrough](docs/16-visual-walkthrough.md) includes reference scree
 
 - docs/: the numbered learning chapters.
 - templates/: blank hardware and troubleshooting report forms.
+- app/macos/: the SwiftUI macOS desktop app.
+- app/windows/: the Windows desktop app.
 - social-preview.jpg: repository sharing artwork.
 - social-preview-640.jpg: smaller preview image.
 - SOURCES.md: primary technical references.
@@ -127,4 +139,4 @@ The original documentation is released under the MIT License. External software,
 
 ## Project status
 
-This is a learning reference. Hardware-specific instructions should state the exact scope and should be checked against current upstream documentation before use.
+This is a learning reference and a set of starter desktop tools. Hardware-specific instructions should state the exact scope and should be checked against current upstream documentation before use.
