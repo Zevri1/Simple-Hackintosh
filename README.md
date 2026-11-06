@@ -17,14 +17,14 @@
 > [!IMPORTANT]
 > This is an educational guide, not a one-click installer and not a guarantee that macOS will work on a particular computer. Compatibility depends on the exact CPU, graphics processor, firmware, wireless card, storage controller, and macOS release. Never copy another computer's EFI folder without understanding and adapting every component.
 
-## Python command-line utility
+## Python command-line assistant
 
-The repository includes a standalone Python CLI for Windows CMD and PowerShell. It runs locally; it is not a website wrapper and requires no third-party Python packages.
+The repository includes a standalone Python assistant for Windows CMD and PowerShell. It opens an interactive numbered menu when launched without arguments and requires no third-party Python packages.
 
-- [Python CLI source, CMD launcher, commands, and tests](app/python/README.md)
+- [Python CLI source, beginner guide, commands, and tests](app/python/README.md)
 - [Python CLI test workflow](.github/workflows/python-cli.yml)
 
-From the `app/python` folder, run `run.bat --help` or `py -3 simple_hackintosh.py --help`. The program can inventory Windows hardware, inspect an EFI folder or ZIP, and perform a basic config.plist structure check. It does not upload files or modify disks, EFI files, or firmware. Its checks do not replace official OpenCore validation or hardware-specific compatibility research.
+Features include hardware inventory with PCI IDs, EFI and Kext reference checks, config.plist linting, official version-matched `ocvalidate` integration, SHA-256 comparison of EFI backups, and privacy-conscious support reports. Run `app/python/run.bat` to open the menu. The built-in operations are read-only and do not upload files or modify disks, EFI files, or firmware.
 
 ## What this project is
 
