@@ -1,0 +1,77 @@
+name: Website quality checks
+
+on:
+  pull_request:
+    paths:
+      - "site/**"
+      - "docs/**"
+      - ".github/workflows/site-checks.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "site/**"
+      - "docs/**"
+      - ".github/workflows/site-checks.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  static-checks:
+    name: Validate site assets and HTML contracts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Check JavaScript syntax
+        run: |
+          node --check site/app.js
+          node --check site/tools.js
+      - name: Check HTML contracts, duplicate IDs, and release links
+        run: |
+          python - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+
+          class ContractParser(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.ids = []
+                  self.data_attributes = set()
+                  self.hrefs = []
+              def handle_starttag(self, tag, attrs):
+                  values = dict(attrs)
+                  if values.get("id"):
+                      self.ids.append(values["id"])
+                  self.data_attributes.update(key for key in values if key.startswith("data-"))
+                  if values.get("href"):
+                      self.hrefs.append(values["href"])
+
+          contracts = {
+              "site/index.html": {
+                  "ids": {"main-content", "home-view", "docs-view", "chapter-grid", "doc-article", "search-dialog"},
+                  "data": {"data-home-link", "data-guide-link"},
+              },
+              "site/tools.html": {
+                  "ids": {"tool-efi", "tool-config", "tool-hardware", "efi-run", "config-run", "hardware-run"},
+                  "data": {"data-tool-target", "data-tool-panel"},
+              },
+          }
+          release_asset = "https://github.com/kiwewe09-aa/Simple-Hackintosh/releases/download/v2.5.0/Simple-Hackintosh-CLI-v2.5.0.zip"
+          for filename, contract in contracts.items():
+              parser = ContractParser()
+              parser.feed(Path(filename).read_text(encoding="utf-8"))
+              duplicates = sorted({item for item in parser.ids if parser.ids.count(item) > 1})
+              missing_ids = sorted(contract["ids"].difference(parser.ids))
+              missing_data = sorted(contract["data"].difference(parser.data_attributes))
+              if duplicates or missing_ids or missing_data:
+                  raise SystemExit(f"{filename}: duplicates={duplicates}, missing IDs={missing_ids}, missing data attributes={missing_data}")
+              if release_asset not in parser.hrefs:
+                  raise SystemExit(f"{filename}: the v2.5.0 CLI download link is missing")
+          for filename in ("site/styles.css", "site/tools.css"):
+              css = Path(filename).read_text(encoding="utf-8")
+              if css.count("{") != css.count("}"):
+                  raise SystemExit(f"{filename}: unbalanced CSS braces")
+          print("Website JavaScript, HTML hooks, release links, and CSS braces passed.")
+          PY

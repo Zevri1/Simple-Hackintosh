@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0b1117">
-  <meta name="description" content="A hardware-first, practical field guide to OpenCore: learn compatibility, build a clean EFI, install macOS, and troubleshoot with confidence.">
+  <meta name="theme-color" content="#f4f1e9">
+  <meta name="description" content="A hardware-first OpenCore learning studio with practical diagnostics, clear documentation, and a cross-platform CLI.">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Simple Hackintosh — OpenCore Field Guide">
-  <meta property="og:description" content="Understand the hardware. Build the EFI. Know what every setting does.">
+  <meta property="og:title" content="Simple Hackintosh — Hardware & OpenCore Studio">
+  <meta property="og:description" content="Know your machine. Understand every check. Keep control of your tools.">
   <meta property="og:image" content="https://kiwewe09-aa.github.io/Simple-Hackintosh/social-preview.jpg">
   <meta property="og:url" content="https://kiwewe09-aa.github.io/Simple-Hackintosh/">
   <meta name="twitter:card" content="summary_large_image">
@@ -22,7 +22,7 @@
   </script>
   <link rel="stylesheet" href="styles.css">
   <script defer src="app.js"></script>
-  <title>Simple Hackintosh — OpenCore Field Guide</title>
+  <title>Simple Hackintosh — Hardware & OpenCore Studio</title>
 </head>
 <body>
   <a class="skip-link" href="#main-content">Skip to content</a>
@@ -41,6 +41,7 @@
       <a class="top-link" href="#chapters">Learning path</a>
       <a class="top-link" href="#guide" data-guide-link>Documentation</a>
       <a class="top-link" href="tools.html">Tools</a>
+      <a class="top-link top-download" href="https://github.com/kiwewe09-aa/Simple-Hackintosh/releases/download/v2.5.0/Simple-Hackintosh-CLI-v2.5.0.zip">Download CLI <span>↓</span></a>
       <a class="top-link" href="https://github.com/kiwewe09-aa/Simple-Hackintosh" target="_blank" rel="noopener noreferrer">GitHub <span>↗</span></a>
     </nav>
 
@@ -59,13 +60,14 @@
         <div class="hero-gridline" aria-hidden="true"></div>
         <div class="hero-copy">
           <div class="eyebrow"><span class="eyebrow-pulse"></span> AN OPENCORE LEARNING PROJECT <span class="eyebrow-year">— EST. 2026</span></div>
-          <h1>Make every<br><em>boot</em> intentional.</h1>
-          <p class="hero-lede">A hardware-first field guide to building, understanding, and maintaining an OpenCore setup. No mystery EFI folders. No guesswork disguised as instructions.</p>
+          <h1>Know your<br><em>machine.</em><br>Build with intent.</h1>
+          <p class="hero-lede">A practical learning studio for understanding your hardware, checking an EFI, and making sense of OpenCore. Clear diagnostics, useful documentation, and tools that keep the work on your computer.</p>
           <div class="hero-actions">
             <a class="button button-primary" href="#chapter/00-read-first">Start with the basics <span>↗</span></a>
             <a class="button button-secondary" href="#chapters">Explore the learning path</a>
+            <a class="button button-download" href="https://github.com/kiwewe09-aa/Simple-Hackintosh/releases/download/v2.5.0/Simple-Hackintosh-CLI-v2.5.0.zip">Download CLI v2.5.0 <span>↓</span></a>
           </div>
-          <div class="hero-footnote"><span class="footnote-mark">i</span> Educational guide · Compatibility depends on exact hardware and macOS version.</div>
+          <div class="hero-footnote"><span class="footnote-mark">i</span> Independent learning project · Verify hardware-specific compatibility before making changes.</div>
         </div>
 
         <div class="hero-visual" aria-label="Illustrated OpenCore boot sequence">
@@ -85,6 +87,20 @@
           <div class="visual-index">SH<span>/</span>01</div>
         </div>
       </div>
+
+      <section class="download-band" aria-label="Latest CLI release">
+        <div class="download-band-mark">SH<span>/</span>CLI</div>
+        <div class="download-band-copy">
+          <span class="download-kicker">DESKTOP TOOLKIT / LATEST RELEASE</span>
+          <h2>One toolbox. Two platforms.</h2>
+          <p>PowerShell menu on Windows, Terminal launcher on macOS, plus hardware reports and practical EFI diagnostics—all kept local.</p>
+        </div>
+        <div class="download-band-action">
+          <span class="download-version">VERSION 2.5.0 · PYTHON 3.10+</span>
+          <a class="button button-primary" href="https://github.com/kiwewe09-aa/Simple-Hackintosh/releases/download/v2.5.0/Simple-Hackintosh-CLI-v2.5.0.zip">Download the CLI <span>↓</span></a>
+          <a class="download-notes" href="https://github.com/kiwewe09-aa/Simple-Hackintosh/releases/tag/v2.5.0">Release notes & SHA-256 ↗</a>
+        </div>
+      </section>
 
       <div class="proof-strip">
         <div class="proof-intro"><span>THE GUIDE AT A GLANCE</span><b>Learn the system, not just the steps.</b></div>

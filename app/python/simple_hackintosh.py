@@ -18,11 +18,12 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import zipfile
+from datetime import datetime
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
-APP_VERSION = "2.4.0"
+APP_VERSION = "2.5.0"
 SECTIONS = (
     "ACPI", "Booter", "DeviceProperties", "Kernel",
     "Misc", "NVRAM", "PlatformInfo", "UEFI",
@@ -1126,45 +1127,75 @@ def _verify_hardware_sniffer_signature(executable: Path) -> str:
 
 
 def command_hardware_sniffer(output_dir: str = "HardwareReport") -> int:
-    """Launch the official interactive Hardware Sniffer to export Report.json on Windows."""
+    """Run the official OpCore-Simplify Hardware Sniffer and export Report.json on Windows."""
     if platform.system() != "Windows":
         if platform.system() == "Darwin":
             raise RuntimeError(
                 "OpCore-Simplify's Hardware Sniffer does not support macOS. "
                 "Use the built-in 'hardware' command there for a system_profiler report."
             )
-        raise RuntimeError("This packaged Hardware Sniffer integration is available on Windows only.")
+        raise RuntimeError("The official OpCore-Simplify Hardware Sniffer is available on Windows only.")
 
     working_dir = Path(output_dir).expanduser().resolve()
     report_path = working_dir / "SysReport" / "Report.json"
-    if report_path.exists():
-        raise RuntimeError(
-            f"A report already exists at {report_path}. Rename it or choose a new --output-dir."
-        )
     working_dir.mkdir(parents=True, exist_ok=True)
+
+    # Preserve a previous report instead of forcing users to choose a new folder.
+    if report_path.is_file():
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        archived = report_path.with_name(f"Report.previous-{stamp}.json")
+        suffix = 2
+        while archived.exists():
+            archived = report_path.with_name(f"Report.previous-{stamp}-{suffix}.json")
+            suffix += 1
+        report_path.replace(archived)
+        print(f"[INFO] Previous report preserved as: {archived}")
 
     executable, release_tag = _download_hardware_sniffer()
     signer = _verify_hardware_sniffer_signature(executable)
 
     print(f"Launching official Hardware Sniffer {release_tag}.")
     print(f"Verified publisher: {signer}")
-    print("")
-    print("In Hardware Sniffer, choose H to export the report, press Enter to dismiss the save message, then Q to quit.")
-    print("Do not choose A unless you explicitly want to dump ACPI tables.")
+    print("Collecting hardware details and exporting Report.json automatically...")
+    print("Only the report-export option is selected; ACPI tables are not dumped.")
     print(f"Expected report location: {report_path}")
-    print("")
 
+    # The upstream menu accepts H (export), Enter (dismiss confirmation), Q (quit),
+    # and Enter (dismiss its exit screen). Feeding the menu input avoids leaving
+    # the parent CLI waiting for a user or mistaking the helper's exit for failure.
+    menu_input = "H\n\nQ\n\n"
     try:
-        process = subprocess.run([str(executable)], cwd=str(working_dir), check=False)
+        process = subprocess.run(
+            [str(executable)],
+            cwd=str(working_dir),
+            input=menu_input,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=180,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(
+            "Hardware Sniffer did not finish within 180 seconds. Close it and retry; "
+            "the previous report, if any, was preserved."
+        ) from exc
     except OSError as exc:
-        raise RuntimeError(f"Could not launch Hardware Sniffer: {exc}") from exc
+        raise RuntimeError(f"Could not launch the verified Hardware Sniffer: {exc}") from exc
 
     if not report_path.is_file():
-        print("[ERROR] Report.json was not created. In Hardware Sniffer, press H to export, then Q to quit.", file=sys.stderr)
-        return process.returncode or 1
+        details = (process.stderr or process.stdout or "").strip()
+        details = details[-1800:] if details else "The helper produced no diagnostic output."
+        raise RuntimeError(
+            f"Hardware Sniffer exited with code {process.returncode} and did not create "
+            f"Report.json at {report_path}. Details: {details}"
+        )
+
     try:
-        if report_path.stat().st_size > 8 * 1024 * 1024:
-            raise RuntimeError("The generated Report.json is unexpectedly large.")
+        report_size = report_path.stat().st_size
+        if report_size <= 0 or report_size > 8 * 1024 * 1024:
+            raise RuntimeError("The generated Report.json is empty or exceeds the 8 MB safety limit.")
         with report_path.open("r", encoding="utf-8-sig") as stream:
             report = json.load(stream)
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -1172,6 +1203,11 @@ def command_hardware_sniffer(output_dir: str = "HardwareReport") -> int:
     if not isinstance(report, dict) or not report:
         raise RuntimeError("Hardware Sniffer Report.json does not contain a hardware report object.")
 
+    if process.returncode != 0:
+        print(
+            f"[WARN] Hardware Sniffer exited with code {process.returncode}, "
+            "but the exported JSON passed validation. Keeping the valid report."
+        )
     print("")
     print(f"[PASS] OpCore-Simplify hardware report saved to: {report_path}")
     print("Review the report before sharing it; device names and IDs can identify your hardware.")

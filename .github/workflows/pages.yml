@@ -27,6 +27,40 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Validate website JavaScript and HTML contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check site/app.js
+          node --check site/tools.js
+          python - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+
+          class ContractParser(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.ids = []
+                  self.data_attributes = set()
+              def handle_starttag(self, tag, attrs):
+                  values = dict(attrs)
+                  if values.get("id"):
+                      self.ids.append(values["id"])
+                  self.data_attributes.update(key for key in values if key.startswith("data-"))
+
+          requirements = {
+              "site/index.html": {"main-content", "home-view", "docs-view", "chapter-grid", "doc-article", "search-dialog"},
+              "site/tools.html": {"tool-efi", "tool-config", "tool-hardware", "efi-run", "config-run", "hardware-run"},
+          }
+          for filename, required in requirements.items():
+              parser = ContractParser()
+              parser.feed(Path(filename).read_text(encoding="utf-8"))
+              duplicates = sorted({value for value in parser.ids if parser.ids.count(value) > 1})
+              missing = sorted(required.difference(parser.ids))
+              if duplicates or missing:
+                  raise SystemExit(f"{filename}: duplicate IDs={duplicates}; missing IDs={missing}")
+          print("Website HTML contracts and JavaScript syntax passed.")
+          PY
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
