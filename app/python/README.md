@@ -35,7 +35,8 @@ Requirements: Python 3.10 or newer. Windows 10/11 is required for automatic hard
 | Run official ocvalidate | Runs the validator included with the user's matching OpenCore release |
 | Compare two EFI folders/ZIPs | Compares file paths and SHA-256 content hashes to find additions, removals, and changed files |
 | Back up an EFI folder | Creates a new ZIP backup without modifying or overwriting the source |
-| Download macOS Recovery | Runs the bundled OpenCore macrecovery tool to download and verify Recovery files from Apple |\n| Create an EFI starter | Builds an EFI folder from a supplied OpenCore release ZIP and copies its Sample.plist as a starting point |
+| Download macOS Recovery | Runs the bundled OpenCore macrecovery tool to download and verify Recovery files from Apple |
+| Create an EFI starter | Builds an EFI folder from a supplied OpenCore release ZIP and copies its Sample.plist as a starting point |
 | Create a support report | Produces a shareable report without raw config.plist or SMBIOS identity values |
 
 ## CMD commands
