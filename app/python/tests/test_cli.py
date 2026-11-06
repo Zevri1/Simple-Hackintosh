@@ -12,6 +12,7 @@ from simple_hackintosh import (
     _pci_ids,
     _safe_archive_name,
     build_support_report,
+    command_backup_efi,
     check_config_file,
     check_efi_path,
     hardware_report_markdown,
@@ -143,6 +144,40 @@ class EfiCheckTests(unittest.TestCase):
             findings, summary = check_efi_path(parent)
             self.assertIsNotNone(summary)
             self.assertFalse([item for item in findings if item.level in ("WARN", "ERROR")])
+
+
+class BackupTests(unittest.TestCase):
+    def test_backup_creates_zip_and_preserves_source(self):
+        with tempfile.TemporaryDirectory() as temp:
+            base = Path(temp)
+            efi = base / "EFI"
+            efi.mkdir()
+            sample = efi / "sample.txt"
+            sample.write_text("EFI stays unchanged", encoding="utf-8")
+            archive = base / "backup.zip"
+            self.assertEqual(command_backup_efi(str(efi), str(archive)), 0)
+            self.assertEqual(sample.read_text(encoding="utf-8"), "EFI stays unchanged")
+            with zipfile.ZipFile(archive) as zipped:
+                self.assertEqual(zipped.read("sample.txt"), b"EFI stays unchanged")
+
+    def test_backup_does_not_overwrite_existing_zip(self):
+        with tempfile.TemporaryDirectory() as temp:
+            base = Path(temp)
+            efi = base / "EFI"
+            efi.mkdir()
+            (efi / "sample.txt").write_text("source", encoding="utf-8")
+            archive = base / "backup.zip"
+            archive.write_bytes(b"keep this file")
+            self.assertEqual(command_backup_efi(str(efi), str(archive)), 2)
+            self.assertEqual(archive.read_bytes(), b"keep this file")
+
+    def test_backup_refuses_destination_inside_source(self):
+        with tempfile.TemporaryDirectory() as temp:
+            efi = Path(temp) / "EFI"
+            efi.mkdir()
+            (efi / "sample.txt").write_text("source", encoding="utf-8")
+            self.assertEqual(command_backup_efi(str(efi), str(efi / "backup.zip")), 2)
+            self.assertFalse((efi / "backup.zip").exists())
 
 
 class CompareTests(unittest.TestCase):
