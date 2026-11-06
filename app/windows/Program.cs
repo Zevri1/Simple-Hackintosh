@@ -51,6 +51,8 @@ internal sealed class MainForm : Form
     private readonly Dictionary<string, Button> _nav = new();
     private string _selectedSource = "";
     private string? _currentHardwareProfileJson;
+    private string _currentPageKey = "home";
+    private bool _configEditorHasUnsavedChanges;
     private TextBox? _hardwareReportBox;
     private CancellationTokenSource? _installerDownloadCts;
     private CancellationTokenSource? _opencoreBuildCts;
@@ -135,8 +137,24 @@ internal sealed class MainForm : Form
         parent.Controls.Add(button);
     }
 
+    private bool ConfirmDiscardConfigEditorChanges()
+    {
+        if (!_configEditorHasUnsavedChanges) return true;
+        return MessageBox.Show(this,
+            "The Config Editor contains changes that have not been saved to a new file. Discard those in-memory changes?",
+            "Unsaved config.plist changes", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes;
+    }
+
     private void ShowPage(string key)
     {
+        bool isLeavingEditor = _currentPageKey == "editor" && key != "editor";
+        bool isReloadingEditor = _currentPageKey == "editor" && key == "editor";
+        if (_configEditorHasUnsavedChanges && (isLeavingEditor || isReloadingEditor))
+        {
+            if (!ConfirmDiscardConfigEditorChanges()) return;
+            _configEditorHasUnsavedChanges = false;
+        }
+        _currentPageKey = key;
         foreach (var item in _nav)
         {
             bool active = item.Key == key;
@@ -1158,6 +1176,7 @@ internal sealed class MainForm : Form
                 Title = "Open an XML config.plist"
             };
             if (dialog.ShowDialog(this) != DialogResult.OK) return;
+            if (!ConfirmDiscardConfigEditorChanges()) return;
             try
             {
                 var info = new FileInfo(dialog.FileName);
@@ -1167,6 +1186,7 @@ internal sealed class MainForm : Form
                 session = ConfigPlistEditorSession.Load(xml);
                 sourcePath = dialog.FileName;
                 allEntries = session.Entries;
+                _configEditorHasUnsavedChanges = false;
                 sourceLabel.Text = $"Loaded: {sourcePath}  ·  {allEntries.Count} editable scalar value(s)";
                 status.Text = "Changes remain in memory until you save a new file.";
                 saveAs.Enabled = true;
@@ -1174,12 +1194,8 @@ internal sealed class MainForm : Form
             }
             catch (Exception ex)
             {
-                session = null;
-                sourcePath = null;
-                allEntries = Array.Empty<PlistEditableEntry>();
-                entries.Items.Clear();
-                ShowSelectedEntry();
-                saveAs.Enabled = false;
+                status.Text = "The selected file could not be opened. The previously loaded document and its in-memory changes remain available.";
+                status.ForeColor = Yellow;
                 MessageBox.Show(this, ex.Message, "Could not open config.plist", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         };
@@ -1197,6 +1213,7 @@ internal sealed class MainForm : Form
                 string changedPath = selectedEntry.Path;
                 session.SetValue(selectedEntry, newValue);
                 allEntries = session.Entries;
+                _configEditorHasUnsavedChanges = true;
                 status.Text = "Value updated in memory. Save a separate copy when the review is complete.";
                 status.ForeColor = Green;
                 RefreshEntries(changedPath);
@@ -1222,7 +1239,7 @@ internal sealed class MainForm : Form
             try
             {
                 session.SaveAsNewFile(dialog.FileName);
-                modified = false;
+                _configEditorHasUnsavedChanges = false;
                 status.Text = "Saved new file: " + dialog.FileName;
                 status.ForeColor = Green;
                 MessageBox.Show(this,
