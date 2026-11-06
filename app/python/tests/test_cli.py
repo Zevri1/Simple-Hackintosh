@@ -254,7 +254,7 @@ class HardwareSnifferIntegrationTests(unittest.TestCase):
             ):
                 self.assertEqual(command_hardware_sniffer(str(root / "output")), 0)
 
-            self.assertEqual(captured["input"], "H\\n\\nQ\\n\\n")
+            self.assertEqual(captured["input"], "H\n\nQ\n\n")
             self.assertTrue(captured["capture_output"])
             self.assertTrue(captured["text"])
             self.assertEqual(captured["timeout"], 180)
