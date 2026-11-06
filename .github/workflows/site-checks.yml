@@ -58,7 +58,7 @@ jobs:
                   "data": {"data-tool-target", "data-tool-panel"},
               },
           }
-          release_asset = "https://github.com/kiwewe09-aa/Simple-Hackintosh/releases/download/v2.5.1/Simple-Hackintosh-CLI-v2.5.1.zip"
+          release_asset = "https://github.com/kiwewe09-aa/Simple-Hackintosh/releases/download/v2.5.2/Simple-Hackintosh-CLI-v2.5.2.zip"
           for filename, contract in contracts.items():
               parser = ContractParser()
               parser.feed(Path(filename).read_text(encoding="utf-8"))
@@ -68,7 +68,7 @@ jobs:
               if duplicates or missing_ids or missing_data:
                   raise SystemExit(f"{filename}: duplicates={duplicates}, missing IDs={missing_ids}, missing data attributes={missing_data}")
               if release_asset not in parser.hrefs:
-                  raise SystemExit(f"{filename}: the v2.5.1 CLI download link is missing")
+                  raise SystemExit(f"{filename}: the v2.5.2 CLI download link is missing")
           for filename in ("site/styles.css", "site/tools.css"):
               css = Path(filename).read_text(encoding="utf-8")
               if css.count("{") != css.count("}"):
