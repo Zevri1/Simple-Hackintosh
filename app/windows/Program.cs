@@ -321,6 +321,86 @@ internal sealed class MainForm : Form
         return page;
     }
 
+    private Control BuildMacOSDownloaderPage()
+    {
+        var page = NewPage();
+        var versions = new ComboBox { Location = new Point(0, 20), Size = new Size(550, 34), DropDownStyle = ComboBoxStyle.DropDownList };
+        var refresh = MakeButton("Load Apple catalog", true, new Point(565, 18), new Size(180, 36));
+        var choose = MakeButton("Choose drive/folder", false, new Point(0, 72), new Size(180, 36));
+        var download = MakeButton("Download full installer", true, new Point(190, 72), new Size(200, 36));
+        var cancel = MakeButton("Cancel", false, new Point(400, 72), new Size(100, 36));
+        var destination = new Label { Text = "No destination selected", ForeColor = TextMuted, Location = new Point(0, 122), Size = new Size(850, 24), AutoEllipsis = true };
+        var progress = new ProgressBar { Location = new Point(0, 154), Size = new Size(850, 18), Minimum = 0, Maximum = 100 };
+        var status = new Label { Text = "Downloads Apple's full InstallAssistant.pkg directly to your selected drive. No Recovery image.", ForeColor = TextMuted, Location = new Point(0, 184), Size = new Size(850, 52) };
+        page.Controls.AddRange(new Control[] { versions, refresh, choose, download, cancel, destination, progress, status });
+        string? folder = null;
+        download.Enabled = false;
+        cancel.Enabled = false;
+
+        choose.Click += (_, _) =>
+        {
+            using var dialog = new FolderBrowserDialog { Description = "Select the drive or folder for the macOS installer package." };
+            if (dialog.ShowDialog(this) == DialogResult.OK)
+            {
+                folder = dialog.SelectedPath;
+                destination.Text = folder;
+                download.Enabled = versions.SelectedItem is AppleInstallerOption;
+            }
+        };
+        refresh.Click += async (_, _) =>
+        {
+            refresh.Enabled = false;
+            status.Text = "Reading Apple's public full-installer catalog…";
+            try
+            {
+                var entries = await AppleInstallerCatalog.GetInstallersAsync();
+                versions.DataSource = entries.ToList();
+                versions.DisplayMember = nameof(AppleInstallerOption.Title);
+                versions.ValueMember = nameof(AppleInstallerOption.ProductId);
+                status.Text = $"Loaded {entries.Count} full installer(s) from Apple.";
+                download.Enabled = entries.Count > 0 && folder is not null;
+            }
+            catch (Exception ex) { status.Text = "Catalog error: " + ex.Message; }
+            finally { refresh.Enabled = true; }
+        };
+        versions.SelectedIndexChanged += (_, _) => download.Enabled = versions.SelectedItem is AppleInstallerOption && folder is not null && _installerDownloadCts is null;
+        cancel.Click += (_, _) => _installerDownloadCts?.Cancel();
+        download.Click += async (_, _) =>
+        {
+            if (versions.SelectedItem is not AppleInstallerOption selected || folder is null) return;
+            _installerDownloadCts = new CancellationTokenSource();
+            download.Enabled = false; refresh.Enabled = false; choose.Enabled = false; cancel.Enabled = true;
+            var reporter = new Progress<(long Received, long? Expected)>(value =>
+            {
+                if (value.Expected is > 0)
+                {
+                    progress.Style = ProgressBarStyle.Continuous;
+                    progress.Value = (int)Math.Clamp(value.Received * 100L / value.Expected.Value, 0, 100);
+                    status.Text = $"{value.Received / 1073741824d:0.00} GB / {value.Expected.Value / 1073741824d:0.00} GB";
+                }
+                else { progress.Style = ProgressBarStyle.Marquee; status.Text = $"{value.Received / 1073741824d:0.00} GB downloaded"; }
+            });
+            try
+            {
+                var path = await AppleInstallerCatalog.DownloadAsync(selected, folder, reporter, _installerDownloadCts.Token);
+                status.Text = "Saved to " + path;
+                MessageBox.Show(this, "Full installer package saved to:
+
+" + path, "Download complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (OperationCanceledException) { status.Text = "Download cancelled. Partial data was removed."; }
+            catch (Exception ex) { status.Text = "Download failed: " + ex.Message; }
+            finally
+            {
+                _installerDownloadCts.Dispose(); _installerDownloadCts = null;
+                download.Enabled = versions.SelectedItem is AppleInstallerOption && folder is not null;
+                refresh.Enabled = true; choose.Enabled = true; cancel.Enabled = false;
+                progress.Style = ProgressBarStyle.Continuous;
+            }
+        };
+        return page;
+    }
+
     private Control BuildHardwarePage()
     {
         var page = NewPage();
