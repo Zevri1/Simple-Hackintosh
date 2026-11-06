@@ -12,7 +12,6 @@ internal sealed record HardwareKextFinding(string Component, string Status, stri
 
 internal static class HardwareKextCompatibilityService
 {
-    private const string DortaniaKextGuide = "https://dortania.github.io/OpenCore-Install-Guide/ktext.html";
     private const string WirelessGuide = "https://dortania.github.io/Wireless-Buyers-Guide/Kext.html";
     private const string IntelMausiGuide = "https://github.com/acidanthera/IntelMausi";
     private const string AppleAlcGuide = "https://github.com/acidanthera/AppleALC/wiki/Supported-codecs";
@@ -239,18 +238,21 @@ internal static class HardwareKextCompatibilityService
             lines.Add("## " + item.Component + " — " + item.Status);
             lines.Add(item.Evidence);
             lines.Add("Next step: " + item.NextStep);
-            if (Uri.TryCreate(item.SourceUrl, UriKind.Absolute, out var uri) &&
-                uri.Scheme == Uri.UriSchemeHttps &&
-                uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase) ||
-                Uri.TryCreate(item.SourceUrl, UriKind.Absolute, out uri) &&
-                uri.Scheme == Uri.UriSchemeHttps &&
-                uri.Host.Equals("dortania.github.io", StringComparison.OrdinalIgnoreCase))
+            if (IsTrustedGuideUrl(item.SourceUrl))
                 lines.Add("Upstream guide: " + item.SourceUrl);
             lines.Add("");
         }
 
         lines.Add("Use the exact OpenCore and macOS versions for the final review. Run the matching official ocvalidate after any config.plist change. A candidate match is not a guarantee that a Kext will work.");
         return string.Join(Environment.NewLine, lines);
+    }
+
+    private static bool IsTrustedGuideUrl(string value)
+    {
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps)
+            return false;
+        return uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase) ||
+               uri.Host.Equals("dortania.github.io", StringComparison.OrdinalIgnoreCase);
     }
 
     private static JsonElement GetObject(JsonElement parent, string key) =>

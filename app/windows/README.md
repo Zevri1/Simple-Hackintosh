@@ -2,7 +2,7 @@
 
 A native Windows Forms (.NET 10) desktop companion for the Simple Hackintosh field guide. It is a graphical application, not a CMD menu.
 
-## Included in preview 0.5.0
+## Included in preview 0.6.0
 
 - **EFI Checker:** inspects a selected EFI directory or ZIP archive without extracting it, checks the basic OpenCore layout, parses XML config.plist, and tests enabled ACPI, Kext, and UEFI driver file references.
 - **Config Validator:** parses XML property lists securely, checks common OpenCore sections and value container types, and can download the official Windows `ocvalidate.exe` from a selected stable Acidanthera release after verifying the enclosing ZIP digest. A release picker supports older OpenCore versions. It can also import a local official RELEASE ZIP for offline validation after matching its SHA-256 against the digest published for that exact GitHub release asset. It checks the validator's embedded OpenCore version before running it and reports upstream findings.
@@ -11,8 +11,15 @@ A native Windows Forms (.NET 10) desktop companion for the Simple Hackintosh fie
 - **OpenCore Builder:** discovers the latest stable release from the official Acidanthera GitHub repository, checks the release asset SHA-256 digest, and creates an x64 EFI starter with the matching `Sample.plist`. ZIP paths, links, archive size and output collisions are checked before creating the final `EFI` folder.
 - **Hardware Profile v1:** exports detected Windows hardware as JSON compatible with the shared schema and imports/validates schema-v1 profiles. It preserves PCI IDs and exact HDAUDIO codec vendor/device IDs when Windows exposes them, while omitting device instance paths, serial numbers, UUIDs, SMBIOS identifiers and network MAC addresses.
 - **Kext Manager and Official Kext Library:** provide two curated views of official Acidanthera Kext releases. Downloads require the GitHub-published SHA-256 digest, verify the ZIP, reject unsafe archive paths, and extract only Kext bundles into a new folder. The expanded library also shows dependency notes, upstream macOS compatibility statements, and direct documentation links. These notes do not replace checking the exact hardware and target macOS; no Kext is injected into an existing EFI or enabled automatically. The library also offers a local Hardware-to-Kext Review that cross-checks the detected PCI IDs, adapters, GPU, HDAUDIO codec IDs and storage against known upstream evidence, while explicitly marking unknowns and review-only matches. It does not modify `config.plist`, partitions, or firmware.
-- **Official Kext Library:** checks stable releases from a curated set of upstream Acidanthera repositories, requires a GitHub-published SHA-256 digest before downloading, verifies the archive, and extracts only `.kext` bundles into a new staging folder. Existing EFI folders and `config.plist` files are never changed.
+
 - **Config Editor:** edits existing String, Integer, Real and Boolean values in an XML config.plist, supports search by property path, and saves to a new file without overwriting the source. Arrays, dictionaries, Data and Date values remain read-only; run version-matched `ocvalidate` after editing.
+
+## Preview 0.6.0 additions
+
+- Hardware-to-Kext Review uses the local Hardware Profile v1 and keeps potential matches separate from verified support. It reviews GPU, Intel wireless, Intel Ethernet, audio and storage evidence without enabling or injecting any Kext.
+- Windows hardware collection now captures HDAUDIO function-01 codec vendor/device IDs when present. Only the codec IDs are stored; full PnP instance paths are not exported.
+- The audio review checks that an exact codec ID exists before recommending any AppleALC layout investigation. It does not guess a layout-id.
+- The analyzer's reports include upstream documentation links, unknown-data notes, and the selected target macOS string.
 
 ## Remaining Windows roadmap
 
@@ -57,4 +64,4 @@ The Windows GitHub Actions workflow builds the app and stores the portable execu
 
 ## Current target
 
-Windows x64, version 0.5.0 (preview).
+Windows x64, version 0.6.0 (preview).

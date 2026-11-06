@@ -1,6 +1,6 @@
 # Windows Desktop Studio — Factory Work Packages
 
-**Target:** Simple Hackintosh Windows desktop v0.4 preview  
+**Target:** Simple Hackintosh Windows desktop v0.6 preview  
 **Current delivery branch:** `chatgpt/windows-desktop-app-v2`  
 **Coordination rule:** one owner per workstream; shared contracts are reviewed before integration.
 
@@ -66,7 +66,7 @@ Keep the existing native Windows Forms application on .NET 10. Do not introduce 
 - Support property-path filtering and save-as-new-file; never overwrite the source file.
 - Keep arrays, dictionaries, binary Data and Date values read-only until their versioned schema rules are implemented.
 
-**Implemented in v0.5 preview**
+**Implemented in v0.6 preview**
 - Import an exact official OpenCore RELEASE ZIP for offline validation.
 - Require the SHA-256 digest copied from the corresponding Acidanthera GitHub release asset; compare it before parsing or extracting the validator.
 - Keep the selected archive open read-only while hashing and extracting, preventing file replacement between verification and use.

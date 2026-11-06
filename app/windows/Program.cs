@@ -102,7 +102,7 @@ internal sealed class MainForm : Form
         var privacy = new Panel { BackColor = Panel, BorderStyle = BorderStyle.FixedSingle, Location = new Point(18, 556), Size = new Size(194, 116), Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom };
         privacy.Controls.Add(new Label { Text = "●  LOCAL PROCESSING", ForeColor = Green, Font = new Font("Consolas", 8, FontStyle.Bold), Location = new Point(12, 13), AutoSize = true });
         privacy.Controls.Add(new Label { Text = "Your EFI and hardware reports stay local.\r\nOfficial downloads come from upstream.", ForeColor = TextMuted, Font = new Font("Segoe UI", 8), Location = new Point(12, 39), Size = new Size(164, 43) });
-        privacy.Controls.Add(new Label { Text = "SIMPLE HACKINTOSH  ·  0.5.0", ForeColor = TextSoft, Font = new Font("Consolas", 7), Location = new Point(12, 88), AutoSize = true });
+        privacy.Controls.Add(new Label { Text = "SIMPLE HACKINTOSH  ·  0.6.0", ForeColor = TextSoft, Font = new Font("Consolas", 7), Location = new Point(12, 88), AutoSize = true });
         sidebar.Controls.Add(privacy);
 
         var main = new Panel { Dock = DockStyle.Fill, BackColor = Background };
