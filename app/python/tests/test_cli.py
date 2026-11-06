@@ -130,10 +130,11 @@ class CreateEfiTests(unittest.TestCase):
             package = root / "OpenCore.zip"
             output = root / "EFI"
             self._make_release(package)
+            marker_name = f"escaped-{root.name}.txt"
             with zipfile.ZipFile(package, "a") as archive:
-                archive.writestr("../../outside.txt", b"do not extract")
+                archive.writestr(f"../../{marker_name}", b"do not extract")
             self.assertEqual(command_create_efi(str(package), str(output)), 0)
-            self.assertFalse((root.parent / "outside.txt").exists())
+            self.assertFalse((root.parent / marker_name).exists())
 
 class ConfigValidationTests(unittest.TestCase):
     def test_accepts_minimal_main_sections(self):
