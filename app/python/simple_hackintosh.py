@@ -746,6 +746,23 @@ def command_ocvalidate(config_path: str, tool_path: str, expected_version: str |
     return 1
 
 
+
+def command_macrecovery(arguments: list[str] | None = None) -> int:
+    """Run the bundled upstream OpenCore macrecovery utility."""
+    script = Path(__file__).resolve().parent / "macrecovery" / "macrecovery.py"
+    if not script.is_file():
+        print(f"[ERROR] Bundled macrecovery.py was not found: {script}", file=sys.stderr)
+        return 2
+
+    forwarded = list(arguments or ["--help"])
+    command = [sys.executable, str(script), *forwarded]
+    print("[INFO] Running the bundled OpenCore macrecovery utility.")
+    try:
+        return subprocess.run(command, check=False).returncode
+    except OSError as exc:
+        print(f"[ERROR] Could not start macrecovery: {exc}", file=sys.stderr)
+        return 2
+
 def build_support_report(efi_path: str, include_hardware: bool = True) -> dict[str, Any]:
     findings, summary = check_efi_path(Path(efi_path).expanduser())
     report: dict[str, Any] = {
@@ -825,6 +842,7 @@ def interactive_menu() -> int:
         print("  6. Create a support report")
         print("  7. Check this program (doctor)")
         print("  8. Back up an EFI folder to ZIP")
+        print("  9. Download Apple macOS Recovery (OpenCore macrecovery)")
         print("  0. Exit")
         try:
             choice = input("\nChoose an option: ").strip()
@@ -867,6 +885,19 @@ def interactive_menu() -> int:
                 output = input("Backup ZIP filename [EFI-backup.zip]: ").strip() or "EFI-backup.zip"
                 if path:
                     command_backup_efi(path, output)
+            elif choice == "9":
+                print("This downloads Apple's Recovery image and chunklist to a folder.")
+                print("It does not erase, format, or write to a USB drive.")
+                version_choice = input("Recovery version [1=latest, 2=default] (1): ").strip().lower()
+                if version_choice in ("", "1", "latest"):
+                    os_type = "latest"
+                elif version_choice in ("2", "default"):
+                    os_type = "default"
+                else:
+                    print("Please choose 1 (latest) or 2 (default).")
+                    continue
+                output = input("Output folder [com.apple.recovery.boot]: ").strip().strip('"') or "com.apple.recovery.boot"
+                command_macrecovery(["download", "--os-type", os_type, "--outdir", output])
             else:
                 print("Please choose one of the listed numbers.")
         except (KeyboardInterrupt, EOFError):
@@ -906,6 +937,15 @@ def build_parser() -> argparse.ArgumentParser:
     official.add_argument("--tool", required=True, help="Path to the matching ocvalidate executable.")
     official.add_argument("--expect-version", help="Expected OpenCore version; validation is stopped if it does not match.")
 
+    macrecovery = commands.add_parser(
+        "macrecovery",
+        help="Run the bundled OpenCore macrecovery utility (downloads Apple Recovery files).",
+    )
+    macrecovery.add_argument(
+        "arguments", nargs=argparse.REMAINDER,
+        help="Arguments passed to macrecovery.py; use -h to see its options.",
+    )
+
     backup = commands.add_parser("backup-efi", help="Create a new ZIP backup from an EFI folder without changing the source.")
     backup.add_argument("path", help="Extracted EFI folder to back up.")
     backup.add_argument("--output", "-o", default="EFI-backup.zip", help="New ZIP path; existing files are never overwritten.")
@@ -943,6 +983,8 @@ def main(argv: list[str] | None = None) -> int:
             return command_config(args.path, args.output, args.json)
         if args.command == "ocvalidate":
             return command_ocvalidate(args.config, args.tool, args.expect_version)
+        if args.command == "macrecovery":
+            return command_macrecovery(args.arguments)
         if args.command == "backup-efi":
             return command_backup_efi(args.path, args.output)
         if args.command == "compare-efi":
