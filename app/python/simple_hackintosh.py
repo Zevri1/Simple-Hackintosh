@@ -18,7 +18,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
-APP_VERSION = "2.1.0"
+APP_VERSION = "2.2.0"
 SECTIONS = (
     "ACPI", "Booter", "DeviceProperties", "Kernel",
     "Misc", "NVRAM", "PlatformInfo", "UEFI",
@@ -411,6 +411,7 @@ $devices = @(Get-CimInstance Win32_PnPEntity | Where-Object {
     result["Devices"] = _as_list(result.get("Devices"))
     result["GPUs"] = _as_list(result.get("GPUs"))
     result["Disks"] = _as_list(result.get("Disks"))
+    result["macOSCompatibility"] = estimate_macos_compatibility(result)
     return result
 
 
@@ -448,7 +449,170 @@ def _device_category(device: dict[str, Any]) -> str:
     return "Other"
 
 
+
+
+def estimate_macos_compatibility(data: dict[str, Any]) -> dict[str, Any]:
+    """Return a conservative, evidence-linked macOS hardware estimate.
+
+    This is a rules-based hint, not a bootability test. It intentionally only
+    gives a version ceiling for Intel iGPUs covered by the cited community guide.
+    """
+    cpu_name = str(data.get("CPU") or "")
+    cpu_match = re.search(r"\bi[3579]\s*-\s*(\d{4,5})([A-Z]{1,3})?", cpu_name, re.IGNORECASE)
+    generation: int | None = None
+    if cpu_match:
+        model_number = cpu_match.group(1)
+        if model_number.startswith(("10", "11", "12", "13", "14", "15", "16")):
+            generation = int(model_number[:2])
+        else:
+            generation = int(model_number[0])
+
+    gpu_entries = [item for item in _as_list(data.get("GPUs")) if isinstance(item, dict)]
+    gpu_names = [str(item.get("Name") or "") for item in gpu_entries if item.get("Name")]
+    graphics_devices = [
+        item for item in _as_list(data.get("Devices"))
+        if isinstance(item, dict) and _device_category(item) == "Graphics"
+    ]
+    gpu_names.extend(str(item.get("Name") or "") for item in graphics_devices if item.get("Name"))
+    gpu_names = list(dict.fromkeys(name for name in gpu_names if name.strip()))
+
+    gpu_ids: list[str] = []
+    for device in graphics_devices:
+        for pci_id in _pci_ids(device.get("HardwareIDs")):
+            if pci_id not in gpu_ids:
+                gpu_ids.append(pci_id)
+    device_codes = {item.split("&DEV_")[-1] for item in gpu_ids if "&DEV_" in item}
+    gpu_text = " ".join(gpu_names).casefold()
+    intel_detected = "intel" in gpu_text or any(item.startswith("VEN_8086&") for item in gpu_ids)
+
+    sources = [
+        {
+            "title": "Dortania — Intel GPU Buyers Guide",
+            "url": "https://dortania.github.io/GPU-Buyers-Guide/modern-gpus/intel-gpu.html",
+        },
+        {
+            "title": "Dortania — OpenCore hardware limitations and CPU support",
+            "url": "https://dortania.github.io/OpenCore-Install-Guide/macos-limits.html",
+        },
+        {
+            "title": "Dortania — macOS 26 Tahoe notes",
+            "url": "https://dortania.github.io/OpenCore-Install-Guide/extras/tahoe.html",
+        },
+    ]
+    base = {
+        "cpu": cpu_name or "Not reported",
+        "cpu_generation": generation,
+        "gpu_names": gpu_names,
+        "gpu_pci_ids": gpu_ids,
+        "sources": sources,
+        "limitations": [
+            "This estimate does not test booting or validate an EFI.",
+            "Wi-Fi, Bluetooth, audio, sleep, USB mapping, storage, BIOS settings, ACPI and display routing need separate checks.",
+            "A discrete GPU may change the result; the estimator does not automatically decide whether it can replace or disable an unsupported iGPU.",
+        ],
+    }
+
+    unsupported_intel_gpu = bool(re.search(
+        r"\b(?:UHD\s*(?:600|605|610)|HD\s*(?:400|405|500|505|510)|Iris\s*Xe|Intel\s*Arc|Arc\s+Graphics)\b",
+        gpu_text,
+        re.IGNORECASE,
+    ))
+    unsupported_intel_ids = bool(device_codes.intersection({"9B21", "3E90", "3E93", "3E99", "3E9C", "9BA5", "9BA8"}))
+    supported_intel_names = bool(re.search(
+        r"\b(?:UHD\s*(?:615|617|620|630)|HD\s*(?:515|520|530|615|620|630)|Iris\s*(?:Plus\s*)?(?:540|550|580|640|645|650|655))\b",
+        gpu_text,
+        re.IGNORECASE,
+    ))
+    supported_comet_ids = bool(device_codes.intersection({
+        "9B41", "9BAC", "9BCA", "9BCC", "9BC8", "9BC5",
+        "3E92", "3E9B", "3EA0", "3EA9", "3EA6", "3E94",
+        "9BC6", "9BE6", "9BF6", "5917", "5926", "5927",
+    }))
+
+    if intel_detected and (unsupported_intel_gpu or unsupported_intel_ids):
+        return {
+            **base,
+            "status": "limited",
+            "target": "No reliable hardware-accelerated macOS target from this Intel iGPU alone",
+            "confidence": "High for the detected iGPU limitation",
+            "gpu_family": "Intel iGPU family listed as unsupported in the GPU Buyers Guide",
+            "experimental_target": None,
+            "notes": [
+                "The detected Intel integrated GPU model or device ID is in a family that the cited GPU guide lists as unsupported.",
+                "This does not assess a separate compatible discrete GPU.",
+            ],
+        }
+
+    if intel_detected and (supported_intel_names or supported_comet_ids):
+        if generation is not None and generation > 10:
+            return {
+                **base,
+                "status": "limited",
+                "target": "No conservative recommendation: CPU generation is newer than the cited Intel laptop support range",
+                "confidence": "Medium",
+                "gpu_family": "Intel integrated graphics identified, but the CPU generation is outside the guide's documented laptop range",
+                "experimental_target": None,
+                "notes": [
+                    "The OpenCore guide documents Intel Core i/Xeon laptop CPUs through Ice Lake; newer CPU generations need separate, current evidence.",
+                ],
+            }
+
+        family = "Intel integrated graphics (supported UHD/HD/Iris family)"
+        if "9B41" in device_codes and generation == 10:
+            family = "Intel Comet Lake-U UHD Graphics (PCI device 0x9B41)"
+        elif re.search(r"UHD\s*630", gpu_text, re.IGNORECASE) or device_codes.intersection({"3E92", "3E9B", "9BC8", "9BC5"}):
+            family = "Intel UHD Graphics 630 family"
+        elif re.search(r"UHD\s*620", gpu_text, re.IGNORECASE) or device_codes.intersection({"3EA0", "3EA9", "5917"}):
+            family = "Intel UHD Graphics 620 family"
+
+        return {
+            **base,
+            "status": "documented-baseline",
+            "target": "macOS Sequoia 15 (conservative documented graphics ceiling)",
+            "confidence": "Medium — GPU family recognised; whole-system compatibility is not tested",
+            "gpu_family": family,
+            "experimental_target": "macOS Tahoe 26 — experimental; verify the exact model, SMBIOS and required patches separately",
+            "notes": [
+                "The Intel GPU guide lists the recognised UHD/HD/Iris families in this generation group through macOS Sequoia 15.",
+                "The Intel laptop CPU guide includes supported generations through Ice Lake. Exact CPU family and laptop implementation still matter.",
+                "Tahoe 26 is not counted as the conservative ceiling: its guide documents a narrower SMBIOS set and additional hardware caveats.",
+                "Framebuffer configuration and Lilu/WhateverGreen requirements vary by GPU and laptop.",
+            ],
+        }
+
+    if intel_detected and re.search(r"\bHD\s*4000\b", gpu_text, re.IGNORECASE):
+        return {
+            **base,
+            "status": "documented-baseline",
+            "target": "macOS Big Sur 11 (conservative graphics ceiling)",
+            "confidence": "Medium — Intel HD 4000 family recognised",
+            "gpu_family": "Intel HD Graphics 4000 / Ivy Bridge",
+            "experimental_target": None,
+            "notes": [
+                "The cited GPU guide says Intel HD 4000 support was dropped starting with macOS Monterey.",
+                "The CPU, audio, networking and remaining components still require separate checks.",
+            ],
+        }
+
+    return {
+        **base,
+        "status": "unknown",
+        "target": "Insufficient hardware data for a reliable macOS version estimate",
+        "confidence": "Low",
+        "gpu_family": "; ".join(gpu_names) if gpu_names else "Graphics adapter not identified",
+        "experimental_target": None,
+        "notes": [
+            "The detected GPU does not match a sufficiently specific rule in this estimator.",
+            "Check the exact GPU model and PCI device ID against the current GPU Buyers Guide before choosing a macOS version.",
+        ],
+    }
+
+
 def hardware_report_markdown(data: dict[str, Any]) -> str:
+    compatibility = data.get("macOSCompatibility")
+    if not isinstance(compatibility, dict):
+        compatibility = estimate_macos_compatibility(data)
+
     lines = [
         "# Simple Hackintosh — Hardware inventory",
         "",
@@ -479,6 +643,26 @@ def hardware_report_markdown(data: dict[str, Any]) -> str:
         text = str(value).strip() if value is not None else "Not reported"
         lines.append(f"| {label} | {text.replace('|', '/')} |")
 
+    lines.extend([
+        "",
+        "## macOS compatibility estimate",
+        "",
+        f"- **Conservative target:** {compatibility.get('target', 'Unknown')}",
+        f"- **Confidence:** {compatibility.get('confidence', 'Not available')}",
+        f"- **Detected graphics family:** {compatibility.get('gpu_family', 'Unknown')}",
+    ])
+    if compatibility.get("experimental_target"):
+        lines.append(f"- **Experimental possibility:** {compatibility['experimental_target']}")
+    if compatibility.get("notes"):
+        lines.extend(["", "**Why this estimate was made:**"])
+        lines.extend(f"- {note}" for note in compatibility["notes"])
+    if compatibility.get("limitations"):
+        lines.extend(["", "**Not checked by this estimate:**"])
+        lines.extend(f"- {note}" for note in compatibility["limitations"])
+    if compatibility.get("sources"):
+        lines.extend(["", "**Reference guides:**"])
+        lines.extend(f"- [{item['title']}]({item['url']})" for item in compatibility["sources"])
+
     lines.extend(["", "## PCI and device inventory", "", "| Category | Device | PCI IDs | Status |", "|---|---|---|---|"])
     devices = [item for item in data.get("Devices", []) if isinstance(item, dict)]
     for item in devices:
@@ -490,11 +674,10 @@ def hardware_report_markdown(data: dict[str, Any]) -> str:
         lines.append("| — | No matching Plug and Play devices were returned | — | — |")
     lines.extend([
         "",
-        "This is a hardware inventory, not a macOS compatibility verdict. Check exact device IDs against current upstream documentation.",
+        "This is a best-effort community-guide estimate, not official Apple compatibility confirmation or a boot test.",
         "",
     ])
     return "\n".join(lines)
-
 
 def _print_findings(findings: Iterable[Finding]) -> tuple[int, int, int]:
     counts = {"PASS": 0, "WARN": 0, "ERROR": 0}
@@ -991,26 +1174,101 @@ def command_support(efi_path: str, output: str | None = None, as_json: bool = Fa
     return 2 if report["efi"]["config_path"] is None else (1 if any(x in ("WARN", "ERROR") for x in levels) else 0)
 
 
+
+
+def _ansi_enabled() -> bool:
+    if "NO_COLOR" in os.environ or os.environ.get("TERM", "").casefold() == "dumb":
+        return False
+    try:
+        if not sys.stdout.isatty():
+            return False
+        if os.name == "nt":
+            import ctypes
+            handle = ctypes.windll.kernel32.GetStdHandle(-11)
+            mode = ctypes.c_uint()
+            if not ctypes.windll.kernel32.GetConsoleMode(handle, ctypes.byref(mode)):
+                return False
+            return bool(ctypes.windll.kernel32.SetConsoleMode(handle, mode.value | 0x0004))
+        return True
+    except (AttributeError, OSError, ValueError):
+        return False
+
+
+def _paint(text: str, style: str, enabled: bool) -> str:
+    palette = {
+        "border": "36",
+        "title": "96;1",
+        "subtitle": "90",
+        "heading": "93;1",
+        "item": "97",
+        "muted": "90",
+        "prompt": "96;1",
+        "success": "92;1",
+        "danger": "91;1",
+    }
+    if not enabled:
+        return text
+    code = palette.get(style)
+    return f"\033[{code}m{text}\033[0m" if code else text
+
+
+def render_menu(use_color: bool | None = None) -> str:
+    enabled = _ansi_enabled() if use_color is None else use_color
+    width = max(64, min(shutil.get_terminal_size((88, 24)).columns, 100))
+    inner = width - 2
+    border = "+" + ("=" * inner) + "+"
+
+    def boxed(text: str, style: str = "item") -> str:
+        visible = text[:inner]
+        padded = visible.ljust(inner)
+        return _paint("|", "border", enabled) + _paint(padded, style, enabled) + _paint("|", "border", enabled)
+
+    def menu_row(number: str, label: str, description: str) -> str:
+        available = max(12, inner - 33)
+        desc = textwrap.shorten(description, width=available, placeholder="...")
+        row = f" {number:>2}   {label:<25} {desc}"
+        return boxed(row, "item")
+
+    system_line = f"  {platform.system()} {platform.release()}  |  Python {platform.python_version()}  |  v{APP_VERSION}"
+    lines = [
+        _paint(border, "border", enabled),
+        boxed(f"  SIMPLE HACKINTOSH                                      v{APP_VERSION}", "title"),
+        boxed("  HARDWARE INTELLIGENCE  /  EFI WORKSHOP  /  RECOVERY", "subtitle"),
+        boxed(system_line, "muted"),
+        _paint(border, "border", enabled),
+        boxed("  HARDWARE & DIAGNOSTICS", "heading"),
+        menu_row("01", "Hardware report", "Detect components and estimate a macOS target"),
+        menu_row("02", "Scan EFI", "Inspect an EFI folder or ZIP without changing it"),
+        menu_row("03", "Validate config.plist", "Check plist structure and common entry mistakes"),
+        menu_row("04", "Run ocvalidate", "Use the validator matching your OpenCore release"),
+        "",
+        boxed("  EFI WORKBENCH", "heading"),
+        menu_row("05", "Compare EFI copies", "Find added, removed and changed files"),
+        menu_row("06", "Support report", "Create a privacy-conscious troubleshooting report"),
+        menu_row("08", "Back up EFI", "Create a ZIP backup without overwriting existing files"),
+        menu_row("10", "Create EFI starter", "Build a starter folder from an OpenCore release ZIP"),
+        "",
+        boxed("  RECOVERY & SYSTEM", "heading"),
+        menu_row("09", "Download Recovery", "Fetch and verify Apple Recovery files"),
+        menu_row("07", "Program diagnostics", "Check Python, Windows tools and runtime"),
+        _paint(border, "border", enabled),
+        boxed("  00  Exit", "danger"),
+        boxed("  All checks run locally. Disk and firmware changes are not performed.", "subtitle"),
+        _paint(border, "border", enabled),
+    ]
+    return "\n".join(lines)
+
+
 def interactive_menu() -> int:
     while True:
-        print("\n" + "=" * 58)
-        print("             SIMPLE HACKINTOSH — ASSISTANT")
-        print("=" * 58)
-        print("  1. Detect my hardware")
-        print("  2. Check an EFI folder or ZIP")
-        print("  3. Check a config.plist")
-        print("  4. Run official OpenCore ocvalidate")
-        print("  5. Compare two EFI folders/ZIPs")
-        print("  6. Create a support report")
-        print("  7. Check this program (doctor)")
-        print("  8. Back up an EFI folder to ZIP")
-        print("  9. Download Apple macOS Recovery (OpenCore macrecovery)")
-        print(" 10. Create an EFI starter from an OpenCore release ZIP")
-        print("  0. Exit")
+        use_color = _ansi_enabled()
+        if use_color:
+            print("\033[2J\033[H", end="")
+        print(render_menu(use_color))
         try:
-            choice = input("\nChoose an option: ").strip()
+            choice = input(_paint("\n  Select an option [0-10] > ", "prompt", use_color)).strip()
             if choice == "0":
-                print("Goodbye.")
+                print(_paint("\n  Goodbye.", "success", use_color))
                 return 0
             if choice == "1":
                 try:
@@ -1062,19 +1320,21 @@ def interactive_menu() -> int:
                 output = input("Output folder [com.apple.recovery.boot]: ").strip().strip('"') or "com.apple.recovery.boot"
                 command_macrecovery(["download", "--os-type", os_type, "--outdir", output])
             elif choice == "10":
-                print("Creates an EFI folder from an OpenCore release ZIP.")
+                print("Creates an EFI starter folder from an OpenCore release ZIP.")
                 print("The generated config.plist is a sample and is NOT hardware-configured.")
                 release_zip = input("Path to the official OpenCore release ZIP: ").strip().strip('"')
                 output = input("New EFI folder path [EFI]: ").strip().strip('"') or "EFI"
                 if release_zip:
                     command_create_efi(release_zip, output)
             else:
-                print("Please choose one of the listed numbers.")
+                print(_paint("  Invalid option. Choose a number from 0 to 10.", "danger", use_color))
         except (KeyboardInterrupt, EOFError):
             print("\nReturning to the prompt.")
             return 0
-        input("\nPress Enter to return to the menu...")
-
+        try:
+            input("\nPress Enter to return to the main menu...")
+        except (KeyboardInterrupt, EOFError):
+            return 0
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
