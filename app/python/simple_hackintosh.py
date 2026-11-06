@@ -1162,7 +1162,7 @@ def command_hardware_sniffer(output_dir: str = "HardwareReport") -> int:
     # The upstream menu accepts H (export), Enter (dismiss confirmation), Q (quit),
     # and Enter (dismiss its exit screen). Feeding the menu input avoids leaving
     # the parent CLI waiting for a user or mistaking the helper's exit for failure.
-    menu_input = "H\\n\\nQ\\n\\n"
+    menu_input = "H\n\nQ\n\n"
     try:
         process = subprocess.run(
             [str(executable)],
