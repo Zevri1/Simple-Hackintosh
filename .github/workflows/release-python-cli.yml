@@ -1,6 +1,11 @@
 name: Release Python CLI
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/release-trigger.txt"
   workflow_dispatch:
     inputs:
       tag_name:
@@ -21,20 +26,18 @@ jobs:
     name: Build and publish CLI release
     runs-on: ubuntu-latest
     steps:
-      - name: Check out source
+      - name: Check out source and tags
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Validate version and tag
         id: meta
         shell: bash
         env:
-          TAG_NAME: ${{ inputs.tag_name }}
+          REQUESTED_TAG: ${{ inputs.tag_name || '' }}
         run: |
           set -euo pipefail
-          if [[ ! "$TAG_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Tag must use vMAJOR.MINOR.PATCH, for example v2.1.0."
-            exit 1
-          fi
           APP_VERSION="$(python - <<'PY'
           import re
           from pathlib import Path
@@ -45,6 +48,14 @@ jobs:
           print(match.group(1))
           PY
           )"
+          TAG_NAME="$REQUESTED_TAG"
+          if [[ -z "$TAG_NAME" ]]; then
+            TAG_NAME="v$APP_VERSION"
+          fi
+          if [[ ! "$TAG_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Tag must use vMAJOR.MINOR.PATCH, for example v2.1.0."
+            exit 1
+          fi
           if [[ "$TAG_NAME" != "v$APP_VERSION" ]]; then
             echo "Requested tag $TAG_NAME does not match app version $APP_VERSION."
             exit 1
@@ -85,7 +96,10 @@ jobs:
 
           with ZipFile(archive_path, "w", ZIP_DEFLATED, compresslevel=9) as archive:
               for path in include:
-                  archive.write(path, f"{package_name}/{path.name}" if path.parent == root else f"{package_name}/macrecovery/{path.name}")
+                  if path.parent == root:
+                      archive.write(path, f"{package_name}/{path.name}")
+                  else:
+                      archive.write(path, f"{package_name}/macrecovery/{path.name}")
 
           with ZipFile(archive_path) as archive:
               names = archive.namelist()
