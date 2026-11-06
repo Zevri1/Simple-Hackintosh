@@ -1,2 +1,2 @@
-Publish the Simple Hackintosh CLI v2.3.0 release from the main branch.
-The release ZIP includes CMD, PowerShell and macOS Terminal launchers, cross-platform hardware inventory, and the macrecovery downloader source only; Apple Recovery payloads are not included.
+Publish the Simple Hackintosh CLI v2.4.0 release from the main branch.
+The release ZIP includes the CMD, PowerShell and macOS Terminal launchers, cross-platform hardware inventory, Windows OpCore-Simplify Hardware Sniffer integration with SHA-256 and Authenticode verification, and the macrecovery downloader source only; Apple Recovery payloads are not included.
