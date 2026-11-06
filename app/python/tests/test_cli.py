@@ -299,8 +299,12 @@ class HardwareSnifferIntegrationTests(unittest.TestCase):
                 self.assertEqual(command_hardware_sniffer(str(root / "output")), 0)
 
             self.assertEqual(captured["input"], "H\n\nQ\n\n")
-            self.assertTrue(captured["capture_output"])
+            self.assertIsNone(captured["stdout"], "stdout must inherit the console to preserve Windows UTF-8 console I/O")
+            self.assertEqual(captured["stderr"], subprocess.PIPE)
+            self.assertNotIn("capture_output", captured)
             self.assertTrue(captured["text"])
+            self.assertEqual(captured["encoding"], "utf-8")
+            self.assertEqual(captured["errors"], "replace")
             self.assertEqual(captured["timeout"], 180)
             self.assertTrue((root / "output" / "SysReport" / "Report.json").is_file())
             self.assertFalse((root / "output" / "SysReport" / "ACPI").exists())

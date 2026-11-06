@@ -23,7 +23,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
-APP_VERSION = "2.5.1"
+APP_VERSION = "2.5.2"
 SECTIONS = (
     "ACPI", "Booter", "DeviceProperties", "Kernel",
     "Misc", "NVRAM", "PlatformInfo", "UEFI",
@@ -1176,7 +1176,12 @@ def command_hardware_sniffer(output_dir: str = "HardwareReport") -> int:
             [str(executable)],
             cwd=str(working_dir),
             input=menu_input,
-            capture_output=True,
+            # Keep stdout attached to the real Windows console. PyInstaller's
+            # frozen Python uses the system ANSI code page for redirected pipes
+            # (often cp1252), which cannot encode the upstream progress-bar glyphs.
+            # A console handle uses Windows' UTF-8 console I/O instead.
+            stdout=None,
+            stderr=subprocess.PIPE,
             text=True,
             encoding="utf-8",
             errors="replace",

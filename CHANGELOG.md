@@ -2,6 +2,14 @@
 
 All notable documentation and CLI changes are recorded here.
 
+## 2026-11-06 — CLI v2.5.2
+
+- Fixed the Windows Hardware Sniffer `UnicodeEncodeError` by keeping stdout attached to the real console instead of redirecting it through a legacy-codepage pipe.
+- Kept stderr capture, UTF-8-safe diagnostic decoding, automated report export, and JSON validation.
+- Fixed the home-page document title and learning-path navigation state; improved responsive Tools navigation and keyboard-operable tabs.
+- Added DOM-hook and responsive-site contract checks.
+
+
 ## 2026-11-06 — CLI v2.5.1
 
 - Fixed the Hardware Sniffer launch gate: the upstream Windows release is not Authenticode-signed, so a missing signature is now accepted only after the official GitHub SHA-256 digest matches.
