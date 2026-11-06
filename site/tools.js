@@ -46,6 +46,21 @@ toolTabs.forEach((button, index) => {
   });
 });
 
+const themeButton = $("tools-theme-toggle");
+function updateToolsThemeButton() {
+  const light = document.documentElement.dataset.theme === "light";
+  themeButton.textContent = light ? "☾" : "☼";
+  themeButton.setAttribute("aria-label", light ? "Switch to dark theme" : "Switch to light theme");
+  themeButton.title = light ? "Switch to dark theme" : "Switch to light theme";
+}
+themeButton.addEventListener("click", () => {
+  const next = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem("simple-hackintosh-theme", next); } catch (error) {}
+  updateToolsThemeButton();
+});
+updateToolsThemeButton();
+
 const toolsNav = $("tools-top-links");
 const toolsNavToggle = $("tools-menu-toggle");
 function setToolsNav(open) {
