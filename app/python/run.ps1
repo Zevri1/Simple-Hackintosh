@@ -42,7 +42,12 @@ function Invoke-Assistant {
     $CallArguments = @()
     $CallArguments += $PythonPrefix
     $CallArguments += $PythonScript
-    $CallArguments += "--no-update-check"
+    if (-not $script:UpdateCheckPerformed) {
+        # A direct CLI invocation checks updates itself; dashboard actions already did so.
+        # Do not repeat the two GitHub API requests for every dashboard menu selection.
+        # The launcher passes the global option before the requested subcommand.
+        $CallArguments += "--no-update-check"
+    }
     if ($ArgumentsToPass) {
         $CallArguments += $ArgumentsToPass
     }
@@ -60,6 +65,7 @@ $updateArgs = @()
 $updateArgs += $PythonPrefix
 $updateArgs += @($PythonScript, "check-updates")
 $script:UpdateCheckOutput = @(& $PythonCommand.Source @updateArgs 2>&1)
+$script:UpdateCheckPerformed = $true
 
 function Write-Dashboard {
     Clear-Host
