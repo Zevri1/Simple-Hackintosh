@@ -2,6 +2,7 @@ import plistlib
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 import zipfile
 from pathlib import Path
 
@@ -13,6 +14,7 @@ from simple_hackintosh import (
     _safe_archive_name,
     build_support_report,
     command_backup_efi,
+    command_macrecovery,
     check_config_file,
     check_efi_path,
     hardware_report_markdown,
@@ -27,6 +29,19 @@ def valid_config():
         "Misc", "NVRAM", "PlatformInfo", "UEFI",
     )}
 
+
+
+class MacRecoveryIntegrationTests(unittest.TestCase):
+    def test_command_forwards_arguments_to_bundled_upstream_script(self):
+        with patch("simple_hackintosh.subprocess.run") as mocked_run:
+            mocked_run.return_value.returncode = 7
+            result = command_macrecovery(["download", "--os-type", "latest"])
+
+        self.assertEqual(result, 7)
+        command = mocked_run.call_args.args[0]
+        self.assertEqual(command[0], sys.executable)
+        self.assertTrue(command[1].endswith(str(Path("macrecovery") / "macrecovery.py")))
+        self.assertEqual(command[2:], ["download", "--os-type", "latest"])
 
 class ConfigValidationTests(unittest.TestCase):
     def test_accepts_minimal_main_sections(self):
