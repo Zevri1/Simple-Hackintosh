@@ -21,6 +21,8 @@ from simple_hackintosh import (
     check_config_file,
     check_efi_path,
     hardware_report_markdown,
+    estimate_macos_compatibility,
+    render_menu,
     _file_digests,
     validate_config_data,
 )
@@ -68,6 +70,83 @@ class MacRecoveryIntegrationTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Gather recovery information for Macs", result.stdout)
 
+
+
+class CompatibilityEstimateTests(unittest.TestCase):
+    def test_comet_lake_uhd_graphics_gets_conservative_sequoia_estimate(self):
+        data = {
+            "CPU": "Intel(R) Core(TM) i5-10210U CPU @ 1.60GHz",
+            "GPUs": [{"Name": "Intel(R) UHD Graphics", "DriverVersion": "test"}],
+            "Devices": [{
+                "Name": "Intel(R) UHD Graphics",
+                "Class": "Display",
+                "HardwareIDs": [r"PCI\VEN_8086&DEV_9B41&SUBSYS_507C17AA"],
+            }],
+        }
+        result = estimate_macos_compatibility(data)
+        self.assertEqual(result["status"], "documented-baseline")
+        self.assertIn("Sequoia 15", result["target"])
+        self.assertIn("Tahoe 26", result["experimental_target"])
+        self.assertEqual(result["cpu_generation"], 10)
+        self.assertIn("Comet Lake", result["gpu_family"])
+
+    def test_intel_uhd_610_is_flagged_as_limited(self):
+        result = estimate_macos_compatibility({
+            "CPU": "Intel Core i5-10200H",
+            "GPUs": [{"Name": "Intel UHD Graphics 610"}],
+            "Devices": [],
+        })
+        self.assertEqual(result["status"], "limited")
+        self.assertIn("No reliable", result["target"])
+
+    def test_intel_xe_is_not_given_a_false_compatibility_ceiling(self):
+        result = estimate_macos_compatibility({
+            "CPU": "Intel Core i7-1165G7",
+            "GPUs": [{"Name": "Intel Iris Xe Graphics"}],
+            "Devices": [],
+        })
+        self.assertEqual(result["status"], "limited")
+        self.assertIsNone(result["experimental_target"])
+
+    def test_unrecognised_gpu_returns_unknown_instead_of_guessing(self):
+        result = estimate_macos_compatibility({
+            "CPU": "Intel Core i5-10210U",
+            "GPUs": [{"Name": "Microsoft Basic Display Adapter"}],
+            "Devices": [],
+        })
+        self.assertEqual(result["status"], "unknown")
+        self.assertIn("Insufficient", result["target"])
+
+    def test_hardware_report_includes_compatibility_estimate_and_sources(self):
+        report = hardware_report_markdown({
+            "CPU": "Intel Core i5-10210U",
+            "GPUs": [{"Name": "Intel UHD Graphics"}],
+            "Devices": [{
+                "Name": "Intel UHD Graphics",
+                "Class": "Display",
+                "HardwareIDs": [r"PCI\VEN_8086&DEV_9B41"],
+            }],
+        })
+        self.assertIn("macOS compatibility estimate", report)
+        self.assertIn("Sequoia 15", report)
+        self.assertIn("GPU Buyers Guide", report)
+
+
+class MenuRenderingTests(unittest.TestCase):
+    def test_menu_includes_all_options_and_sections_without_ansi(self):
+        menu = render_menu(use_color=False)
+        self.assertIn("SIMPLE HACKINTOSH", menu)
+        self.assertIn("HARDWARE & DIAGNOSTICS", menu)
+        self.assertIn("EFI WORKBENCH", menu)
+        self.assertIn("RECOVERY & SYSTEM", menu)
+        for option in ("01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "00"):
+            self.assertIn(option, menu)
+        self.assertNotIn("\033[", menu)
+
+    def test_menu_can_render_ansi_colours(self):
+        menu = render_menu(use_color=True)
+        self.assertIn("\033[", menu)
+        self.assertIn("Download Recovery", menu)
 
 class CreateEfiTests(unittest.TestCase):
     def _make_release(self, archive_path: Path):

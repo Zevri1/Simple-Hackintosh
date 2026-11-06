@@ -19,12 +19,12 @@
 
 ## Python command-line assistant
 
-The repository includes a standalone Python assistant for Windows CMD and PowerShell. It opens an interactive numbered menu when launched without arguments and requires no third-party Python packages.
+The repository includes a standalone Python assistant for Windows CMD and PowerShell (v2.2.0), with a redesigned terminal dashboard and a source-linked macOS hardware compatibility estimate. It opens an interactive numbered menu when launched without arguments and requires no third-party Python packages.
 
 - [Python CLI source, beginner guide, commands, and tests](app/python/README.md)
 - [Python CLI test workflow](.github/workflows/python-cli.yml)
 
-Features include hardware inventory with PCI IDs, EFI and Kext reference checks, config.plist linting, official version-matched `ocvalidate` integration, the bundled OpenCore `macrecovery` utility for downloading and verifying Apple Recovery files, an EFI starter-folder creator from an official OpenCore release ZIP, safe ZIP backups, SHA-256 comparison of EFI copies, and privacy-conscious support reports. Run `app/python/run.bat` to open the menu. The built-in operations are read-only and do not upload files or modify disks, EFI files, or firmware.
+Features include hardware inventory with PCI IDs and a conservative, source-linked macOS compatibility estimate; EFI and Kext reference checks; config.plist linting; official version-matched `ocvalidate` integration; the bundled OpenCore `macrecovery` utility for downloading and verifying Apple Recovery files; an EFI starter-folder creator from an official OpenCore release ZIP; safe ZIP backups; SHA-256 comparison of EFI copies; and privacy-conscious support reports. Run `app/python/run.bat` to open the menu. The built-in operations are read-only and do not upload files or modify disks, EFI files, or firmware.
 
 ## What this project is
 

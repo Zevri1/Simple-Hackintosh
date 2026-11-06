@@ -1,6 +1,6 @@
 # Simple Hackintosh CLI
 
-A standalone Python assistant for Windows Command Prompt (CMD) and PowerShell. It is a real local program, not a web page or browser wrapper.
+A standalone Python assistant for Windows Command Prompt (CMD) and PowerShell. It is a real local program, not a web page or browser wrapper. Version 2.2.0 adds a redesigned terminal dashboard and a conservative, source-linked macOS hardware compatibility estimate.
 
 **No third-party Python packages are required.** The program uses Python's standard library and Windows PowerShell/CIM for hardware inventory.
 
@@ -14,7 +14,7 @@ A standalone Python assistant for Windows Command Prompt (CMD) and PowerShell. I
 run.bat
 ```
 
-A beginner-friendly menu opens automatically. Choose a numbered task and follow the prompts.
+A redesigned terminal dashboard opens automatically, with grouped tool sections, a version/system header, colour when the terminal supports it, and a clean no-colour fallback. Choose a numbered task and follow the prompts. Set `NO_COLOR=1` to disable ANSI colour.
 
 To see all command-line options:
 
@@ -29,7 +29,7 @@ Requirements: Python 3.10 or newer. Windows 10/11 is required for automatic hard
 
 | Menu item | What it does |
 |---|---|
-| Detect my hardware | Lists CPU, graphics, motherboard, BIOS, memory, disks, network/audio/storage devices, and available PCI IDs |
+| Detect my hardware | Lists CPU, graphics, motherboard, BIOS, memory, disks and PCI IDs; estimates a conservative macOS target from recognised CPU/GPU families |
 | Check an EFI folder or ZIP | Scans the folder/archive without extracting or modifying it |
 | Check a config.plist | Checks plist syntax, required OpenCore sections, common entry fields, and duplicate entries |
 | Run official ocvalidate | Runs the validator included with the user's matching OpenCore release |
@@ -56,6 +56,10 @@ run.bat hardware --json --output hardware-report.json
 ```
 
 Collects CPU model/core count, GPU names and driver versions, motherboard, BIOS, Windows version, memory, disks, and selected Plug and Play device classes. It extracts PCI Vendor/Device IDs where Windows reports them. It does not collect serial numbers, UUIDs, MAC addresses, or account identifiers.
+
+The report also includes a **macOS compatibility estimate**. It identifies supported/unsupported Intel integrated-graphics families where the CPU model and PCI device IDs are sufficiently specific, reports a conservative version ceiling, and lists reference guides and untested subsystems. For example, recognised Comet Lake UHD 620/630-class graphics receive a conservative macOS Sequoia 15 estimate; Tahoe 26 is labelled experimental rather than treated as a confirmed target. Unknown GPUs are reported as unknown instead of receiving a guessed version.
+
+This is a community-guide estimate, not official Apple support or a boot test. Wi-Fi, audio, sleep, USB mapping, storage, BIOS/ACPI and display routing require separate checks.
 
 ### EFI scan
 
