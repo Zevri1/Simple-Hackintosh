@@ -10,7 +10,7 @@ A cross-platform Python assistant with a native PowerShell front-end for Windows
 
 1. Download the [latest CLI ZIP](https://github.com/Zevri1/Simple-Hackintosh/releases/latest).
 2. Right-click the ZIP and choose **Extract All**.
-3. Open the extracted `Simple-Hackintosh-CLI-v3.1.0` folder. In the release ZIP, the launchers are directly beside `simple_hackintosh.py`.
+3. Open the extracted `Simple-Hackintosh-CLI-v...` folder (the version is included in the ZIP filename). In the release ZIP, the launchers are directly beside `simple_hackintosh.py`.
 4. Start the matching launcher below.
 
 | System | Exact way to start |
