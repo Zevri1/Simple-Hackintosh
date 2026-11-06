@@ -15,6 +15,7 @@ from simple_hackintosh import (
     check_config_file,
     check_efi_path,
     hardware_report_markdown,
+    _file_digests,
     validate_config_data,
 )
 
@@ -142,6 +143,40 @@ class EfiCheckTests(unittest.TestCase):
             findings, summary = check_efi_path(parent)
             self.assertIsNotNone(summary)
             self.assertFalse([item for item in findings if item.level in ("WARN", "ERROR")])
+
+
+class CompareTests(unittest.TestCase):
+    def test_hash_compare_detects_changed_file(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            first = root / "first"
+            second = root / "second"
+            first.mkdir()
+            second.mkdir()
+            (first / "config.plist").write_bytes(b"one")
+            (second / "config.plist").write_bytes(b"two")
+            left_entries = {"config.plist": "config.plist"}
+            right_entries = {"config.plist": "config.plist"}
+            self.assertNotEqual(
+                _file_digests(first, left_entries)["config.plist"],
+                _file_digests(second, right_entries)["config.plist"],
+            )
+
+    def test_hash_compare_accepts_matching_zip_file_content(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            folder = root / "EFI"
+            folder.mkdir()
+            (folder / "sample.txt").write_text("sample", encoding="utf-8")
+            archive_path = root / "EFI.zip"
+            with zipfile.ZipFile(archive_path, "w") as archive:
+                archive.write(folder / "sample.txt", "EFI/sample.txt")
+            folder_entries = {"sample.txt": "sample.txt"}
+            zip_entries = {"efi/sample.txt": "EFI/sample.txt"}
+            self.assertEqual(
+                _file_digests(folder, folder_entries)["sample.txt"],
+                _file_digests(archive_path, zip_entries)["efi/sample.txt"],
+            )
 
 
 class ReportTests(unittest.TestCase):
