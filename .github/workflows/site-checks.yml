@@ -41,6 +41,16 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Exercise site in Chromium
         run: SITE_ROOT=_site node site/tests/browser-smoke.mjs
+      - name: Upload browser screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simple-hackintosh-site-browser-screenshots
+          path: |
+            _site/home-desktop.png
+            _site/home-mobile.png
+            _site/tools-mobile.png
+          if-no-files-found: ignore
       - name: Check HTML contracts, duplicate IDs, and release links
         run: |
           python - <<'PY'
