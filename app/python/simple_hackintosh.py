@@ -832,15 +832,15 @@ def command_create_efi(release_zip: str, output: str = "EFI") -> int:
 
                 (stage / "OC" / "config.plist").write_bytes(sample_bytes)
                 (stage / "SETUP_REQUIRED.txt").write_text(
-                    "EFI starter created from an OpenCore release ZIP.\\n"
-                    "\\n"
-                    "IMPORTANT: This is not a hardware-configured or ready-to-boot EFI.\\n"
-                    "- OC/config.plist is the upstream Sample.plist.\\n"
-                    "- Add only ACPI tables, drivers, and kexts appropriate for your exact hardware.\\n"
-                    "- Configure every relevant config.plist section for the target computer.\\n"
-                    "- Generate your own SMBIOS identity values; do not reuse another person's values.\\n"
-                    "- Validate config.plist with ocvalidate from this exact OpenCore release.\\n"
-                    "- This utility only creates a folder. It does not mount, format, or write to a disk.\\n",
+                    "EFI starter created from an OpenCore release ZIP.\n"
+                    "\n"
+                    "IMPORTANT: This is not a hardware-configured or ready-to-boot EFI.\n"
+                    "- OC/config.plist is the upstream Sample.plist.\n"
+                    "- Add only ACPI tables, drivers, and kexts appropriate for your exact hardware.\n"
+                    "- Configure every relevant config.plist section for the target computer.\n"
+                    "- Generate your own SMBIOS identity values; do not reuse another person's values.\n"
+                    "- Validate config.plist with ocvalidate from this exact OpenCore release.\n"
+                    "- This utility only creates a folder. It does not mount, format, or write to a disk.\n",
                     encoding="utf-8",
                 )
 
