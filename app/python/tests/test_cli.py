@@ -229,7 +229,7 @@ class HardwareSnifferIntegrationTests(unittest.TestCase):
             executable = Path(temp) / "Hardware-Sniffer.exe"
             executable.write_bytes(b"official-release-payload")
             completed = subprocess.CompletedProcess(
-                ["powershell"], 0, stdout="NOT_SIGNED\\n", stderr=""
+                ["powershell"], 0, stdout="NOT_SIGNED\n", stderr=""
             )
             with (
                 patch("simple_hackintosh._powershell_executable", return_value="powershell"),
@@ -244,7 +244,7 @@ class HardwareSnifferIntegrationTests(unittest.TestCase):
             executable = Path(temp) / "Hardware-Sniffer.exe"
             executable.write_bytes(b"signed-release-payload")
             completed = subprocess.CompletedProcess(
-                ["powershell"], 0, stdout="SIGNED:CN=Example Publisher\\n", stderr=""
+                ["powershell"], 0, stdout="SIGNED:CN=Example Publisher\n", stderr=""
             )
             with (
                 patch("simple_hackintosh._powershell_executable", return_value="powershell"),
