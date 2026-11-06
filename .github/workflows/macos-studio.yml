@@ -25,14 +25,16 @@ jobs:
         run: swift --version
       - name: Run unit tests
         run: swift test --package-path app/macos
-      - name: Build release executable
-        run: swift build --package-path app/macos --configuration release
-      - name: Package macOS app
+      - name: Build Apple Silicon executable
+        run: swift build --package-path app/macos --configuration release --triple arm64-apple-macosx13.0
+      - name: Build Intel executable
+        run: swift build --package-path app/macos --configuration release --triple x86_64-apple-macosx13.0
+      - name: Package universal macOS app
         run: bash app/macos/scripts/package-app.sh
       - name: Upload app bundle ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: Simple-Hackintosh-Studio-macOS-preview
+          name: Simple-Hackintosh-Studio-macOS-universal-preview
           path: app/macos/dist/Simple-Hackintosh-Studio-macos.zip
           if-no-files-found: error
           retention-days: 14
