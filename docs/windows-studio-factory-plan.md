@@ -1,6 +1,6 @@
 # Windows Desktop Studio — Factory Work Packages
 
-**Target:** Simple Hackintosh Windows desktop v0.3 preview  
+**Target:** Simple Hackintosh Windows desktop v0.4 preview  
 **Current delivery branch:** `chatgpt/windows-desktop-app-v2`  
 **Coordination rule:** one owner per workstream; shared contracts are reviewed before integration.
 
@@ -45,9 +45,15 @@ Keep the existing native Windows Forms application on .NET 10. Do not introduce 
 5. Reject ZIP traversal, links, duplicate archive paths, excessive entry counts and oversized extraction.
 6. Label the result as a starter and provide version-matched `ocvalidate` guidance.
 
+**Implemented in v0.4 preview**
+- Download the latest official Acidanthera release archive and verify its GitHub SHA-256 digest before extracting `ocvalidate.exe`.
+- Use only an executable found at the expected path inside the verified release archive; stop if no official Windows executable is present.
+- Verify the executable's embedded OpenCore version banner before running it against the user's XML `config.plist`.
+- Capture structured success/failure output, impose a process timeout, and support cancellation.
+
 **Remaining**
-- Integrate the matching `ocvalidate` executable and structured validation output.
-- Add a guided hardware-specific configuration flow.
+- Add a guided hardware-specific configuration flow using the schema from the selected OpenCore version.
+- Add release selection so users can validate older EFI configurations against their exact OpenCore version.
 
 **Acceptance**
 - No existing EFI folder is overwritten.
@@ -111,7 +117,9 @@ flowchart TD
 - [x] Native Windows Forms shell and three local diagnostic pages.
 - [x] Apple full-installer catalog and direct-to-selected-drive download preview.
 - [ ] Live Apple catalog smoke test on Windows.
+- [x] Apple package downloads have no fixed three-minute HttpClient timeout and follow only manually validated HTTPS Apple-domain redirects.
 - [x] Automated Windows unit-test project (profile-schema and archive-path safety tests).
 - [x] Official OpenCore release downloader and starter EFI builder.
+- [x] Official `ocvalidate` download, version check, and config validation (Windows executable is used only when included by the official release archive).
 - [x] Hardware profile JSON export/import (Windows runtime smoke test pending).
 - [ ] Final QA and signed/notarized macOS counterpart coordination.

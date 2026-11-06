@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,14 +14,14 @@ internal sealed record AppleInstallerOption(string ProductId, string Title, stri
 internal static class AppleInstallerCatalog
 {
     private static readonly Uri CatalogUri = new("https://swscan.apple.com/content/catalogs/others/index-27-26-15-14-13-12-11-10.16-10.15-10.14-10.13-10.12-10.11-10.10-10.9-10.8-10.7-10.6-10.5.merged-1.sucatalog");
-    private static readonly HttpClient Client = new(new HttpClientHandler { AllowAutoRedirect = true, MaxAutomaticRedirections = 5 }) { Timeout = TimeSpan.FromMinutes(3) };
+    private static readonly HttpClient Client = new(new HttpClientHandler { AllowAutoRedirect = false, AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate | DecompressionMethods.Brotli }) { Timeout = Timeout.InfiniteTimeSpan };
 
     public static async Task<IReadOnlyList<AppleInstallerOption>> GetInstallersAsync(CancellationToken cancellationToken = default)
     {
         using var catalogTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         catalogTimeout.CancelAfter(TimeSpan.FromMinutes(5));
         cancellationToken = catalogTimeout.Token;
-        using var response = await Client.GetAsync(CatalogUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        using var response = await GetAppleResponseAsync(CatalogUri, cancellationToken);
         response.EnsureSuccessStatusCode();
         EnsureAppleHttps(response.RequestMessage?.RequestUri);
         var catalog = PlistParser.Parse(await ReadLimitedTextAsync(response, 100 * 1024 * 1024, cancellationToken));
@@ -37,7 +38,7 @@ internal static class AppleInstallerCatalog
             EnsureAppleHttps(metadataUri);
             try
             {
-                using var metadataResponse = await Client.GetAsync(metadataUri, cancellationToken);
+                using var metadataResponse = await GetAppleResponseAsync(metadataUri, cancellationToken);
                 metadataResponse.EnsureSuccessStatusCode();
                 EnsureAppleHttps(metadataResponse.RequestMessage?.RequestUri);
                 var metadata = PlistParser.Parse(await ReadLimitedTextAsync(metadataResponse, 4 * 1024 * 1024, cancellationToken));
@@ -68,8 +69,7 @@ internal static class AppleInstallerCatalog
         if (File.Exists(finalPath) || File.Exists(partialPath)) throw new IOException("A package with this name already exists.");
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Get, installer.PackageUri);
-            using var response = await Client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            using var response = await GetAppleResponseAsync(installer.PackageUri, cancellationToken);
             response.EnsureSuccessStatusCode();
             EnsureAppleHttps(response.RequestMessage?.RequestUri);
             var expected = installer.ExpectedBytes ?? response.Content.Headers.ContentLength;
@@ -125,6 +125,30 @@ internal static class AppleInstallerCatalog
     {
         if (dictionary.TryGetValue(key, out var raw) && raw is string text && !string.IsNullOrWhiteSpace(text)) { value = text; return true; }
         value = ""; return false;
+    }
+
+    private static async Task<HttpResponseMessage> GetAppleResponseAsync(Uri initial, CancellationToken cancellationToken)
+    {
+        Uri current = initial;
+        for (int hop = 0; hop <= 5; hop++)
+        {
+            EnsureAppleHttps(current);
+            using var request = new HttpRequestMessage(HttpMethod.Get, current);
+            var response = await Client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            int status = (int)response.StatusCode;
+            if (status is not (301 or 302 or 303 or 307 or 308))
+            {
+                EnsureAppleHttps(response.RequestMessage?.RequestUri);
+                return response;
+            }
+
+            var location = response.Headers.Location;
+            response.Dispose();
+            if (location is null || hop == 5)
+                throw new HttpRequestException("Apple returned an invalid or excessive redirect chain.");
+            current = location.IsAbsoluteUri ? location : new Uri(current, location);
+        }
+        throw new HttpRequestException("Apple redirect limit exceeded.");
     }
 
     private static void EnsureAppleHttps(Uri? uri)

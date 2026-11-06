@@ -53,6 +53,7 @@ internal sealed class MainForm : Form
     private TextBox? _hardwareReportBox;
     private CancellationTokenSource? _installerDownloadCts;
     private CancellationTokenSource? _opencoreBuildCts;
+    private CancellationTokenSource? _ocvalidateCts;
 
     public MainForm()
     {
@@ -288,6 +289,9 @@ internal sealed class MainForm : Form
         var page = NewPage();
         var fileButton = MakeButton("Open config.plist", false, new Point(0, 0), new Size(160, 36));
         var validateButton = MakeButton("Validate configuration  →", true, new Point(170, 0), new Size(220, 36));
+        var officialValidateButton = MakeButton("Official ocvalidate", false, new Point(400, 0), new Size(190, 36));
+        var cancelOfficialButton = MakeButton("Cancel", false, new Point(600, 0), new Size(90, 36));
+        cancelOfficialButton.Enabled = false;
         var input = new TextBox
         {
             Multiline = true, AcceptsReturn = true, AcceptsTab = true, WordWrap = false,
@@ -296,9 +300,13 @@ internal sealed class MainForm : Form
             BorderStyle = BorderStyle.FixedSingle, Location = new Point(0, 54),
             Size = new Size(920, 340), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
         };
-        var hint = new Label { Text = "XML property lists are supported. Binary plist files must first be exported as XML. This is a structural helper, not the official OpenCore schema validator.", ForeColor = TextSoft, Font = new Font("Segoe UI", 8), Location = new Point(2, 402), Size = new Size(920, 34) };
+        var hint = new Label
+        {
+            Text = "The local check is structural. Official ocvalidate downloads the latest stable Acidanthera validator and must only be used with a config.plist from that exact OpenCore version.",
+            ForeColor = TextSoft, Font = new Font("Segoe UI", 8), Location = new Point(2, 402), Size = new Size(920, 38)
+        };
         var results = NewResultsPanel(new Point(0, 448), new Size(920, 380));
-        page.Controls.AddRange(new Control[] { fileButton, validateButton, input, hint, results });
+        page.Controls.AddRange(new Control[] { fileButton, validateButton, officialValidateButton, cancelOfficialButton, input, hint, results });
 
         fileButton.Click += (_, _) =>
         {
@@ -330,6 +338,62 @@ internal sealed class MainForm : Form
                 RenderResults(results, new List<CheckResult> { new("error", "Invalid XML property list", ex.Message) }, "Configuration review");
                 _status.Text = "●  INVALID INPUT";
                 _status.ForeColor = Red;
+            }
+        };
+
+        cancelOfficialButton.Click += (_, _) => _ocvalidateCts?.Cancel();
+        officialValidateButton.Click += async (_, _) =>
+        {
+            if (string.IsNullOrWhiteSpace(input.Text) || _ocvalidateCts is not null) return;
+            _ocvalidateCts = new CancellationTokenSource();
+            fileButton.Enabled = false;
+            validateButton.Enabled = false;
+            officialValidateButton.Enabled = false;
+            cancelOfficialButton.Enabled = true;
+            input.ReadOnly = true;
+            _status.Text = "●  PREPARING OFFICIAL VALIDATOR";
+            _status.ForeColor = Blue;
+            var reporter = new Progress<OpenCoreProgress>(value =>
+            {
+                _status.Text = "●  " + value.Stage;
+                _status.ForeColor = Blue;
+            });
+            try
+            {
+                var result = await OpenCoreReleaseService.ValidateWithLatestOfficialAsync(input.Text, reporter, _ocvalidateCts.Token);
+                var details = $"OpenCore version: {result.Version}\r\nValidator exit code: {result.ExitCode}\r\n\r\n{result.Output}";
+                RenderResults(results,
+                    new List<CheckResult>
+                    {
+                        new(result.Success ? "ok" : "error",
+                            result.Success ? "Official ocvalidate: no issues found" : "Official ocvalidate: configuration needs attention",
+                            details)
+                    },
+                    "Official OpenCore validation");
+                _status.Text = result.Success ? "●  OFFICIAL VALIDATION PASSED" : "●  OFFICIAL VALIDATION FOUND ISSUES";
+                _status.ForeColor = result.Success ? Green : Yellow;
+            }
+            catch (OperationCanceledException)
+            {
+                _status.Text = "●  OFFICIAL VALIDATION CANCELLED";
+                _status.ForeColor = TextSoft;
+                RenderResults(results, new List<CheckResult> { new("warning", "Validation cancelled", "The download or validator process was cancelled. Temporary files were removed.") }, "Official OpenCore validation");
+            }
+            catch (Exception ex)
+            {
+                _status.Text = "●  OFFICIAL VALIDATOR UNAVAILABLE";
+                _status.ForeColor = Yellow;
+                RenderResults(results, new List<CheckResult> { new("error", "Official validation could not run", ex.Message) }, "Official OpenCore validation");
+            }
+            finally
+            {
+                _ocvalidateCts.Dispose();
+                _ocvalidateCts = null;
+                fileButton.Enabled = true;
+                validateButton.Enabled = true;
+                officialValidateButton.Enabled = true;
+                cancelOfficialButton.Enabled = false;
+                input.ReadOnly = false;
             }
         };
         return page;

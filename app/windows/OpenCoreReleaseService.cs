@@ -14,7 +14,7 @@ internal sealed record OpenCoreReleaseInfo(string Version, Uri DownloadUri, stri
 internal sealed record OpenCoreBuildResult(string Version, string EfiPath, string Sha256);
 internal sealed record OpenCoreProgress(string Stage, long Received, long? Expected);
 
-internal static class OpenCoreReleaseService
+internal static partial class OpenCoreReleaseService
 {
     private static readonly Uri LatestReleaseApi = new("https://api.github.com/repos/acidanthera/OpenCorePkg/releases/latest");
     private static readonly HttpClient Client = new(new HttpClientHandler

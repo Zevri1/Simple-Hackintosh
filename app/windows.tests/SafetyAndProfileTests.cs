@@ -81,4 +81,36 @@ public sealed class SafetyAndProfileTests
         }
         finally { Directory.Delete(root, true); }
     }
+
+    [Fact]
+    public void ParsesOfficialOcvalidateVersionBanner()
+    {
+        const string output = "NOTE: This version of ocvalidate is only compatible with OpenCore version 1.0.8!\r\n";
+        Assert.Equal("1.0.8", OpenCoreReleaseService.ParseValidatorVersionBanner(output));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("validation completed without a version banner")]
+    public void RejectsMissingOcvalidateVersionBanner(string output)
+    {
+        Assert.Null(OpenCoreReleaseService.ParseValidatorVersionBanner(output));
+    }
+
+    [Theory]
+    [InlineData("Utilities/ocvalidate/ocvalidate.exe")]
+    [InlineData("X64/Utilities/ocvalidate/ocvalidate.exe")]
+    public void RecognizesOfficialWindowsOcvalidateArchivePaths(string path)
+    {
+        Assert.True(OpenCoreReleaseService.IsWindowsValidatorPath(path));
+    }
+
+    [Theory]
+    [InlineData("Utilities/ocvalidate/ocvalidate")]
+    [InlineData("Other/ocvalidate.exe")]
+    [InlineData("Utilities/ocvalidate/ocvalidate.exe/extra")]
+    public void RejectsUnrecognizedOcvalidateArchivePaths(string path)
+    {
+        Assert.False(OpenCoreReleaseService.IsWindowsValidatorPath(path));
+    }
 }
