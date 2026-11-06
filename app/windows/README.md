@@ -7,13 +7,13 @@ A native Windows Forms (.NET 10) desktop companion for the Simple Hackintosh fie
 - **EFI Checker:** inspects a selected EFI directory or ZIP archive without extracting it, checks the basic OpenCore layout, parses XML config.plist, and tests enabled ACPI, Kext, and UEFI driver file references.
 - **Config Validator:** parses XML property lists securely and checks common OpenCore sections and value container types.
 - **Hardware Inspector:** uses read-only Windows CIM queries to collect CPU, graphics, motherboard, BIOS, storage, network and audio details, then lets the user copy or save a Markdown report.
+- **macOS Downloader:** reads Apple's public full-installer catalog, lists available macOS releases, and streams the Apple-hosted `InstallAssistant.pkg` directly to a folder or external drive selected in the GUI. Shows progress and supports cancellation.
 
 ## Windows roadmap
 
 The next Windows desktop iteration should add:
 
-1. An Apple public software-update catalog browser and direct streaming download of the full `InstallAssistant.pkg` to a folder or external drive selected in the GUI.
-2. An OpenCore release downloader that checks the official GitHub SHA-256 digest before extracting files.
+1. An OpenCore release downloader that checks the official GitHub SHA-256 digest before extracting files.
 3. An EFI starter builder and a profile-driven hardware-specific EFI workflow.
 4. A config editor and official, version-matched `ocvalidate` integration.
 5. Import/export of the shared [Hardware Profile JSON Schema v1](../../schemas/hardware-profile-v1.schema.json).
@@ -44,4 +44,4 @@ The Windows GitHub Actions workflow builds the app and stores the portable execu
 
 ## Current target
 
-Windows x64, version 0.1.0.
+Windows x64, version 0.2.0 (preview).
