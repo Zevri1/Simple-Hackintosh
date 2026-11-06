@@ -34,6 +34,7 @@ from simple_hackintosh import (
     check_for_hardware_sniffer_update,
     check_for_updates,
     render_compatibility_checker,
+    write_console_report,
     render_menu,
     _file_digests,
     validate_config_data,
@@ -170,6 +171,16 @@ class UpdateCheckerTests(unittest.TestCase):
                     result = check_for_hardware_sniffer_update()
         self.assertEqual(result["status"], "update_available")
         self.assertFalse(result["cached_and_verified"])
+
+    def test_console_report_falls_back_for_legacy_encoding_without_crashing(self):
+        buffer = io.BytesIO()
+        legacy_stream = io.TextIOWrapper(buffer, encoding="cp1252", errors="strict")
+        self.addCleanup(legacy_stream.detach)
+        with patch("simple_hackintosh.sys.stdout", legacy_stream):
+            write_console_report("╔══ Compatibility Checker ══╗")
+        output = buffer.getvalue().decode("cp1252")
+        self.assertIn("Compatibility Checker", output)
+        self.assertIn("?", output)
 
     def test_checker_renders_all_components_and_release_statuses(self):
         report = {

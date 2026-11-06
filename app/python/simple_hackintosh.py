@@ -1261,6 +1261,28 @@ def render_compatibility_checker(
     return "\n".join(boxed)
 
 
+def write_console_report(report_text: str) -> None:
+    """Print a Unicode report on UTF-8 consoles and degrade safely on legacy pipes."""
+    stream = sys.stdout
+    is_tty = bool(getattr(stream, "isatty", lambda: False)())
+    reconfigure = getattr(stream, "reconfigure", None)
+    if is_tty and callable(reconfigure):
+        try:
+            reconfigure(encoding="utf-8", errors="replace")
+        except (OSError, ValueError):
+            pass
+
+    encoding = getattr(stream, "encoding", None) or "utf-8"
+    try:
+        stream.write(report_text + "\n")
+    except UnicodeEncodeError:
+        # Non-UTF-8 redirected output (for example a cp1252 CI log) must not
+        # make a successfully generated report fail. The saved .txt stays UTF-8.
+        safe_text = report_text.encode(encoding, errors="replace").decode(encoding, errors="replace")
+        stream.write(safe_text + "\n")
+    stream.flush()
+
+
 def build_hardware_sniffer_report_markdown(
     report: dict[str, Any],
     sniffer_version: str | None = None,
@@ -1888,7 +1910,7 @@ def command_hardware_sniffer(
         print(f"[PASS] Human-readable hardware report saved to: {compatibility_path}")
         print(f"[PASS] Compatibility Checker saved to: {checker_path}")
         print("")
-        print(render_compatibility_checker(report, release_tag, app_update))
+        write_console_report(render_compatibility_checker(report, release_tag, app_update))
     except Exception as exc:
         raise RuntimeError(f"Could not create the compatibility reports: {exc}") from exc
 
