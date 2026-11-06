@@ -22,6 +22,7 @@ from simple_hackintosh import (
     command_macrecovery,
     command_hardware_sniffer,
     _download_hardware_sniffer,
+    _verify_hardware_sniffer_signature,
     build_parser,
     check_config_file,
     check_efi_path,
