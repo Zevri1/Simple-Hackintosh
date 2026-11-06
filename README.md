@@ -19,7 +19,7 @@
 
 ## Python command-line assistant
 
-The repository includes a cross-platform Python assistant (v2.5.1) with a PowerShell-native menu on Windows, a double-clickable macOS Terminal launcher, and hardware inventory on both systems. It opens an interactive numbered menu when launched without arguments and requires no third-party Python packages; the optional Windows OpCore-Simplify report uses the official Hardware Sniffer release after GitHub SHA-256 verification (Authenticode is checked when present) and exports JSON automatically.
+The repository includes a cross-platform Python assistant (v2.5.2) with a PowerShell-native menu on Windows, a double-clickable macOS Terminal launcher, and hardware inventory on both systems. It opens an interactive numbered menu when launched without arguments and requires no third-party Python packages; the optional Windows OpCore-Simplify report uses the official Hardware Sniffer release after GitHub SHA-256 verification (Authenticode is checked when present) and exports JSON automatically, with Windows console-safe output handling.
 
 - [Python CLI source, beginner guide, commands, and tests](app/python/README.md)
 - [Python CLI test workflow](.github/workflows/python-cli.yml)
