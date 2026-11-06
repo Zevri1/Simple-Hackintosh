@@ -649,6 +649,58 @@ def command_compare(first: str, second: str, output: str | None = None, as_json:
     return 0
 
 
+def command_backup_efi(path: str, output: str) -> int:
+    source = Path(path).expanduser()
+    destination = Path(output).expanduser()
+    if not source.is_dir():
+        print("[ERROR] Backup source must be an extracted EFI folder, not a ZIP file.", file=sys.stderr)
+        return 2
+    entries, _, error = _read_source(source)
+    if error:
+        print(f"[ERROR] {error}", file=sys.stderr)
+        return 2
+    if not entries:
+        print("[ERROR] The selected folder contains no files.", file=sys.stderr)
+        return 2
+
+    source_root = source.resolve()
+    destination_parent = destination.parent.resolve()
+    try:
+        destination_parent.relative_to(source_root)
+    except ValueError:
+        pass
+    else:
+        print("[ERROR] Save the backup outside the source EFI folder.", file=sys.stderr)
+        return 2
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with zipfile.ZipFile(destination, "x", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
+            for original in sorted(entries.values()):
+                item = source / Path(*original.split("/"))
+                try:
+                    item.resolve().relative_to(source_root)
+                except (OSError, ValueError):
+                    continue
+                archive.write(item, arcname=original)
+    except FileExistsError:
+        print(f"[ERROR] Backup already exists; refusing to overwrite: {destination}", file=sys.stderr)
+        return 2
+    except (OSError, zipfile.BadZipFile) as exc:
+        try:
+            destination.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise RuntimeError(f"Could not create EFI backup: {exc}") from exc
+
+    size = destination.stat().st_size
+    print(f"[PASS] Backup created: {destination.resolve()}")
+    print(f"Files copied: {len(entries)}")
+    print(f"Archive size: {size:,} bytes")
+    print("The source EFI folder was not modified.")
+    return 0
+
+
 def command_ocvalidate(config_path: str, tool_path: str, expected_version: str | None = None) -> int:
     config = Path(config_path).expanduser()
     tool = Path(tool_path).expanduser()
@@ -746,10 +798,11 @@ def _support_markdown(report: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def command_support(efi_path: str, output: str, as_json: bool = False, no_hardware: bool = False) -> int:
+def command_support(efi_path: str, output: str | None = None, as_json: bool = False, no_hardware: bool = False) -> int:
     report = build_support_report(efi_path, include_hardware=not no_hardware)
     rendered = json.dumps(report, indent=2, ensure_ascii=False, default=str) if as_json else _support_markdown(report)
-    destination = Path(output).expanduser()
+    default_name = "hackintosh-support-report.json" if as_json else "hackintosh-support-report.md"
+    destination = Path(output or default_name).expanduser()
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(rendered + "\n", encoding="utf-8")
     print(f"Support report saved to: {destination.resolve()}")
@@ -771,6 +824,7 @@ def interactive_menu() -> int:
         print("  5. Compare two EFI folders/ZIPs")
         print("  6. Create a support report")
         print("  7. Check this program (doctor)")
+        print("  8. Back up an EFI folder to ZIP")
         print("  0. Exit")
         try:
             choice = input("\nChoose an option: ").strip()
@@ -808,6 +862,11 @@ def interactive_menu() -> int:
                     command_support(path, output)
             elif choice == "7":
                 command_doctor()
+            elif choice == "8":
+                path = input("EFI folder to back up: ").strip().strip('"')
+                output = input("Backup ZIP filename [EFI-backup.zip]: ").strip() or "EFI-backup.zip"
+                if path:
+                    command_backup_efi(path, output)
             else:
                 print("Please choose one of the listed numbers.")
         except (KeyboardInterrupt, EOFError):
@@ -847,7 +906,11 @@ def build_parser() -> argparse.ArgumentParser:
     official.add_argument("--tool", required=True, help="Path to the matching ocvalidate executable.")
     official.add_argument("--expect-version", help="Expected OpenCore version; validation is stopped if it does not match.")
 
-    compare = commands.add_parser("compare-efi", help="Compare file lists in two EFI folders or ZIPs.")
+    backup = commands.add_parser("backup-efi", help="Create a new ZIP backup from an EFI folder without changing the source.")
+    backup.add_argument("path", help="Extracted EFI folder to back up.")
+    backup.add_argument("--output", "-o", default="EFI-backup.zip", help="New ZIP path; existing files are never overwritten.")
+
+    compare = commands.add_parser("compare-efi", help="Compare file lists and SHA-256 content in two EFI folders or ZIPs.")
     compare.add_argument("first", help="First EFI folder or ZIP.")
     compare.add_argument("second", help="Second EFI folder or ZIP.")
     compare.add_argument("--output", "-o", help="Save comparison as JSON.")
@@ -855,7 +918,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     support = commands.add_parser("support-report", help="Create a privacy-conscious report for troubleshooting.")
     support.add_argument("efi", help="EFI folder or ZIP.")
-    support.add_argument("--output", "-o", default="hackintosh-support-report.md", help="Report file path.")
+    support.add_argument("--output", "-o", help="Report file path (defaults to Markdown or JSON name).")
     support.add_argument("--json", action="store_true", help="Save JSON instead of Markdown.")
     support.add_argument("--no-hardware", action="store_true", help="Do not collect the Windows hardware inventory.")
     return parser
@@ -880,6 +943,8 @@ def main(argv: list[str] | None = None) -> int:
             return command_config(args.path, args.output, args.json)
         if args.command == "ocvalidate":
             return command_ocvalidate(args.config, args.tool, args.expect_version)
+        if args.command == "backup-efi":
+            return command_backup_efi(args.path, args.output)
         if args.command == "compare-efi":
             return command_compare(args.first, args.second, args.output, args.json)
         if args.command == "support-report":
