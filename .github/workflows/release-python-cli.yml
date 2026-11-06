@@ -12,7 +12,7 @@ on:
         description: "Release tag to create"
         required: true
         type: string
-        default: "v2.5.0"
+        default: "v2.5.1"
 
 permissions:
   contents: write
