@@ -226,7 +226,7 @@ class HardwareSnifferIntegrationTests(unittest.TestCase):
 
     def test_hardware_sniffer_command_is_windows_only(self):
         with patch("simple_hackintosh.platform.system", return_value="Darwin"):
-            with self.assertRaisesRegex(RuntimeError, "not supported on macOS"):
+            with self.assertRaisesRegex(RuntimeError, "does not support macOS"):
                 command_hardware_sniffer()
 
     def test_hardware_sniffer_exports_report_without_requesting_acpi_dump(self):
