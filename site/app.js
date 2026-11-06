@@ -285,8 +285,19 @@ function renderChapterCards(filter) {
 }
 
 function setTopNavigation(isHome) {
-  document.querySelector("[data-home-link]").classList.toggle("active", isHome);
-  document.querySelector("[data-guide-link]").classList.toggle("active", !isHome);
+  const hash = window.location.hash || "#home";
+  const isLearningPath = isHome && (hash === "#chapters" || hash === "#library");
+  const links = [
+    [document.querySelector("[data-home-link]"), isHome && !isLearningPath],
+    [document.querySelector("[data-learning-link]"), isLearningPath],
+    [document.querySelector("[data-guide-link]"), !isHome]
+  ];
+  links.forEach(([link, active]) => {
+    if (!link) return;
+    link.classList.toggle("active", active);
+    if (active) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
+  });
 }
 
 function setMobileMenu(open) {
@@ -437,7 +448,7 @@ function showHome() {
   docsView.hidden = true;
   setTopNavigation(true);
   setDocsMenu(false);
-  document.title = "Simple Hackintosh — OpenCore Field Guide";
+  document.title = "Simple Hackintosh — Hardware & OpenCore Studio";
   document.body.classList.remove("nav-open");
   menuButton.setAttribute("aria-expanded", "false");
 }
