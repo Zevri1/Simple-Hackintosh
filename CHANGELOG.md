@@ -2,9 +2,11 @@
 
 ## Unreleased
 
-- Added a boxed, seven-section macOS Compatibility Checker in the upstream Hardware Sniffer component order; the result is saved to Hardware-Compatibility.txt and embedded in Hardware-Report.md.
-- Added startup update checks for the Simple Hackintosh CLI and official Hardware Sniffer release, including cached-executable SHA-256 status; checks fail open offline and the app is never silently replaced.
-- Extended report normalization to include connected monitors, sound endpoints and SD-controller details.
+## 2026-11-06 — CLI v3.1.0
+- Added a boxed, seven-section macOS Compatibility Checker matching the official Hardware Sniffer component order, with per-device notes for CPU, GPU/monitor, sound/endpoints, network, storage, Bluetooth and SD controllers.
+- Added UTF-8-safe console rendering and saved the checker to `Hardware-Compatibility.txt`; embedded it in `Hardware-Report.md` without changing the upstream `Report.json` schema.
+- Added startup checks for the latest stable Simple Hackintosh and Hardware Sniffer releases, with SHA-256 verification for the official cached Sniffer executable and fail-open offline behavior.
+- Updated the Windows PowerShell dashboard and release documentation for the new report and update-check flow.
 
 ## 2026-11-06 — CLI v3.0.0
 - Added a human-readable Windows Hardware Sniffer report with a conservative, source-linked macOS compatibility estimate. The original OpCore-Simplify `Report.json` remains unchanged.

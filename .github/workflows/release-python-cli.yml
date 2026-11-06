@@ -138,10 +138,12 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --target "$TARGET_SHA" \
             --title "Simple Hackintosh CLI v${VERSION}" \
-            --notes "Standalone Python/CMD assistant v${VERSION}.
+            --notes "Simple Hackintosh CLI v${VERSION}.
 
-          Includes the PowerShell front-end, macOS Terminal launcher, cross-platform native hardware inventory, Windows OpCore-Simplify Hardware Sniffer export with GitHub SHA-256 and Authenticode verification, EFI scanner and checker, Create EFI starter workflow, and bundled upstream macrecovery downloader.
+          Adds the seven-section macOS Compatibility Checker (CPU, GPU/monitor, sound/endpoints, network, storage, Bluetooth, SD controller), saved as Hardware-Compatibility.txt and embedded in Hardware-Report.md. The original Hardware Sniffer Report.json schema is preserved.
 
-          macrecovery downloads Recovery assets directly from Apple when run. No macOS Recovery image, BaseSystem, chunklist, or installer payload is included in this release.
+          Checks the latest stable Simple Hackintosh and official Hardware Sniffer releases at startup. Hardware Sniffer executables are verified against the official GitHub SHA-256 digest before use; the CLI itself is never silently replaced. Update checks continue safely when offline.
+
+          Includes Windows CMD and PowerShell launchers, the macOS Terminal launcher, cross-platform hardware inventory, EFI scanner and checker, Create EFI starter workflow, and bundled upstream macrecovery downloader source. macrecovery downloads Recovery assets directly from Apple when run; no Recovery or installer payload is included.
 
           Python 3.10+. Windows 10/11 recommended for hardware inventory. See the included README for setup and usage."

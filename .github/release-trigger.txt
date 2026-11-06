@@ -1,2 +1,7 @@
-Publish the Simple Hackintosh CLI v3.0.0 release from the main branch.
-The v3 CLI package includes the CMD, PowerShell and macOS Terminal launchers, cross-platform hardware inventory, automatic Windows OpCore-Simplify Hardware Sniffer report export with official GitHub SHA-256 verification and optional Authenticode checking, conservative source-linked macOS compatibility analysis, EFI checks, OpenCore version-matched ocvalidate integration, safe backup and comparison tools, privacy-conscious support reports, and the bundled macrecovery downloader source only; Apple Recovery payloads are not included.
+Publish Simple Hackintosh CLI v3.1.0 from the main branch.
+
+This release adds a boxed seven-section macOS Compatibility Checker based on the official OpCore-Simplify Hardware Sniffer report. It covers CPU, GPU and connected monitors, sound and audio endpoints, network, storage controllers, Bluetooth, and SD controllers. Windows hardware-report runs save both Hardware-Compatibility.txt and Hardware-Report.md while preserving the original Report.json schema.
+
+The CLI checks the latest stable Simple Hackintosh and Hardware Sniffer releases at startup. Hardware Sniffer updates are checked against the official GitHub SHA-256 digest before the executable is cached or launched. The CLI itself is never silently replaced. Checks fail open when offline.
+
+The ZIP includes the Windows CMD and PowerShell launchers, macOS Terminal launcher, cross-platform hardware inventory and diagnostics, and bundled macrecovery downloader source only. Apple Recovery payloads are not included.
