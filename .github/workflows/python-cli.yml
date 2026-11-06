@@ -1,0 +1,39 @@
+name: Python CLI tests
+
+on:
+  push:
+    branches:
+      - main
+      - chatgpt/python-cmd-cli-20261106
+  pull_request:
+    paths:
+      - "app/python/**"
+      - ".github/workflows/python-cli.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Python \${{ matrix.python-version }} on \${{ matrix.os }}
+    runs-on: \${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        python-version: ["3.10", "3.12"]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: \${{ matrix.python-version }}
+      - name: Compile source
+        run: python -m py_compile app/python/simple_hackintosh.py
+      - name: Run unit tests
+        run: python -m unittest discover -s app/python/tests -v
+      - name: Verify command help and version
+        run: |
+          python app/python/simple_hackintosh.py --version
+          python app/python/simple_hackintosh.py --help
