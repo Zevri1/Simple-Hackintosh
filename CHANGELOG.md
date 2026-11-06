@@ -2,6 +2,14 @@
 
 All notable documentation and CLI changes are recorded here.
 
+## 2026-11-06 — CLI v2.5.2
+
+- Fixed the official Windows Hardware Sniffer crash caused by Unicode progress characters being printed through a CP1252 stream; the child process now uses UTF-8 with replacement fallback.
+- Added a Windows CI smoke test that runs the official upstream executable and validates its generated Report.json.
+- Fixed the Tools page so it shares the saved light/dark preference, supports keyboard-operable tabs, and uses more reliable mobile navigation and download behavior.
+- Added safer ZIP path normalization and delayed object-URL revocation for report downloads.
+
+
 ## 2026-11-06 — CLI v2.5.1
 
 - Fixed the Hardware Sniffer launch gate: the upstream Windows release is not Authenticode-signed, so a missing signature is now accepted only after the official GitHub SHA-256 digest matches.
