@@ -1188,6 +1188,11 @@ def _compatibility_checker_content(
         lines.append(
             f"   - Simple Hackintosh: {app_update.get('current_version')} is up to date."
         )
+    elif isinstance(app_update, dict) and app_update.get("status") == "dev_build":
+        lines.append(
+            f"   - Simple Hackintosh: development build v{app_update.get('current_version')}; "
+            f"latest published stable version is {app_update.get('latest_version')}."
+        )
     elif isinstance(app_update, dict):
         lines.append("   - Simple Hackintosh: latest version could not be checked (offline or GitHub unavailable).")
     else:
@@ -1199,7 +1204,16 @@ def _compatibility_checker_content(
             "executable SHA-256 verified)."
         )
     else:
-        lines.append("   - Hardware Sniffer: latest release is checked before each Windows hardware-report run.")
+        sniffer_status = app_update.get("hardware_sniffer") if isinstance(app_update, dict) else None
+        if isinstance(sniffer_status, dict) and sniffer_status.get("status") == "up_to_date":
+            lines.append(f"   - Hardware Sniffer: {sniffer_status.get('latest_version')} is cached and SHA-256 verified.")
+        elif isinstance(sniffer_status, dict) and sniffer_status.get("status") == "update_available":
+            lines.append(
+                f"   - Hardware Sniffer: {sniffer_status.get('latest_version')} is available; "
+                "the verified executable will be fetched before the next report."
+            )
+        else:
+            lines.append("   - Hardware Sniffer: update status unavailable; it is checked again before report export.")
 
     lines.extend([
         "",
@@ -1450,7 +1464,7 @@ def check_for_app_update(timeout: float = 4.0) -> dict[str, Any]:
         ):
             release_url = APP_RELEASES_URL
         return {
-            "status": "update_available" if latest > current else "up_to_date",
+            "status": "update_available" if latest > current else ("up_to_date" if latest == current else "dev_build"),
             "current_version": APP_VERSION,
             "latest_version": tag.lstrip("vV"),
             "tag": tag,
@@ -1463,6 +1477,13 @@ def check_for_app_update(timeout: float = 4.0) -> dict[str, Any]:
             "url": APP_RELEASES_URL,
             "reason": str(exc),
         }
+
+
+def check_for_updates() -> dict[str, Any]:
+    """Check the CLI release and the official Hardware Sniffer release."""
+    result = check_for_app_update()
+    result["hardware_sniffer"] = check_for_hardware_sniffer_update()
+    return result
 
 
 def print_update_notice(status: dict[str, Any] | None) -> None:
@@ -1481,9 +1502,28 @@ def print_update_notice(status: dict[str, Any] | None) -> None:
             f"[PASS] Simple Hackintosh {status.get('current_version')} is up to date "
             f"(latest stable: {status.get('latest_version')})."
         )
+    elif kind == "dev_build":
+        print(
+            f"[INFO] Simple Hackintosh v{status.get('current_version')} is newer than "
+            f"the latest published stable release ({status.get('latest_version')}); this is a development build."
+        )
     elif kind == "unavailable":
         print("[INFO] Could not check Simple Hackintosh updates; continuing offline.")
         print(f"[INFO] Check manually: {status.get('url') or APP_RELEASES_URL}")
+
+    sniffer = status.get("hardware_sniffer")
+    if isinstance(sniffer, dict):
+        sniffer_status = sniffer.get("status")
+        if sniffer_status == "up_to_date":
+            print(f"[PASS] Hardware Sniffer {sniffer.get('latest_version')} is cached and SHA-256 verified.")
+        elif sniffer_status == "update_available":
+            print(
+                f"[UPDATE] Hardware Sniffer {sniffer.get('latest_version')} is the latest stable release; "
+                "it will be downloaded and SHA-256 verified before the next report."
+            )
+            print(f"[UPDATE] Official release: {sniffer.get('url') or HARDWARE_SNIFFER_RELEASES_URL}")
+        else:
+            print("[INFO] Could not check Hardware Sniffer updates; it will be checked again before a report run.")
 
 
 def _hardware_sniffer_cache_dir() -> Path:
@@ -1498,6 +1538,76 @@ def _sha256_file(path: Path) -> str:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def check_for_hardware_sniffer_update(timeout: float = 4.0) -> dict[str, Any]:
+    """Check the official Hardware Sniffer release and integrity of its cached executable."""
+    request = urllib.request.Request(
+        HARDWARE_SNIFFER_RELEASE_API,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "User-Agent": f"Simple-Hackintosh/{APP_VERSION}",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            raw = response.read(2 * 1024 * 1024 + 1)
+        if len(raw) > 2 * 1024 * 1024:
+            raise RuntimeError("Hardware Sniffer release metadata exceeded the safety limit.")
+        release = json.loads(raw.decode("utf-8"))
+        if not isinstance(release, dict) or release.get("draft") or release.get("prerelease"):
+            raise RuntimeError("No published stable Hardware Sniffer release was returned.")
+        tag = str(release.get("tag_name") or "").strip()
+        if not re.fullmatch(r"[A-Za-z0-9._-]{1,40}", tag):
+            raise RuntimeError("Hardware Sniffer release tag is invalid.")
+        assets = release.get("assets")
+        if not isinstance(assets, list):
+            raise RuntimeError("Hardware Sniffer release has no asset list.")
+        asset = next(
+            (item for item in assets if isinstance(item, dict) and item.get("name") == HARDWARE_SNIFFER_ASSET_NAME),
+            None,
+        )
+        if asset is None:
+            raise RuntimeError(f"Hardware Sniffer release is missing {HARDWARE_SNIFFER_ASSET_NAME}.")
+        digest_match = re.fullmatch(r"sha256:([0-9a-fA-F]{64})", str(asset.get("digest") or ""))
+        if not digest_match:
+            raise RuntimeError("GitHub did not provide a SHA-256 digest for Hardware Sniffer.")
+        download_url = str(asset.get("browser_download_url") or "")
+        parsed_url = urllib.parse.urlparse(download_url)
+        if (
+            parsed_url.scheme != "https"
+            or parsed_url.netloc.lower() != "github.com"
+            or not parsed_url.path.startswith("/lzhoang2801/Hardware-Sniffer/releases/download/")
+        ):
+            raise RuntimeError("Hardware Sniffer asset URL is not an official GitHub release URL.")
+
+        cached_path = _hardware_sniffer_cache_dir() / f"Hardware-Sniffer-{tag}.exe"
+        cached_and_verified = False
+        if cached_path.is_file():
+            try:
+                cached_and_verified = _sha256_file(cached_path) == digest_match.group(1).lower()
+            except OSError:
+                cached_and_verified = False
+        return {
+            "status": "up_to_date" if cached_and_verified else "update_available",
+            "latest_version": tag,
+            "asset_name": HARDWARE_SNIFFER_ASSET_NAME,
+            "cached_and_verified": cached_and_verified,
+            "url": HARDWARE_SNIFFER_RELEASES_URL,
+        }
+    except (
+        urllib.error.URLError,
+        TimeoutError,
+        OSError,
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+        RuntimeError,
+    ) as exc:
+        return {
+            "status": "unavailable",
+            "url": HARDWARE_SNIFFER_RELEASES_URL,
+            "reason": str(exc),
+        }
 
 
 def _download_hardware_sniffer() -> tuple[Path, str]:
@@ -2334,7 +2444,7 @@ def render_menu(use_color: bool | None = None) -> str:
 
 def interactive_menu(update_status: dict[str, Any] | None = None) -> int:
     if update_status is None:
-        update_status = check_for_app_update()
+        update_status = check_for_updates()
     print_update_notice(update_status)
     while True:
         use_color = _ansi_enabled()
@@ -2505,11 +2615,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(actual_argv)
     if args.command == "check-updates":
-        print_update_notice(check_for_app_update())
+        print_update_notice(check_for_updates())
         return 0
     update_status = None
     if not args.no_update_check:
-        update_status = check_for_app_update()
+        update_status = check_for_updates()
         print_update_notice(update_status)
     try:
         if args.command == "wizard":
