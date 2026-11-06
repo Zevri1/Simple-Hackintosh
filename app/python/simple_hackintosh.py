@@ -23,7 +23,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
-APP_VERSION = "2.5.1"
+APP_VERSION = "2.5.2"
 SECTIONS = (
     "ACPI", "Booter", "DeviceProperties", "Kernel",
     "Misc", "NVRAM", "PlatformInfo", "UEFI",
@@ -1167,6 +1167,14 @@ def command_hardware_sniffer(output_dir: str = "HardwareReport") -> int:
     print("Only the report-export option is selected; ACPI tables are not dumped.")
     print(f"Expected report location: {report_path}")
 
+    # The upstream PyInstaller app prints Unicode progress symbols. On some
+    # Windows systems its frozen Python runtime inherits CP1252 and crashes with
+    # UnicodeEncodeError. Force UTF-8 inside the child process, while replacing
+    # any unexpected characters rather than aborting hardware collection.
+    child_environment = os.environ.copy()
+    child_environment["PYTHONIOENCODING"] = "utf-8:replace"
+    child_environment["PYTHONUTF8"] = "1"
+
     # The upstream menu accepts H (export), Enter (dismiss confirmation), Q (quit),
     # and Enter (dismiss its exit screen). Feeding the menu input avoids leaving
     # the parent CLI waiting for a user or mistaking the helper's exit for failure.
@@ -1182,6 +1190,7 @@ def command_hardware_sniffer(output_dir: str = "HardwareReport") -> int:
             errors="replace",
             timeout=180,
             check=False,
+            env=child_environment,
         )
     except subprocess.TimeoutExpired as exc:
         raise RuntimeError(
