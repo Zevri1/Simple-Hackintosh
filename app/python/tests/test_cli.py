@@ -22,6 +22,7 @@ from simple_hackintosh import (
     command_macrecovery,
     command_hardware_sniffer,
     _download_hardware_sniffer,
+    _verify_hardware_sniffer_signature,
     build_parser,
     check_config_file,
     check_efi_path,
@@ -223,6 +224,49 @@ class HardwareSnifferIntegrationTests(unittest.TestCase):
         ])
         self.assertEqual(parsed.command, "hardware-sniffer")
         self.assertEqual(parsed.output_dir, "hardware-results")
+
+    def test_hardware_sniffer_accepts_unsigned_official_release_after_sha256_check(self):
+        with tempfile.TemporaryDirectory() as temp:
+            executable = Path(temp) / "Hardware-Sniffer.exe"
+            executable.write_bytes(b"official-release-payload")
+            completed = subprocess.CompletedProcess(
+                ["powershell"], 0, stdout="NOT_SIGNED\n", stderr=""
+            )
+            with (
+                patch("simple_hackintosh._powershell_executable", return_value="powershell"),
+                patch("simple_hackintosh.subprocess.run", return_value=completed) as run,
+            ):
+                result = _verify_hardware_sniffer_signature(executable)
+            self.assertIn("GitHub SHA-256 digest matched", result)
+            self.assertIn("Get-AuthenticodeSignature", run.call_args.args[0][-1])
+
+    def test_hardware_sniffer_accepts_a_valid_authenticode_signature(self):
+        with tempfile.TemporaryDirectory() as temp:
+            executable = Path(temp) / "Hardware-Sniffer.exe"
+            executable.write_bytes(b"signed-release-payload")
+            completed = subprocess.CompletedProcess(
+                ["powershell"], 0, stdout="SIGNED:CN=Example Publisher\n", stderr=""
+            )
+            with (
+                patch("simple_hackintosh._powershell_executable", return_value="powershell"),
+                patch("simple_hackintosh.subprocess.run", return_value=completed),
+            ):
+                result = _verify_hardware_sniffer_signature(executable)
+            self.assertEqual(result, "CN=Example Publisher")
+
+    def test_hardware_sniffer_rejects_an_invalid_authenticode_signature(self):
+        with tempfile.TemporaryDirectory() as temp:
+            executable = Path(temp) / "Hardware-Sniffer.exe"
+            executable.write_bytes(b"tampered-release-payload")
+            completed = subprocess.CompletedProcess(
+                ["powershell"], 1, stdout="", stderr="Authenticode status: HashMismatch"
+            )
+            with (
+                patch("simple_hackintosh._powershell_executable", return_value="powershell"),
+                patch("simple_hackintosh.subprocess.run", return_value=completed),
+                self.assertRaisesRegex(RuntimeError, "invalid Authenticode signature"),
+            ):
+                _verify_hardware_sniffer_signature(executable)
 
     def test_hardware_sniffer_command_is_windows_only(self):
         with patch("simple_hackintosh.platform.system", return_value="Darwin"):

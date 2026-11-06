@@ -19,12 +19,12 @@
 
 ## Python command-line assistant
 
-The repository includes a cross-platform Python assistant (v2.5.0) with a PowerShell-native menu on Windows, a double-clickable macOS Terminal launcher, and hardware inventory on both systems. It opens an interactive numbered menu when launched without arguments and requires no third-party Python packages; the optional Windows OpCore-Simplify report uses the official signed Hardware Sniffer release and exports JSON automatically.
+The repository includes a cross-platform Python assistant (v2.5.1) with a PowerShell-native menu on Windows, a double-clickable macOS Terminal launcher, and hardware inventory on both systems. It opens an interactive numbered menu when launched without arguments and requires no third-party Python packages; the optional Windows OpCore-Simplify report uses the official Hardware Sniffer release after GitHub SHA-256 verification (Authenticode is checked when present) and exports JSON automatically.
 
 - [Python CLI source, beginner guide, commands, and tests](app/python/README.md)
 - [Python CLI test workflow](.github/workflows/python-cli.yml)
 
-Features include Windows/macOS hardware inventory, a Windows OpCore-Simplify-style `Report.json` export using the official Hardware Sniffer (downloaded with SHA-256 and Authenticode verification, then driven automatically without an ACPI dump), EFI and Kext reference checks, config.plist linting, official version-matched `ocvalidate` integration, the bundled OpenCore `macrecovery` utility, EFI starter-folder creation, safe backups, SHA-256 comparison, and privacy-conscious support reports.
+Features include Windows/macOS hardware inventory, a Windows OpCore-Simplify-style `Report.json` export using the official Hardware Sniffer (downloaded with a verified GitHub SHA-256 digest and optional Authenticode verification, then driven automatically without an ACPI dump), EFI and Kext reference checks, config.plist linting, official version-matched `ocvalidate` integration, the bundled OpenCore `macrecovery` utility, EFI starter-folder creation, safe backups, SHA-256 comparison, and privacy-conscious support reports.
 
 ### Run from a downloaded release
 
