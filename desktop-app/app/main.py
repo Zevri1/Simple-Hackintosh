@@ -1,4 +1,5 @@
 import os, platform, subprocess, sys
+from app.hardware import inventory
 from pathlib import Path
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtGui import QFont
