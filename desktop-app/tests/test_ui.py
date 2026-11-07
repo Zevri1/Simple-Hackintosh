@@ -3,7 +3,7 @@ os.environ.setdefault("QT_QPA_PLATFORM","offscreen")
 from PySide6.QtWidgets import QApplication
 from app.main import MainWindow
 
-def test_window_has_downloader_and_efi_pages():
+def test_window_has_downloader_and_efi_pages():  # 0.2.0 smoke check
     app=QApplication.instance() or QApplication([])
     window=MainWindow()
     assert window.pages.count()==5
