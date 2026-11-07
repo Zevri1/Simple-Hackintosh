@@ -40,7 +40,7 @@ jobs:
           pip install -r desktop-app/requirements.txt pyinstaller
       - name: Build executable
         working-directory: desktop-app
-        run: pyinstaller --noconfirm --clean --windowed --name Simple-Hackintosh app/main.py
+        run: pyinstaller --noconfirm --clean --onefile --windowed --name Simple-Hackintosh app/main.py
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
