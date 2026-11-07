@@ -104,8 +104,9 @@ class MainWindow(QMainWindow):
         return f"OS: {platform.system()} {platform.release()}  •  Architecture: {platform.machine()}\nPython: {platform.python_version()}  •  App: Simple Hackintosh 0.1.0"
 
     def detect(self):
-        self.system.setText(self.system_info()+"\n\nHardware inventory: baseline OS data detected. Detailed PCI/ACPI inventory adapters are planned for Windows and macOS.")
-        QMessageBox.information(self,"Detection complete","Basic system information was detected. Advanced PCI/ACPI inventory is not implemented in this preview.")
+        self.system.setText(self.system_info()+"\\n\\n"+inventory())
+        self.log.append("Hardware inventory collected (read-only).")
+        self.nav.setCurrentRow(6)
 
     def simple_page(self,title,desc,action):
         page=QWidget(); l=QVBoxLayout(page); l.setContentsMargins(30,26,30,25)
