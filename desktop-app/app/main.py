@@ -146,7 +146,7 @@ class MainWindow(QMainWindow):
         footer.setObjectName("smallMuted")
         footer.setWordWrap(True)
         side.addWidget(footer)
-        outer.addWidget(side)
+        outer.addWidget(sidebar)
 
         content = QWidget()
         content_layout = QVBoxLayout(content)
