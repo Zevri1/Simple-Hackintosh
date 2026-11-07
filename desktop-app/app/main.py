@@ -222,6 +222,18 @@ class MainWindow(QMainWindow):
             metrics.addWidget(tile)
         layout.addLayout(metrics)
 
+        hardware, hardware_layout = make_card("This computer", "Read-only hardware overview for the current machine.")
+        self.system = QLabel(f"{platform.system()} {platform.release()}  •  {platform.machine()}")
+        self.system.setObjectName("muted")
+        self.system.setWordWrap(True)
+        hardware_actions = QHBoxLayout()
+        hardware_actions.addWidget(self.system, 1)
+        detect_button = QPushButton("Detect hardware")
+        detect_button.clicked.connect(self.detect)
+        hardware_actions.addWidget(detect_button)
+        hardware_layout.addLayout(hardware_actions)
+        layout.addWidget(hardware)
+
         row = QHBoxLayout()
         row.setSpacing(13)
         downloader, dl = make_card("01  ·  macOS Downloader", "Use the upstream gibMacOS utility to browse Apple's installer catalog.")
