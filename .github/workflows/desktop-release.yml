@@ -55,7 +55,7 @@ jobs:
 
   release:
     needs: build
-    if: inputs.publish_release == true || startsWith(github.ref, 'refs/heads/desktop-release-v*')
+    if: inputs.publish_release == true || startsWith(github.ref, 'refs/heads/desktop-release-v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
