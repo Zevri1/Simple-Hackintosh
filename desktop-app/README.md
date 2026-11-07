@@ -1,8 +1,8 @@
 # Simple Hackintosh — Desktop Preview
 
-Cross-platform Qt desktop tool for **Windows and macOS**. Preview release **0.2.0**.
+Cross-platform Qt desktop tool for **Windows and macOS**. Preview release **0.2.1**.
 
-## Implemented in this preview
+## Interface update (0.2.1)\n\n- Refreshed dark desktop layout with a dedicated sidebar, clearer navigation, dashboard cards, and consistent page headers.\n- Existing downloader, EFI builder, validation, and log workflows remain in place.\n\n## Implemented in this preview
 
 ### macOS Downloader
 - Downloads the upstream [gibMacOS](https://github.com/corpnewt/gibMacOS) helper on first launch.
