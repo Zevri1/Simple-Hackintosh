@@ -69,7 +69,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p _site/docs _site/templates
-          cp site/index.html site/styles.css site/app.js site/favicon.svg site/tools.html site/tools.css site/tools.js _site/
+          cp site/index.html site/styles.css site/studio.css site/app.js site/release.js site/favicon.svg site/tools.html site/tools.css site/tools.js _site/
           cp docs/*.md _site/docs/
           cp templates/*.md _site/templates/
           cp social-preview.jpg _site/
