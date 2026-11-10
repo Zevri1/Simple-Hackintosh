@@ -13,7 +13,7 @@
     document.documentElement.dataset.theme = saved === "light" || saved === "dark" ? saved : (light ? "light" : "dark");
   } catch (error) { document.documentElement.dataset.theme = "dark"; }
 </script>
-<link rel="stylesheet" href="tools.css"><script defer src="tools.js"></script>
+<link rel="stylesheet" href="tools.css?v=studio-20261110"><link rel="stylesheet" href="studio.css?v=1"><script defer src="tools.js"></script><script defer src="release.js?v=1"></script>
 </head>
 <body>
 <a class="tools-skip-link" href="#main-content">Skip to content</a>
@@ -22,7 +22,7 @@
 <nav class="top-links" id="tools-top-links" aria-label="Main navigation"><a href="index.html">Overview</a><a href="index.html#guide">Documentation</a><a class="active" href="tools.html" aria-current="page">Tools</a><a href="https://github.com/Zevri1/Simple-Hackintosh" target="_blank" rel="noopener noreferrer">GitHub ↗</a></nav>
 <button class="tools-menu-toggle" id="tools-menu-toggle" type="button" aria-controls="tools-top-links" aria-expanded="false"><span>Menu</span><span aria-hidden="true">☰</span></button>
 <button class="tools-theme-toggle" id="tools-theme-toggle" type="button" aria-label="Switch theme" title="Switch theme">◐</button>
-<a class="header-download" href="https://github.com/Zevri1/Simple-Hackintosh/releases/download/v2.5.2/Simple-Hackintosh-CLI-v2.5.2.zip">Download CLI v2.5.2 <span>↓</span></a>
+<a class="header-download" href="https://github.com/Zevri1/Simple-Hackintosh/releases/latest" data-release-download>Download CLI <span data-release-version>latest</span> <span>↓</span></a>
 </header>
 <main class="page" id="main-content">
 <section class="intro">
@@ -33,8 +33,8 @@
 </section>
 <section class="tool-download-banner" aria-label="Simple Hackintosh CLI download">
   <div class="tool-download-icon">SH<span>_</span></div>
-  <div><span class="download-kicker">DESKTOP COMPANION / VERSION 2.5.2</span><h2>Take the diagnostics with you.</h2><p>PowerShell menu for Windows. Terminal launcher for macOS. Official Hardware Sniffer report export on Windows.</p></div>
-  <a class="action-button primary" href="https://github.com/Zevri1/Simple-Hackintosh/releases/download/v2.5.2/Simple-Hackintosh-CLI-v2.5.2.zip">Download ZIP <span>↓</span></a>
+  <div><span class="download-kicker">DESKTOP COMPANION / VERSION <span data-release-version>2.5.2</span></span><h2>Take the diagnostics with you.</h2><p>PowerShell menu for Windows. Terminal launcher for macOS. Official Hardware Sniffer report export on Windows.</p></div>
+  <a class="action-button primary" href="https://github.com/Zevri1/Simple-Hackintosh/releases/latest">Download ZIP <span>↓</span></a>
 </section>
 <section class="workbench" aria-label="Tools workspace">
 <aside class="tool-rail"><div class="sr-only" id="tools-tab-instructions">Use the arrow keys to move between tools.</div>
