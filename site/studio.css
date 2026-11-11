@@ -179,3 +179,37 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
  .chapter-card{min-height:190px}
  .site-footer{align-items:flex-start;flex-direction:column}
 }
+
+/* Homepage rebuilt from the HakiOS poster/landing composition (not a font-only skin). */
+.sh-wide{max-width:1200px;margin:0 auto;padding-inline:20px}
+.sh-poster{position:relative;margin-top:44px;border:3px solid var(--text);padding:56px 48px 40px;background:color-mix(in srgb,var(--panel) 55%,transparent)}
+.sh-poster:before,.sh-poster:after{content:"";position:absolute;width:26px;height:26px;background:linear-gradient(var(--text),var(--text)) center/100% 1.5px no-repeat,linear-gradient(var(--text),var(--text)) center/1.5px 100% no-repeat}
+.sh-poster:before{left:-30px;top:-30px}.sh-poster:after{right:-30px;bottom:-30px}
+.sh-stamp{position:absolute;top:-17px;left:36px;background:var(--text);color:var(--bg);font-family:var(--mono);font-weight:700;font-size:13px;letter-spacing:.06em;padding:6px 14px;transform:rotate(-1.2deg)}
+.sh-poster-meta{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-family:var(--mono);font-size:12px;color:var(--muted);margin:0 0 22px}
+.sh-title{font-size:clamp(65px,13.8vw,164px)!important;font-weight:900!important;letter-spacing:-.075em!important;line-height:.82!important;margin:0 0 26px!important;display:flex;align-items:flex-end;flex-wrap:wrap}
+.sh-dot{display:inline-block;width:.17em;height:.17em;border-radius:50%;background:var(--accent);margin-left:.03em;margin-bottom:.03em}
+.sh-lead{font-size:clamp(17px,2.1vw,21px);color:var(--soft);margin:0 0 30px;max-width:760px}
+.sh-links{display:flex;flex-wrap:wrap;align-items:center;gap:10px 22px;margin:0 0 6px}
+.sh-btn{display:inline-flex;align-items:center;gap:8px;background:var(--text);color:var(--bg)!important;text-decoration:none!important;font-weight:700;padding:12px 20px;border-radius:2px;box-shadow:5px 5px 0 var(--line);transition:transform .12s,box-shadow .12s}
+.sh-btn:hover{background:var(--accent);color:#fff!important;transform:translate(-2px,-2px);box-shadow:7px 7px 0 var(--line)}
+.sh-btn.sh-ghost{background:none;color:var(--text)!important;border:2px solid var(--text);box-shadow:none}
+.sh-btn.sh-ghost:hover{border-color:var(--accent);color:var(--accent)!important;background:none;transform:none}
+.sh-text-link{text-decoration:underline!important;text-underline-offset:4px}
+.sh-meta{font-family:var(--mono);font-size:13px;color:var(--muted);margin:18px 0 0}
+.sh-seal{position:absolute;right:30px;bottom:26px;width:118px;height:118px;color:var(--text);animation:sh-turn 30s linear infinite}
+@keyframes sh-turn{to{transform:rotate(360deg)}}
+.sh-ticker{overflow:hidden;border-block:1.5px solid var(--text);margin-top:40px;white-space:nowrap;font-family:var(--mono);font-size:13px;color:var(--accent-2)}
+.sh-ticker span{display:inline-block;padding:9px 0;animation:sh-tick 60s linear infinite}
+@keyframes sh-tick{to{transform:translateX(-50%)}}
+.sh-home-links{display:grid;grid-template-columns:repeat(4,1fr);margin-top:52px;margin-bottom:65px;border:2px solid var(--text);padding:0}
+.sh-home-links a{display:flex;flex-direction:column;gap:10px;padding:22px 20px 24px;text-decoration:none!important;border-right:1.5px solid var(--text);background:color-mix(in srgb,var(--panel) 50%,transparent)}
+.sh-home-links a:last-child{border-right:0}
+.sh-home-links a:hover{background:var(--panel)}
+.sh-home-links span{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.sh-home-links strong{font-size:21px;font-weight:800;letter-spacing:-.03em}
+.sh-home-links b{font-family:var(--mono);font-weight:500;color:var(--accent)}
+.sh-footer{max-width:1200px;margin:0 auto;padding:24px 20px;border-top:1.5px solid var(--text);display:flex;justify-content:space-between;align-items:center;gap:20px;font-family:var(--mono);font-size:11px;color:var(--muted)}
+.sh-footer a{text-decoration:none}
+@media(max-width:760px){.sh-poster{padding:44px 20px 30px}.sh-seal{display:none}.sh-poster:before,.sh-poster:after{display:none}.sh-home-links{grid-template-columns:1fr 1fr}.sh-home-links a:nth-child(2){border-right:0}.sh-home-links a:nth-child(-n+2){border-bottom:1.5px solid var(--text)}.sh-footer{flex-wrap:wrap}}
+@media(max-width:520px){.sh-title{font-size:clamp(54px,16vw,82px)!important}.sh-poster-meta{flex-direction:column;gap:5px}.sh-links{align-items:stretch;flex-direction:column}.sh-btn{justify-content:center}.sh-home-links{grid-template-columns:1fr}.sh-home-links a{border-right:0!important;border-bottom:1.5px solid var(--text)}.sh-home-links a:last-child{border-bottom:0}}
