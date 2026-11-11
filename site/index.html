@@ -57,114 +57,29 @@
 
   <main id="main-content">
     <section class="home-view" id="home-view">
-      <div class="hero-wrap">
-        <div class="hero-gridline" aria-hidden="true"></div>
-        <div class="hero-copy">
-          <div class="eyebrow"><span class="eyebrow-pulse"></span> AN OPENCORE LEARNING PROJECT <span class="eyebrow-year">— EST. 2026</span></div>
-          <h1>Know your<br><em>machine.</em><br>Build with intent.</h1>
-          <p class="hero-lede">A practical learning studio for understanding your hardware, checking an EFI, and making sense of OpenCore. Clear diagnostics, useful documentation, and tools that keep the work on your computer.</p>
-          <div class="hero-actions">
-            <a class="button button-primary" href="#chapter/00-read-first">Start with the basics <span>↗</span></a>
-            <a class="button button-secondary" href="#chapters">Explore the learning path</a>
-            <a class="button button-download" href="https://github.com/Zevri1/Simple-Hackintosh/releases/latest">Download CLI <span data-release-version>latest</span> <span>↓</span></a>
-          </div>
-          <div class="hero-footnote"><span class="footnote-mark">i</span> Independent learning project · Verify hardware-specific compatibility before making changes.</div>
-        </div>
-
-        <div class="hero-visual" aria-label="Illustrated OpenCore boot sequence">
-          <div class="visual-topline"><span>BOOT SEQUENCE / 001</span><span class="live-indicator"><i></i> SYSTEM MAP</span></div>
-          <div class="visual-center">
-            <div class="visual-orbit orbit-a"></div>
-            <div class="visual-orbit orbit-b"></div>
-            <div class="visual-orbit orbit-c"></div>
-            <div class="visual-core"><div class="core-inner"><span>OC</span><small>OPENCORE</small></div></div>
-            <div class="visual-node node-a"><b>01</b><span>FIRMWARE</span></div>
-            <div class="visual-node node-b"><b>02</b><span>ACPI + DRIVERS</span></div>
-            <div class="visual-node node-c"><b>03</b><span>CONFIG.PLIST</span></div>
-            <div class="visual-node node-d"><b>04</b><span>BOOT. EFI</span></div>
-            <svg class="visual-lines" viewBox="0 0 500 370" aria-hidden="true"><path d="M250 185L90 70M250 185L410 70M250 185L90 300M250 185L410 300" stroke="currentColor" stroke-width="1" stroke-dasharray="3 7" opacity=".28"/><circle cx="250" cy="185" r="116" stroke="currentColor" stroke-width="1" stroke-dasharray="2 7" opacity=".25"/></svg>
-          </div>
-          <div class="visual-bottom"><span>HARDWARE → CONFIGURATION → BOOT</span><span>4 STAGES / 1 SYSTEM</span></div>
-          <div class="visual-index">SH<span>/</span>01</div>
-        </div>
+      <div class="sh-wide">
+        <section class="sh-poster" aria-labelledby="sh-title">
+          <span class="sh-stamp">OPENCORE · EFI · macOS</span>
+          <p class="sh-poster-meta"><span>SIMPLE HACKINTOSH / 01</span><span>HARDWARE → CONFIG → BOOT</span><span>INDEPENDENT PROJECT</span></p>
+          <h1 class="sh-title" id="sh-title">simple hackintosh<span class="sh-dot" aria-hidden="true"></span></h1>
+          <p class="sh-lead">Understand your hardware. Build your EFI. Learn OpenCore.</p>
+          <p class="sh-links">
+            <a class="sh-btn" href="#chapter/00-read-first">Start here <span>→</span></a>
+            <a class="sh-btn sh-ghost" href="#guide">Documentation</a>
+            <a class="sh-text-link" href="https://github.com/Zevri1/Simple-Hackintosh/releases/latest" data-release-download>Download CLI <span data-release-version>latest</span> ↓</a>
+          </p>
+          <p class="sh-meta">17 CHAPTERS · WINDOWS + macOS TOOLS · LOCAL DIAGNOSTICS</p>
+          <svg class="sh-seal" viewBox="0 0 120 120" aria-hidden="true"><defs><path id="sh-ring" d="M60 60 m-46 0 a46 46 0 1 1 92 0 a46 46 0 1 1 -92 0"/></defs><text font-family="monospace" font-weight="700" font-size="9.6" letter-spacing="2.6" fill="currentColor"><textPath href="#sh-ring">OPENCORE · EFI · SIMPLE HACKINTOSH · </textPath></text><circle cx="60" cy="60" r="30" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="60" cy="60" r="7" fill="#e8170f"/></svg>
+        </section>
       </div>
-
-      <section class="download-band" aria-label="Latest CLI release">
-        <div class="download-band-mark">SH<span>/</span>CLI</div>
-        <div class="download-band-copy">
-          <span class="download-kicker">DESKTOP TOOLKIT / LATEST RELEASE</span><span class="latest-pill" id="release-live-pill" hidden><i></i> LIVE RELEASE</span><p class="release-state" id="release-status" aria-live="polite">Checking GitHub Releases…</p>
-          <h2>One toolbox. Two platforms.</h2>
-          <p>PowerShell menu on Windows, Terminal launcher on macOS, plus hardware reports and practical EFI diagnostics—all kept local.</p>
-        </div>
-        <div class="download-band-action">
-          <span class="download-version">VERSION <span data-release-version>2.5.2</span> · PYTHON 3.10+</span>
-          <a class="button button-primary" href="https://github.com/Zevri1/Simple-Hackintosh/releases/latest">Download the CLI <span>↓</span></a>
-          <a class="download-notes" href="https://github.com/Zevri1/Simple-Hackintosh/releases/latest" data-release-notes>Release notes & SHA-256 ↗</a>
-        </div>
-      </section>
-
-      <div class="proof-strip">
-        <div class="proof-intro"><span>THE GUIDE AT A GLANCE</span><b>Learn the system, not just the steps.</b></div>
-        <div class="proof-metric"><strong>17</strong><span>CHAPTERS</span></div>
-        <div class="proof-metric"><strong>04</strong><span>LEARNING STAGES</span></div>
-        <div class="proof-metric"><strong id="completed-count">00</strong><span>CHAPTERS COMPLETED</span></div>
-        <div class="proof-metric proof-open"><strong>OPEN</strong><span>DOCUMENTATION</span></div>
+      <div class="sh-ticker" aria-hidden="true"><span>HARDWARE INVENTORY · EFI STRUCTURE · ACPI · KEXTS · CONFIG.PLIST · VALIDATION · INSTALLATION · TROUBLESHOOTING · HARDWARE INVENTORY · EFI STRUCTURE · ACPI · KEXTS · CONFIG.PLIST · VALIDATION · INSTALLATION · TROUBLESHOOTING ·</span></div>
+      <div class="sh-wide sh-home-links">
+        <a href="#chapters"><span>01</span><strong>Learning path</strong><b>→</b></a>
+        <a href="#guide"><span>02</span><strong>Field guide</strong><b>→</b></a>
+        <a href="tools.html"><span>03</span><strong>Tools</strong><b>→</b></a>
+        <a href="https://github.com/Zevri1/Simple-Hackintosh/releases/latest"><span>04</span><strong>Latest release</strong><b>↗</b></a>
       </div>
-
-      <section class="section learning-section" id="chapters">
-        <div class="section-heading">
-          <div><span class="section-kicker">01 / THE LEARNING PATH</span><h2>From unknown hardware<br>to a <em>known-good setup.</em></h2></div>
-          <p>Move in order. Every decision in OpenCore depends on what you learned in the stage before it.</p>
-        </div>
-        <div class="pathway">
-          <div class="path-step"><div class="path-head"><span>PHASE 01</span><span class="path-no">01</span></div><div class="path-icon icon-search">⌕</div><h3>Identify</h3><p>Inventory the exact CPU, GPU, firmware, storage, and wireless hardware.</p><a href="#chapter/01-hardware-inventory">Explore research <b>↗</b></a></div>
-          <div class="path-connector" aria-hidden="true"></div>
-          <div class="path-step"><div class="path-head"><span>PHASE 02</span><span class="path-no">02</span></div><div class="path-icon icon-layers">▱</div><h3>Prepare</h3><p>Check compatibility and understand the EFI structure, ACPI, Kexts, and drivers.</p><a href="#chapter/04-efi-structure">Explore preparation <b>↗</b></a></div>
-          <div class="path-connector" aria-hidden="true"></div>
-          <div class="path-step"><div class="path-head"><span>PHASE 03</span><span class="path-no">03</span></div><div class="path-icon icon-config">{ }</div><h3>Configure</h3><p>Build a hardware-specific config, validate it, and investigate errors methodically.</p><a href="#chapter/06-config-plist">Explore configuration <b>↗</b></a></div>
-          <div class="path-connector" aria-hidden="true"></div>
-          <div class="path-step"><div class="path-head"><span>PHASE 04</span><span class="path-no">04</span></div><div class="path-icon icon-boot">⌁</div><h3>Verify</h3><p>Install, test the result, map USB ports, and plan safe maintenance.</p><a href="#chapter/08-installation">Explore verification <b>↗</b></a></div>
-        </div>
-      </section>
-
-      <section class="section library-section" id="library">
-        <div class="section-heading library-heading">
-          <div><span class="section-kicker">02 / DOCUMENTATION LIBRARY</span><h2>The complete <em>field manual.</em></h2></div>
-          <a class="inline-link" href="#guide">Open first chapter <span>↗</span></a>
-        </div>
-        <div class="library-toolbar">
-          <p>17 focused chapters. Keep your place and return whenever you need.</p>
-          <div class="filter-pills" id="chapter-filters" role="group" aria-label="Filter chapters">
-            <button class="filter-pill active" type="button" data-filter="all" aria-pressed="true">All chapters</button>
-            <button class="filter-pill" type="button" data-filter="start" aria-pressed="false">Start here</button>
-            <button class="filter-pill" type="button" data-filter="build" aria-pressed="false">Build EFI</button>
-            <button class="filter-pill" type="button" data-filter="install" aria-pressed="false">Install</button>
-            <button class="filter-pill" type="button" data-filter="maintain" aria-pressed="false">Maintain</button>
-          </div>
-        </div>
-        <div class="chapter-grid" id="chapter-grid" aria-live="polite"></div>
-        <div class="library-footer"><span><i class="status-dot"></i> CHAPTER PROGRESS SAVED ON THIS DEVICE</span><span>Use the search shortcut <kbd>/</kbd> any time</span></div>
-      </section>
-
-      <section class="section principles-section">
-        <div class="principle-lead"><span class="section-kicker">03 / BEFORE YOU BEGIN</span><h2>Three rules.<br><em>No shortcuts.</em></h2><p>A working setup starts with good information and reversible decisions.</p></div>
-        <div class="principle-list">
-          <article class="principle"><span>01</span><div><h3>There is no universal EFI.</h3><p>Use exact hardware IDs and the correct OpenCore release. Never copy a random EFI folder and assume it fits.</p></div><b>↗</b></article>
-          <article class="principle"><span>02</span><div><h3>Protect your existing system.</h3><p>Back up important files and boot entries. Understand every disk operation before you run it.</p></div><b>↗</b></article>
-          <article class="principle"><span>03</span><div><h3>Change one thing at a time.</h3><p>Keep a known-good backup, record each change, and validate the configuration before booting.</p></div><b>↗</b></article>
-        </div>
-      </section>
-
-      <section class="closing-cta">
-        <div><span class="section-kicker">READY WHEN YOU ARE</span><h2>Start with what<br>you <em>actually have.</em></h2><p>Read the first chapter, identify your hardware, and build your own understanding one stage at a time.</p></div>
-        <a class="button button-primary" href="#chapter/00-read-first">Open the field guide <span>↗</span></a>
-        <div class="cta-decoration" aria-hidden="true">S/</div>
-      </section>
-
-      <footer class="site-footer">
-        <a class="brand footer-brand" href="#home"><span class="brand-symbol"><svg viewBox="0 0 42 42" fill="none"><path d="M29.5 9H17.2a7.2 7.2 0 0 0 0 14.4h7.6a7.2 7.2 0 0 1 0 14.4H11" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/></svg></span><span class="brand-copy"><b>SIMPLE HACKINTOSH</b><small>OPENCORE FIELD GUIDE</small></span></a>
-        <div class="footer-right"><div class="footer-links"><a href="https://github.com/Zevri1/Simple-Hackintosh" target="_blank" rel="noopener noreferrer">Repository ↗</a><a href="https://dortania.github.io/OpenCore-Install-Guide/" target="_blank" rel="noopener noreferrer">Dortania Guide ↗</a><a href="#chapter/14-troubleshooting">Troubleshooting</a></div><p>Independent educational project. Apple, macOS, OpenCore, and third-party tools remain subject to their respective names, licenses, and terms.</p></div>
-      </footer>
+      <footer class="sh-footer"><span>SIMPLE HACKINTOSH · OPENCORE FIELD GUIDE</span><a href="https://github.com/Zevri1/Simple-Hackintosh">GITHUB ↗</a><span>INDEPENDENT EDUCATIONAL PROJECT</span></footer>
     </section>
 
     <section class="docs-view" id="docs-view" hidden>
