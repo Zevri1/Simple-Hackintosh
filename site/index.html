@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f4f1e9">
+  <meta name="theme-color" content="#0b0f14">
   <meta name="description" content="A hardware-first OpenCore learning studio with practical diagnostics, clear documentation, and a cross-platform CLI.">
   <meta property="og:type" content="website">
   <meta property="og:title" content="Simple Hackintosh — Hardware & OpenCore Studio">
@@ -16,11 +16,10 @@
   <script>
     try {
       const saved = localStorage.getItem("simple-hackintosh-theme");
-      const light = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
-      document.documentElement.dataset.theme = saved === "light" || saved === "dark" ? saved : (light ? "light" : "dark");
+      document.documentElement.dataset.theme = saved === "light" ? "light" : "dark";
     } catch (error) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=studio-20261111"><link rel="stylesheet" href="studio.css?v=7">
+  <link rel="stylesheet" href="styles.css?v=studio-20261111"><link rel="stylesheet" href="studio.css?v=8">
   <script defer src="app.js"></script><script defer src="release.js?v=2"></script>
   <title>Simple Hackintosh — Hardware & OpenCore Studio</title>
 </head>
@@ -59,38 +58,52 @@
     <section class="home-view" id="home-view">
       <div class="sh-wide">
         <section class="sh-poster" aria-labelledby="sh-title">
-          <span class="sh-stamp">OPENCORE · EFI · macOS</span>
-          <div class="sh-hero-copy">
-            <p class="sh-poster-meta"><span>SIMPLE HACKINTOSH / 01</span><span>HARDWARE → CONFIG → BOOT</span><span>INDEPENDENT PROJECT</span></p>
-            <h1 class="sh-title" id="sh-title">simple hackintosh<span class="sh-dot" aria-hidden="true"></span></h1>
-            <p class="sh-lead">Understand your hardware. Plan your EFI. Learn how OpenCore works — step by step.</p>
-            <p class="sh-description">Simple Hackintosh is an independent, open learning guide for installing and maintaining macOS on compatible non‑Apple x86‑64 computers. It explains hardware compatibility, EFI structure, ACPI, Kexts, config.plist, validation, installation, and troubleshooting. A practical cross‑platform CLI adds local hardware reports and configuration checks for Windows and macOS. This is a learning toolkit—not a one‑click EFI generator or a promise that every computer is compatible.</p>
-            <p class="sh-links">
-              <a class="sh-btn" href="#chapter/00-read-first">Start learning <span>→</span></a>
-              <a class="sh-btn sh-ghost" href="#guide">Documentation</a>
-              <a class="sh-text-link" href="https://github.com/Zevri1/Simple-Hackintosh/releases/latest" data-release-download>Download CLI <span data-release-version>latest</span> ↓</a>
-            </p>
-            <p class="sh-meta">17 CHAPTERS · WINDOWS + macOS TOOLS · LOCAL DIAGNOSTICS</p>
+          <div class="sh-hub-topline">
+            <span class="sh-hub-brand">SIMPLE HACKINTOSH <i>/</i> OPENCORE FIELD GUIDE</span>
+            <span class="sh-hub-status"><i aria-hidden="true"></i> LEARNING HUB ONLINE</span>
           </div>
-          <div class="sh-3d-stage" aria-hidden="true">
-            <span class="sh-stage-label sh-stage-label-top">OPENCORE / SYSTEM MODEL</span>
-            <div class="sh-3d-orbit sh-orbit-one"></div>
-            <div class="sh-3d-orbit sh-orbit-two"></div>
-            <div class="sh-3d-orbit sh-orbit-three"></div>
-            <div class="sh-chip-platform"></div>
-            <div class="sh-chip-float">
-              <div class="sh-chip-cube">
-                <div class="sh-cube-face sh-face-front"><small>INDEPENDENT FIELD GUIDE</small><strong>SH</strong><b>SIMPLE / CORE</b><i>OPENCORE</i></div>
-                <div class="sh-cube-face sh-face-back"><small>BUILD WITH REASON</small><strong>01</strong><b>HARDWARE</b></div>
-                <div class="sh-cube-face sh-face-right"><small>STRUCTURE</small><strong>EFI</strong><b>ACPI · KEXTS</b></div>
-                <div class="sh-cube-face sh-face-left"><small>VALIDATE</small><strong>✓</strong><b>CONFIG.PLIST</b></div>
-                <div class="sh-cube-face sh-face-top"><span class="sh-circuit-mark"></span><b>BOOT</b></div>
-                <div class="sh-cube-face sh-face-bottom"><small>LEARN</small><b>ONE STEP AT A TIME</b></div>
+          <div class="sh-hub-layout">
+            <div class="sh-hero-copy">
+              <p class="sh-hub-kicker">HARDWARE <i>·</i> EFI <i>·</i> OPENCORE</p>
+              <h1 class="sh-title" id="sh-title">Build your EFI.<br><em>Understand every layer.</em></h1>
+              <p class="sh-lead">A practical place to learn, prepare, and validate your Hackintosh setup.</p>
+              <p class="sh-description">Explore 17 step-by-step chapters, learn how hardware compatibility and EFI components fit together, and use local tools to inspect configurations on Windows or macOS. Simple Hackintosh explains the process instead of promising a one-click solution.</p>
+              <button class="sh-search-launch" id="hero-search-open" type="button" aria-haspopup="dialog" aria-controls="search-dialog" aria-label="Search the field guide">
+                <span class="sh-search-symbol" aria-hidden="true">⌕</span>
+                <span class="sh-search-copy"><strong>Search the field guide</strong><small>Find chapters, hardware topics, EFI, ACPI and more</small></span>
+                <kbd>⌘ K</kbd>
+              </button>
+              <div class="sh-links">
+                <a class="sh-btn" href="#chapter/00-read-first">Start learning <span aria-hidden="true">→</span></a>
+                <a class="sh-btn sh-ghost" href="tools.html">Explore tools <span aria-hidden="true">↗</span></a>
+                <a class="sh-inline-download" href="https://github.com/Zevri1/Simple-Hackintosh/releases/latest" data-release-download>Download CLI <span data-release-version>latest</span> <b aria-hidden="true">↓</b></a>
+              </div>
+              <div class="sh-hero-metrics" aria-label="Project overview">
+                <div><strong>17</strong><span>LEARNING CHAPTERS</span></div>
+                <div><strong>03</strong><span>LOCAL TOOL MODULES</span></div>
+                <div><strong>02</strong><span>DESKTOP PLATFORMS</span></div>
               </div>
             </div>
-            <span class="sh-chip-callout sh-callout-a"><i></i> EFI / CONFIG</span>
-            <span class="sh-chip-callout sh-callout-b"><i></i> ACPI / KEXTS</span>
-            <div class="sh-stage-footer"><span>01 / HARDWARE</span><span>02 / CONFIG</span><span>03 / BOOT</span></div>
+            <div class="sh-3d-stage" aria-hidden="true">
+              <div class="sh-stage-topline"><span>OPENCORE / SYSTEM MODEL</span><b><i></i> READY</b></div>
+              <div class="sh-3d-orbit sh-orbit-one"></div>
+              <div class="sh-3d-orbit sh-orbit-two"></div>
+              <div class="sh-3d-orbit sh-orbit-three"></div>
+              <div class="sh-chip-platform"></div>
+              <div class="sh-chip-float">
+                <div class="sh-chip-cube">
+                  <div class="sh-cube-face sh-face-front"><small>INDEPENDENT FIELD GUIDE</small><strong>SH</strong><b>SIMPLE / CORE</b><i>OPENCORE</i></div>
+                  <div class="sh-cube-face sh-face-back"><small>BUILD WITH REASON</small><strong>01</strong><b>HARDWARE</b></div>
+                  <div class="sh-cube-face sh-face-right"><small>STRUCTURE</small><strong>EFI</strong><b>ACPI · KEXTS</b></div>
+                  <div class="sh-cube-face sh-face-left"><small>VALIDATE</small><strong>✓</strong><b>CONFIG.PLIST</b></div>
+                  <div class="sh-cube-face sh-face-top"><span class="sh-circuit-mark"></span><b>BOOT</b></div>
+                  <div class="sh-cube-face sh-face-bottom"><small>LEARN</small><b>ONE STEP AT A TIME</b></div>
+                </div>
+              </div>
+              <span class="sh-chip-callout sh-callout-a"><i></i> EFI / CONFIG</span>
+              <span class="sh-chip-callout sh-callout-b"><i></i> ACPI / KEXTS</span>
+              <div class="sh-stage-footer"><span>01 / HARDWARE</span><span>02 / CONFIG</span><span>03 / BOOT</span></div>
+            </div>
           </div>
         </section>
       </div>
@@ -108,11 +121,11 @@
         </div>
       </section>
       <div id="chapter-grid" hidden></div><div id="chapter-filters" hidden></div><span id="completed-count" hidden>00</span>
-      <div class="sh-wide sh-home-links" id="chapters">
-        <a href="#chapters"><span>01</span><strong>Learning path</strong><b>→</b></a>
-        <a href="#guide"><span>02</span><strong>Field guide</strong><b>→</b></a>
-        <a href="tools.html"><span>03</span><strong>Tools</strong><b>→</b></a>
-        <a href="https://github.com/Zevri1/Simple-Hackintosh/releases/latest"><span>04</span><strong>Latest release</strong><b>↗</b></a>
+      <div class="sh-wide sh-home-links" id="chapters" aria-label="Explore Simple Hackintosh">
+        <a href="#chapters"><span>01 <i>/</i> LEARN</span><strong>Learning path</strong><small>17 clear chapters, from hardware checks to troubleshooting.</small><b aria-hidden="true">↗</b></a>
+        <a href="#guide"><span>02 <i>/</i> READ</span><strong>Field guide</strong><small>Understand OpenCore, ACPI, Kexts, EFI and config.plist.</small><b aria-hidden="true">↗</b></a>
+        <a href="tools.html"><span>03 <i>/</i> USE</span><strong>Tools workspace</strong><small>Inspect EFI folders, validate configs and prepare reports.</small><b aria-hidden="true">↗</b></a>
+        <a href="https://github.com/Zevri1/Simple-Hackintosh/releases/latest"><span>04 <i>/</i> GET</span><strong>Latest CLI</strong><small>Download the cross-platform desktop command-line toolkit.</small><b aria-hidden="true">↗</b></a>
       </div>
       <footer class="sh-footer"><span>SIMPLE HACKINTOSH · OPENCORE FIELD GUIDE</span><a href="https://github.com/Zevri1/Simple-Hackintosh">GITHUB ↗</a><span>INDEPENDENT EDUCATIONAL PROJECT</span></footer>
     </section>
