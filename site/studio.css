@@ -383,3 +383,101 @@ body{background-image:radial-gradient(ellipse at 12% 8%,color-mix(in srgb,var(--
   .sh-chip-float,.sh-chip-cube,.sh-orbit-one,.sh-orbit-two,.sh-orbit-three{animation:none!important}
   .sh-chip-cube{transform:rotateX(-24deg) rotateY(-34deg)}
 }
+
+
+/* ── Signal Studio v7: hub-style navigation and link actions ── */
+/* Inspired by the reference site's clear navigation / primary CTA / resource-card hierarchy. */
+.top-nav .top-link{
+  min-height:38px;padding:0 12px;border:1px solid transparent;border-radius:11px;
+  display:inline-flex;align-items:center;gap:6px;
+  transition:background .18s ease,border-color .18s ease,color .18s ease,transform .18s ease,box-shadow .18s ease;
+}
+.top-nav .top-link:hover{
+  background:var(--panel-2);border-color:var(--line);color:var(--text);transform:translateY(-1px);
+}
+.top-nav .top-link.active{
+  background:color-mix(in srgb,var(--accent) 9%,var(--panel));
+  border-color:color-mix(in srgb,var(--accent) 28%,var(--line));color:var(--accent);
+}
+.top-nav .top-link.active:after{display:none}
+.top-nav .top-download{
+  min-height:40px;padding:0 15px;border:1px solid var(--accent);
+  border-radius:11px;background:linear-gradient(135deg,var(--accent),color-mix(in srgb,var(--accent) 78%,#8e211a));
+  color:#fff!important;font-weight:800;box-shadow:0 8px 22px color-mix(in srgb,var(--accent) 20%,transparent);
+}
+.top-nav .top-download:hover{
+  background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 86%,#fff),var(--accent));
+  border-color:var(--accent);color:#fff;box-shadow:0 11px 26px color-mix(in srgb,var(--accent) 28%,transparent);transform:translateY(-2px);
+}
+.sh-btn{
+  position:relative;overflow:hidden;min-height:46px;padding:12px 18px;border:1px solid var(--accent);
+  border-radius:12px;background:linear-gradient(135deg,var(--accent),color-mix(in srgb,var(--accent) 76%,#7b1d16));
+  color:#fff!important;box-shadow:0 9px 22px color-mix(in srgb,var(--accent) 20%,transparent);
+  transition:transform .2s ease,box-shadow .2s ease,filter .2s ease;
+}
+.sh-btn:before{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(112deg,transparent 28%,rgba(255,255,255,.18) 48%,transparent 68%);
+  transform:translateX(-125%);transition:transform .55s ease;
+}
+.sh-btn:hover{
+  background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 86%,#fff),var(--accent));
+  color:#fff!important;transform:translateY(-3px);box-shadow:0 14px 28px color-mix(in srgb,var(--accent) 27%,transparent);
+}
+.sh-btn:hover:before{transform:translateX(125%)}
+.sh-btn.sh-ghost{
+  border:1px solid var(--line-strong);border-radius:12px;background:var(--panel);
+  color:var(--text)!important;box-shadow:0 5px 14px rgba(0,0,0,.07);
+}
+.sh-btn.sh-ghost:before{display:none}
+.sh-btn.sh-ghost:hover{
+  background:var(--panel-2);border-color:var(--accent);color:var(--accent)!important;
+  transform:translateY(-2px);box-shadow:0 9px 19px rgba(0,0,0,.1);
+}
+.sh-text-link[data-release-download]{
+  display:inline-flex;align-items:center;gap:10px;min-height:42px;padding:9px 13px;
+  border:1px solid var(--line);border-radius:11px;background:color-mix(in srgb,var(--panel) 92%,transparent);
+  color:var(--soft);font:700 10px/1.2 var(--mono);text-decoration:none!important;
+  transition:background .18s ease,border-color .18s ease,color .18s ease,transform .18s ease;
+}
+.sh-text-link[data-release-download]:after{
+  content:"↗";display:grid;place-items:center;width:24px;height:24px;border-radius:7px;
+  background:var(--panel-2);color:var(--accent);font-size:13px;
+}
+.sh-text-link[data-release-download]:hover{
+  background:var(--panel-2);border-color:var(--accent);color:var(--accent);transform:translateY(-2px);
+}
+.sh-home-links a{
+  border:1px solid var(--line)!important;border-radius:15px!important;
+  background:linear-gradient(145deg,var(--panel),color-mix(in srgb,var(--panel) 92%,var(--accent-2) 8%))!important;
+  box-shadow:0 9px 24px rgba(0,0,0,.08);transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease;
+}
+.sh-home-links a:hover{
+  transform:translateY(-4px);border-color:color-mix(in srgb,var(--accent) 50%,var(--line))!important;
+  box-shadow:0 15px 30px rgba(0,0,0,.14),0 0 0 1px color-mix(in srgb,var(--accent) 10%,transparent);
+}
+.sh-home-links a:after{content:none!important}
+.sh-home-links b{
+  display:grid;place-items:center;width:34px;height:34px;border-radius:10px;
+  margin-top:auto;background:var(--panel-2);color:var(--accent);
+  transition:background .18s ease,color .18s ease,transform .18s ease;
+}
+.sh-home-links a:hover b{background:var(--accent);color:#fff;transform:translateX(2px)}
+.back-home,.toc-help a,.docs-footer a{
+  transition:color .18s ease,background .18s ease,border-color .18s ease;
+}
+a:focus-visible,button:focus-visible{
+  outline:3px solid color-mix(in srgb,var(--accent) 72%,#fff);outline-offset:3px;
+}
+@media(max-width:850px){
+  .top-nav .top-link{min-height:40px;padding:9px 12px;width:100%;justify-content:flex-start}
+  .top-nav .top-download{justify-content:center}
+}
+@media(max-width:560px){
+  .sh-links{gap:10px}
+  .sh-text-link[data-release-download]{justify-content:center}
+}
+@media(prefers-reduced-motion:reduce){
+  .top-nav .top-link,.sh-btn,.sh-text-link[data-release-download],.sh-home-links a,.sh-home-links b{transition:none!important}
+  .sh-btn:before{display:none}
+}
