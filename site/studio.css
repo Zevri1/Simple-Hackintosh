@@ -250,3 +250,35 @@ body::before{opacity:.06}h1,h2,h3{letter-spacing:-.065em}
 @media(max-width:850px){.topbar{height:68px}.top-nav{top:68px;border:1px solid var(--line);border-radius:16px;background:var(--panel);box-shadow:var(--shadow);padding:14px}.top-link{border-radius:10px}.top-link:hover{background:var(--panel-2)}.sh-poster{padding-top:62px}.sh-stamp{top:18px;left:22px;right:auto}.sh-home-links{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.sh-poster{border-radius:20px;padding:56px 22px 28px}.sh-title{font-size:clamp(55px,15.5vw,86px)!important}.sh-poster-meta{gap:7px}.sh-lead{margin:22px 0 26px}.sh-links{display:flex;flex-direction:column;align-items:stretch}.sh-btn{justify-content:center}.sh-home-links{grid-template-columns:1fr;gap:10px}.sh-home-links a{min-height:120px}.sh-footer{gap:12px}}
 @media(prefers-reduced-motion:reduce){.sh-seal,.sh-ticker span{animation:none!important}}
+
+
+/* ── Signal Studio v5: cinematic layer ── */
+:root{--signal-glow:color-mix(in srgb,var(--accent-2) 32%,transparent)}
+body{background-image:radial-gradient(ellipse at 12% 8%,color-mix(in srgb,var(--accent) 10%,transparent),transparent 34rem),radial-gradient(ellipse at 88% 28%,color-mix(in srgb,var(--accent-2) 12%,transparent),transparent 40rem),linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:auto,auto,72px 72px,72px 72px;background-position:center,center,-1px -1px,-1px -1px}
+.topbar{position:sticky;top:0;z-index:30}
+.brand-symbol{position:relative;overflow:hidden}.brand-symbol:after{content:"";position:absolute;inset:-70%;background:linear-gradient(110deg,transparent 35%,rgba(255,255,255,.48) 50%,transparent 65%);transform:translateX(-70%);animation:sh-sheen 7s ease-in-out infinite}
+.sh-poster{position:relative;isolation:isolate;min-height:clamp(540px,60vw,700px);display:flex;flex-direction:column;justify-content:center;border-radius:30px;background:linear-gradient(120deg,color-mix(in srgb,var(--panel) 96%,var(--accent-2) 4%),color-mix(in srgb,var(--panel) 92%,var(--accent) 8%));}
+.sh-poster:before{content:"";position:absolute;z-index:-1;width:min(48vw,580px);height:min(48vw,580px);right:-7%;top:50%;transform:translateY(-50%);border:1px solid color-mix(in srgb,var(--accent-2) 22%,transparent);border-radius:50%;background:radial-gradient(circle at 48% 48%,color-mix(in srgb,var(--accent-2) 15%,transparent),transparent 62%);box-shadow:0 0 0 34px color-mix(in srgb,var(--accent-2) 3%,transparent),0 0 0 68px color-mix(in srgb,var(--accent) 3%,transparent),inset 0 0 90px color-mix(in srgb,var(--accent-2) 8%,transparent);animation:sh-orbit 26s linear infinite}
+.sh-poster:after{content:"SYSTEM STATUS   /   READY";position:absolute;right:clamp(26px,5vw,72px);bottom:clamp(34px,5vw,68px);width:220px;padding:17px 18px 17px 42px;border:1px solid color-mix(in srgb,var(--accent) 34%,var(--line));border-radius:13px;background:linear-gradient(145deg,color-mix(in srgb,var(--panel) 94%,var(--accent) 6%),color-mix(in srgb,var(--bg-2) 88%,transparent));box-shadow:0 18px 50px rgba(0,0,0,.24),inset 0 1px rgba(255,255,255,.07);font:700 9px/1.5 var(--mono);letter-spacing:.14em;color:var(--soft);text-align:left}
+.sh-poster-meta,.sh-title,.sh-lead,.sh-links,.sh-meta{position:relative;z-index:2}
+.sh-poster-meta{gap:14px}
+.sh-title{max-width:980px;font-size:clamp(64px,10.5vw,142px)!important;text-shadow:0 12px 55px rgba(0,0,0,.12)}
+.sh-lead{max-width:590px}
+.sh-seal{display:none}
+.sh-meta{display:flex;align-items:center;gap:12px}
+.sh-meta:before{content:"";width:7px;height:7px;flex:0 0 7px;border-radius:50%;background:var(--accent);box-shadow:0 0 14px var(--accent);animation:sh-pulse 2s ease-in-out infinite}
+.sh-ticker{overflow:hidden;white-space:nowrap;mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent)}
+.sh-ticker span{display:inline-block;min-width:max-content;animation:sh-marquee 44s linear infinite}
+.sh-home-links a{overflow:hidden;isolation:isolate}
+.sh-home-links a:before{content:"";position:absolute;z-index:-1;inset:0;background:radial-gradient(circle at 100% 0%,color-mix(in srgb,var(--accent-2) 16%,transparent),transparent 58%);opacity:.7;transition:opacity .25s}
+.sh-home-links a:after{content:"";position:absolute;left:24px;right:24px;bottom:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent-2));transform:scaleX(0);transform-origin:left;transition:transform .3s}
+.sh-home-links a:hover:before{opacity:1}.sh-home-links a:hover:after{transform:scaleX(1)}
+.top-link,.sh-btn,.icon-button,.search-trigger{transition:all .22s cubic-bezier(.2,.75,.25,1)}
+.doc-article{backdrop-filter:blur(12px)}
+@keyframes sh-orbit{to{transform:translateY(-50%) rotate(360deg)}}
+@keyframes sh-pulse{0%,100%{opacity:1;box-shadow:0 0 14px var(--accent)}50%{opacity:.45;box-shadow:0 0 3px var(--accent)}}
+@keyframes sh-marquee{to{transform:translateX(-50%)}}
+@keyframes sh-sheen{0%,72%,100%{transform:translateX(-70%)}84%{transform:translateX(70%)}}
+@media(max-width:850px){.sh-poster{min-height:560px}.sh-poster:before{width:420px;height:420px;right:-220px;top:56%}.sh-poster:after{right:22px;bottom:24px;width:190px}.sh-title{max-width:100%}}
+@media(max-width:560px){.sh-poster{min-height:570px}.sh-poster:before{width:330px;height:330px;right:-210px;top:53%}.sh-poster:after{display:none}.sh-poster-meta{flex-wrap:wrap}.sh-title{font-size:clamp(52px,14vw,78px)!important}.sh-meta{max-width:260px;line-height:1.8}.sh-ticker span{animation-duration:55s}}
+@media(prefers-reduced-motion:reduce){.brand-symbol:after,.sh-poster:before,.sh-meta:before,.sh-ticker span{animation:none!important}.sh-home-links a:after{transition:none}}
