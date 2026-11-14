@@ -621,6 +621,7 @@ document.getElementById("chapter-filters").addEventListener("click", function (e
 });
 
 document.getElementById("search-open").addEventListener("click", openSearch);
+document.getElementById("hero-search-open").addEventListener("click", openSearch);
 document.getElementById("search-close").addEventListener("click", closeSearch);
 globalResults.addEventListener("click", function (event) {
   if (event.target.closest("a")) closeSearch();
