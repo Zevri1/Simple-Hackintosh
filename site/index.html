@@ -20,7 +20,7 @@
       document.documentElement.dataset.theme = saved === "light" || saved === "dark" ? saved : (light ? "light" : "dark");
     } catch (error) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=studio-20261111"><link rel="stylesheet" href="studio.css?v=4">
+  <link rel="stylesheet" href="styles.css?v=studio-20261111"><link rel="stylesheet" href="studio.css?v=6">
   <script defer src="app.js"></script><script defer src="release.js?v=2"></script>
   <title>Simple Hackintosh — Hardware & OpenCore Studio</title>
 </head>
@@ -60,19 +60,53 @@
       <div class="sh-wide">
         <section class="sh-poster" aria-labelledby="sh-title">
           <span class="sh-stamp">OPENCORE · EFI · macOS</span>
-          <p class="sh-poster-meta"><span>SIMPLE HACKINTOSH / 01</span><span>HARDWARE → CONFIG → BOOT</span><span>INDEPENDENT PROJECT</span></p>
-          <h1 class="sh-title" id="sh-title">simple hackintosh<span class="sh-dot" aria-hidden="true"></span></h1>
-          <p class="sh-lead">Understand your hardware. Build your EFI. Learn OpenCore.</p>
-          <p class="sh-links">
-            <a class="sh-btn" href="#chapter/00-read-first">Start here <span>→</span></a>
-            <a class="sh-btn sh-ghost" href="#guide">Documentation</a>
-            <a class="sh-text-link" href="https://github.com/Zevri1/Simple-Hackintosh/releases/latest" data-release-download>Download CLI <span data-release-version>latest</span> ↓</a>
-          </p>
-          <p class="sh-meta">17 CHAPTERS · WINDOWS + macOS TOOLS · LOCAL DIAGNOSTICS</p>
-          <svg class="sh-seal" viewBox="0 0 120 120" aria-hidden="true"><defs><path id="sh-ring" d="M60 60 m-46 0 a46 46 0 1 1 92 0 a46 46 0 1 1 -92 0"/></defs><text font-family="monospace" font-weight="700" font-size="9.6" letter-spacing="2.6" fill="currentColor"><textPath href="#sh-ring">OPENCORE · EFI · SIMPLE HACKINTOSH · </textPath></text><circle cx="60" cy="60" r="30" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="60" cy="60" r="7" fill="#e8170f"/></svg>
+          <div class="sh-hero-copy">
+            <p class="sh-poster-meta"><span>SIMPLE HACKINTOSH / 01</span><span>HARDWARE → CONFIG → BOOT</span><span>INDEPENDENT PROJECT</span></p>
+            <h1 class="sh-title" id="sh-title">simple hackintosh<span class="sh-dot" aria-hidden="true"></span></h1>
+            <p class="sh-lead">Understand your hardware. Plan your EFI. Learn how OpenCore works — step by step.</p>
+            <p class="sh-description">Simple Hackintosh is an independent, open learning guide for installing and maintaining macOS on compatible non‑Apple x86‑64 computers. It explains hardware compatibility, EFI structure, ACPI, Kexts, config.plist, validation, installation, and troubleshooting. A practical cross‑platform CLI adds local hardware reports and configuration checks for Windows and macOS. This is a learning toolkit—not a one‑click EFI generator or a promise that every computer is compatible.</p>
+            <p class="sh-links">
+              <a class="sh-btn" href="#chapter/00-read-first">Start learning <span>→</span></a>
+              <a class="sh-btn sh-ghost" href="#guide">Documentation</a>
+              <a class="sh-text-link" href="https://github.com/Zevri1/Simple-Hackintosh/releases/latest" data-release-download>Download CLI <span data-release-version>latest</span> ↓</a>
+            </p>
+            <p class="sh-meta">17 CHAPTERS · WINDOWS + macOS TOOLS · LOCAL DIAGNOSTICS</p>
+          </div>
+          <div class="sh-3d-stage" aria-hidden="true">
+            <span class="sh-stage-label sh-stage-label-top">OPENCORE / SYSTEM MODEL</span>
+            <div class="sh-3d-orbit sh-orbit-one"></div>
+            <div class="sh-3d-orbit sh-orbit-two"></div>
+            <div class="sh-3d-orbit sh-orbit-three"></div>
+            <div class="sh-chip-platform"></div>
+            <div class="sh-chip-float">
+              <div class="sh-chip-cube">
+                <div class="sh-cube-face sh-face-front"><small>INDEPENDENT FIELD GUIDE</small><strong>SH</strong><b>SIMPLE / CORE</b><i>OPENCORE</i></div>
+                <div class="sh-cube-face sh-face-back"><small>BUILD WITH REASON</small><strong>01</strong><b>HARDWARE</b></div>
+                <div class="sh-cube-face sh-face-right"><small>STRUCTURE</small><strong>EFI</strong><b>ACPI · KEXTS</b></div>
+                <div class="sh-cube-face sh-face-left"><small>VALIDATE</small><strong>✓</strong><b>CONFIG.PLIST</b></div>
+                <div class="sh-cube-face sh-face-top"><span class="sh-circuit-mark"></span><b>BOOT</b></div>
+                <div class="sh-cube-face sh-face-bottom"><small>LEARN</small><b>ONE STEP AT A TIME</b></div>
+              </div>
+            </div>
+            <span class="sh-chip-callout sh-callout-a"><i></i> EFI / CONFIG</span>
+            <span class="sh-chip-callout sh-callout-b"><i></i> ACPI / KEXTS</span>
+            <div class="sh-stage-footer"><span>01 / HARDWARE</span><span>02 / CONFIG</span><span>03 / BOOT</span></div>
+          </div>
         </section>
       </div>
       <div class="sh-ticker" aria-hidden="true"><span>HARDWARE INVENTORY · EFI STRUCTURE · ACPI · KEXTS · CONFIG.PLIST · VALIDATION · INSTALLATION · TROUBLESHOOTING · HARDWARE INVENTORY · EFI STRUCTURE · ACPI · KEXTS · CONFIG.PLIST · VALIDATION · INSTALLATION · TROUBLESHOOTING ·</span></div>
+      <section class="sh-about sh-wide" aria-labelledby="sh-about-title">
+        <div class="sh-about-heading">
+          <p class="sh-about-kicker">A CLEAR PATH / FROM ZERO TO A MAINTAINABLE EFI</p>
+          <h2 id="sh-about-title">Not just a download.<br><em>A way to understand.</em></h2>
+          <p>Hackintosh setup is a chain of decisions. This guide breaks that chain into understandable steps so you can check your own hardware, know what each EFI component does, and troubleshoot with evidence instead of guesswork.</p>
+        </div>
+        <div class="sh-about-grid">
+          <article class="sh-about-card"><span>01 / DISCOVER</span><h3>Know your hardware</h3><p>Collect exact CPU, GPU, Wi‑Fi, audio, storage, and firmware details before choosing a macOS version.</p></article>
+          <article class="sh-about-card"><span>02 / UNDERSTAND</span><h3>Build a reasoned EFI</h3><p>Learn how ACPI tables, Kexts, UEFI drivers, and config.plist fit together for a specific machine.</p></article>
+          <article class="sh-about-card"><span>03 / VERIFY</span><h3>Test and troubleshoot</h3><p>Validate your setup, protect existing systems, and use clear diagnostic information when something fails.</p></article>
+        </div>
+      </section>
       <div id="chapter-grid" hidden></div><div id="chapter-filters" hidden></div><span id="completed-count" hidden>00</span>
       <div class="sh-wide sh-home-links" id="chapters">
         <a href="#chapters"><span>01</span><strong>Learning path</strong><b>→</b></a>
