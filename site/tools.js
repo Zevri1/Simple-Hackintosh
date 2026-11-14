@@ -64,12 +64,12 @@ updateToolsThemeButton();
 const toolsNav = $("tools-top-links");
 const toolsNavToggle = $("tools-menu-toggle");
 function setToolsNav(open) {
-  document.body.classList.toggle("tools-nav-open", open);
+  document.body.classList.toggle("nav-open", open);
   toolsNavToggle.setAttribute("aria-expanded", String(open));
   toolsNavToggle.setAttribute("aria-label", open ? "Close navigation" : "Open navigation");
   toolsNavToggle.lastElementChild.textContent = open ? "×" : "☰";
 }
-toolsNavToggle.addEventListener("click", () => setToolsNav(!document.body.classList.contains("tools-nav-open")));
+toolsNavToggle.addEventListener("click", () => setToolsNav(!document.body.classList.contains("nav-open")));
 toolsNav.querySelectorAll("a").forEach(link => link.addEventListener("click", () => setToolsNav(false)));
 document.addEventListener("click", event => {
   if (document.body.classList.contains("tools-nav-open") &&
@@ -261,7 +261,7 @@ function findMapPath(map,suffix){
   for(const [path,value] of map.entries()) if(path===key||path.endsWith("/"+key)) return value;
   return null;
 }
-function inspectEfiMap(map){
+async function inspectEfiMap(map){
   const checks=[],paths=Array.from(map.values()).map(item=>item.path);
   const has=path=>map.has(normalizePath(path).toLowerCase());
   const configItem=findMapPath(map,"OC/config.plist");
@@ -285,7 +285,9 @@ function inspectEfiMap(map){
   checks.push({kind:kexts.length?"ok":"warn",title:"Kext bundles",detail:kexts.length+" Info.plist file(s) inside .kext bundles found."});
   checks.push({kind:acpis.length?"ok":"warn",title:"ACPI tables",detail:acpis.length+" AML file(s) found. A package may legitimately have none depending on its configuration."});
   try{
-    const plist=parsePlistXml(new TextDecoder().decode(configItem.content));
+    const configBytes=configItem.content || (configItem.file ? new Uint8Array(await configItem.file.arrayBuffer()) : null);
+    if(!configBytes)throw new Error("The selected config.plist could not be read.");
+    const plist=parsePlistXml(new TextDecoder().decode(configBytes));
     checks.push({kind:"ok",title:"config.plist XML",detail:"The file parses as an XML property list with a top-level dictionary."});
     const relative=paths.filter(path=>path.toLowerCase().startsWith(ocBase.toLowerCase())).map(path=>path.slice(ocBase.length));
     const refs=validateConfigObject(plist,relative).filter(c=>/ path: /.test(c.title));
@@ -321,7 +323,7 @@ $("efi-run").addEventListener("click",async()=>{
   try{
     const map=selectedEfi.type==="zip"?await readZip(selectedEfi.file):getEfiFilesFromFolder(selectedEfi.files);
     if(!map.size)throw new Error("No files were found in the selected package.");
-    showChecks($("efi-results"),"EFI inspection",inspectEfiMap(map),"Structural inspection only. This does not test bootability, kernel compatibility, firmware settings, or whether every OpenCore quirk is correct.");
+    showChecks($("efi-results"),"EFI inspection",await inspectEfiMap(map),"Structural inspection only. This does not test bootability, kernel compatibility, firmware settings, or whether every OpenCore quirk is correct.");
     $("efi-results").scrollIntoView({behavior:"smooth",block:"nearest"});
   }catch(error){renderResultError($("efi-results"),error.message);}
   finally{button.disabled=false;button.innerHTML='Analyze EFI <span>→</span>';}
@@ -332,9 +334,24 @@ $("efi-reset").addEventListener("click",()=>{
 
 $("config-file").addEventListener("change",async event=>{
   const file=event.target.files&&event.target.files[0];
-  $("config-selection").textContent=file?file.name:"No file selected";
+  const selection=$("config-selection");
+  const textArea=$("config-text");
+  const results=$("config-results");
+  textArea.value="";
+  results.hidden=true;
+  results.replaceChildren();
+  selection.textContent=file?file.name:"No file selected";
   if(!file)return;
-  try{$("config-text").value=await file.text();}catch(error){toast("Could not read the selected file.");}
+  if(file.size>5*1024*1024){
+    selection.textContent=file.name+" · exceeds 5 MB";
+    toast("The selected plist is larger than the 5 MB safety limit.");
+    return;
+  }
+  try{textArea.value=await file.text();}
+  catch(error){
+    selection.textContent=file.name+" · could not be read";
+    toast("Could not read the selected file.");
+  }
 });
 $("config-run").addEventListener("click",()=>{
   const text=$("config-text").value.trim();
@@ -379,12 +396,26 @@ $("hardware-run").addEventListener("click",()=>{
   const download=document.createElement("button");download.className="action-button primary";download.type="button";download.textContent="Download Markdown report";
   download.addEventListener("click",()=>{
     const blob=new Blob([text],{type:"text/markdown;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");
-    a.href=url;a.download="simple-hackintosh-hardware-report.md";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);toast("Hardware report downloaded.");
+    a.href=url;a.download="simple-hackintosh-hardware-report.md";document.body.appendChild(a);a.click();a.remove();window.setTimeout(()=>URL.revokeObjectURL(url),1000);toast("Hardware report downloaded.");
   });
   const copy=document.createElement("button");copy.className="download-button";copy.type="button";copy.textContent="Copy report";
   copy.addEventListener("click",async()=>{
-    try{await navigator.clipboard.writeText(text);toast("Report copied to clipboard.");}
-    catch(error){toast("Clipboard is unavailable in this browser.");}
+    let copied=false;
+    try{
+      if(navigator.clipboard&&navigator.clipboard.writeText){await navigator.clipboard.writeText(text);copied=true;}
+    }catch(error){}
+    if(!copied){
+      const field=document.createElement("textarea");
+      field.value=text;
+      field.setAttribute("readonly","");
+      field.style.position="fixed";
+      field.style.opacity="0";
+      document.body.appendChild(field);
+      field.select();
+      try{copied=document.execCommand("copy");}catch(error){}
+      field.remove();
+    }
+    toast(copied?"Report copied to clipboard.":"Clipboard is unavailable in this browser.");
   });
   actions.append(download,copy);results.append(head,preview,actions);
   results.scrollIntoView({behavior:"smooth",block:"nearest"});
